@@ -39,6 +39,10 @@ Cada aporte aceptado queda aquí, con el usuario de GitHub de quien lo propuso (
 - `herramientas/gobernanza.py`: la expresión de cédulas y celulares ya no tiene retroceso cúbico (una nota con miles de espacios tardaba 20 s; ahora, milisegundos), sin cambiar lo que detecta.
 - Graficador: color y forma medidos sin IA (`herramientas/color.py`): siete colores o menos, contraste WCAG, simulación de daltonismo, un solo eje, sin 3D, tortas de cinco porciones o menos y escala logarítmica declarada; batería `baterias/grafico/`.
 - Directrices D29 y D30, con sus fuentes (Minto, Alley, Knaflic, FT Visual Vocabulary, Cleveland y McGill, Datawrapper, WCAG 2.2, Okabe-Ito, AI Index, METR y la lección de las gráficas del lanzamiento de GPT-5).
+## v1.5 · 6 de noviembre de 2026 · el pipeline en agy y Codex
+
+- `orquestar.mjs` corre `flujo.js` tal cual con agy (`agy -p`) o con Codex (`codex exec`). Cada subagente es una llamada nueva de la CLI, con su respuesta JSON validada contra el esquema del flujo y un reintento solo para el formato. Las respuestas vacías o bloqueadas detienen el flujo.
+- Las llamadas no encienden servidores MCP y el registro de cada subagente queda en `<corrida>/motor/`, fuera de git. `--simulacro` recorre el flujo sin IA: muestra las 15 llamadas con los dos motores.
 
 ## Aportes del grupo
 

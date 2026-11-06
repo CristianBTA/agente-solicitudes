@@ -62,6 +62,23 @@ Las herramientas de `herramientas/` son Python sin IA y se pueden correr solas. 
 
 Con archivos locales, `datos` reemplaza a `fuente`: `{"ventas": "<ruta>/ventas.csv", "clientes": "<ruta>/clientes.csv"}`.
 
+### Con agy o con Codex
+
+`orquestar.mjs` corre el mismo `flujo.js`, sin copiarlo ni reescribirlo. Cada subagente es una llamada no interactiva de la CLI, en un contexto nuevo. Los argumentos van en un archivo JSON, los mismos de arriba; `raiz` es opcional.
+
+```bash
+node orquestar.mjs --motor agy   --args corrida.json      # agy -p (Gemini por defecto)
+node orquestar.mjs --motor codex --args corrida.json      # codex exec
+node orquestar.mjs --motor codex --args corrida.json --simulacro   # sin IA: muestra cada llamada y recorre el flujo
+```
+
+- **Requisitos:** Node 18 o más, la CLI con sesión iniciada (`agy`, o `codex login`) y el `.venv` de [Instalar](#instalar).
+- **Respuestas estructuradas:** cada subagente termina con un JSON que el orquestador valida contra el esquema de `flujo.js`. Si no viene, le pide una sola vez que lo devuelva. Una respuesta vacía, bloqueada o fuera del esquema no cuenta como aprobada: el flujo se detiene como en Claude Code.
+- **Modelos:** `--modelo` para los subagentes y `--modelo-ligero` para los que solo corren un comando. En agy el ligero es `gemini-3.8-flash-low`; en Codex es el modelo de la cuenta con esfuerzo bajo. En agy, si el filtro de Gemini bloquea una respuesta, se repite con `--modelo-respaldo` (`gpt-oss-120b-medium`).
+- **Sin servidores MCP:** cada llamada los apaga (agy, con un HOME temporal que enlaza `~/.gemini` salvo `mcp_config.json`; Codex, con `-c mcp_servers.<nombre>.enabled=false`), para que ninguno se conecte al navegador del usuario. `--con-mcp` los deja encendidos.
+- **Permisos:** agy corre con `--dangerously-skip-permissions` y Codex con `--dangerously-bypass-approvals-and-sandbox`. La ingesta necesita red y la caja de arena de las herramientas (`sandbox-exec`, `caja.py`) no se abre dentro de otra. El código que escribe la IA sigue corriendo en `caja.py`, sin red ni escritura.
+- **Registro:** el prompt, la salida y el resultado de cada subagente quedan en `<corrida>/motor/`, que no se sube a git. `--tope-min` limita cada subagente (60 minutos por defecto).
+
 ## Herramientas (sin IA)
 
 | Archivo | Qué hace |
@@ -87,6 +104,7 @@ Con archivos locales, `datos` reemplaza a `fuente`: `{"ventas": "<ruta>/ventas.c
 
 ```
 flujo.js                 orquestación de las cinco etapas (historial/ guarda la versión 1)
+orquestar.mjs            corre flujo.js con agy o con Codex (un subagente = una llamada de la CLI)
 herramientas/            pruebas y utilidades sin IA
 baterias/                seguridad, privacidad, FAILFAST, cruces, fechas y lecciones: lo que falló una vez, probado siempre
 ejemplo/                 ventas sintéticas con trampas conocidas y su glosario

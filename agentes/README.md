@@ -1,6 +1,6 @@
 # Subagentes del pipeline
 
-Cada ficha define un subagente: qué hace, qué puede leer y qué no, qué entrega, sus reglas, lo que nunca hace y la prueba sin IA que lo comprueba. Las fichas no dependen de una herramienta: se pueden pegar como instrucciones en cualquier asistente (Claude, ChatGPT, Copilot, Gemini) junto con los archivos que la ficha dice que puede leer. `flujo.js` las orquesta en orden y con esta misma separación.
+Cada ficha define un subagente: qué hace, qué puede leer y qué no, qué entrega, sus reglas, lo que nunca hace y la prueba sin IA que lo comprueba. Las fichas no dependen de una herramienta: se pueden pegar como instrucciones en cualquier asistente (Claude, ChatGPT, Copilot, Gemini) junto con los archivos que la ficha dice que puede leer. `flujo.js` las orquesta en orden y con esta misma separación: en Claude Code con la herramienta *Workflow*, y en agy o Codex con `orquestar.mjs` (ver el [README](../README.md#con-agy-o-con-codex)).
 
 | # | Subagente | Etapa | Lo comprueba (sin IA) |
 |---|---|---|---|
