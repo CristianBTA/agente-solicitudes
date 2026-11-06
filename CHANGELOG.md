@@ -31,7 +31,7 @@ Cada aporte aceptado queda aquí, con el usuario de GitHub de quien lo propuso (
 - Lección L42: el filtro corría en Linux, donde no hay `sandbox-exec`; B11 y B12 cedían y todo aporte que tocara `herramientas/` habría fallado. El filtro y la vigilancia corren ahora en macOS, y `sgsi.py` lo exige.
 - Lección L43: la efectividad del SGSI mostró que en GitHub Actions el banco de blindaje se cortaba en B18 (la prueba exigía los CSV de SECOP, que no se publican) y el filtro pasaba igual. B18 ya no los necesita, un `SystemExit` en una prueba queda como ERROR y el filtro exige que el banco termine.
 - Lección L44: el filtro rechazaba todo cambio al banco de ataques, porque trae a propósito frases con forma de orden. Ahora un archivo que ya las tenía solo falla si el cambio agrega una nueva.
-- Riesgo que queda a decisión del dueño: R16, referencias legales inventadas por la IA que `validar_ficha.py` deja pasar (residual 15, por encima del criterio de 10).
+- R16 (referencias legales inventadas por la IA) se trató con la lección L55: toda ley o decreto de una ficha debe estar comprobado contra su texto oficial en `baterias/normas/verificadas.json`. Residual de 15 a 6; ningún riesgo queda por encima del criterio.
 
 ## v1.4 · 6 de noviembre de 2026 · presentación y color con estándares validados
 

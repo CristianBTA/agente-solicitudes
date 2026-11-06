@@ -58,6 +58,23 @@ CALIDAD_SQL = re.compile(r"\bis\s+(not\s+)?null\b|count\s*\(\s*[a-z_]", re.I)
 IMPACTO_COL = re.compile(r"municipio|mpio|departamento|ciudad|divipola|dane|region|zona|sector|poblaci|beneficiari|"
                          r"categor|programa|destino|nivel", re.I)
 UNIDAD = re.compile(r"(^|_)(id|codigo|c_digo|numero|n_mero|referencia|radicado|consecutivo)(_|$)|^id_|_id$|bpin|caso", re.I)
+NORMA = re.compile(r"\b(ley|decreto)\s+(\d[\d.]*)(?:\s+de\s+(\d{4}))?", re.I)
+NORMAS_VERIFICADAS = Path(__file__).resolve().parent.parent / "baterias" / "normas" / "verificadas.json"
+
+
+def normas_sin_verificar(texto):
+    """Leyes y decretos citados que no están comprobados contra su texto oficial (baterias/normas/verificadas.json)."""
+    registro = {(n["tipo"], n["numero"], n["anio"]) for n in json.loads(NORMAS_VERIFICADAS.read_text(encoding="utf-8"))["normas"]}
+    malas = []
+    for m in NORMA.finditer(texto):
+        tipo, numero, anio = m.group(1).lower(), m.group(2).replace(".", ""), m.group(3)
+        if not anio:
+            malas.append(f"«{m.group(0)}» sin año: no se puede comprobar")
+        elif (tipo, numero, int(anio)) not in registro:
+            malas.append(f"«{m.group(0)}» no está comprobada contra su texto oficial")
+    return malas
+
+
 CAMPOS_TEXTO = ("pregunta", "por_que_importa", "para_que", "nota", "base_legal", "estrategia", "normalizacion")
 
 
@@ -243,8 +260,9 @@ def validar(ficha, inv, red=True, dictamen=None):
         chequeo(f"V9 pregunta {i} ({tipo})", ok, "usa el ingrediente de su tipo" if ok else f"una pregunta de {tipo} debe {exige}")
 
     # V6 y V7: textos
-    cifras, conclusiones, instrucciones, personales = [], [], [], []
+    cifras, conclusiones, instrucciones, personales, normas = [], [], [], [], []
     for ruta, t in textos(ficha):
+        normas += [f"{ruta}: {x}" for x in normas_sin_verificar(t)]
         hoja = ruta.split(".")[-1].split("[")[0]
         if hoja in CAMPOS_TEXTO or ruta.startswith(("riesgos_de_lectura", "procesamiento.pasos")):
             limpio = PERMITIDOS_NUM.sub("", t)
@@ -259,6 +277,8 @@ def validar(ficha, inv, red=True, dictamen=None):
                 personales.append(f"{ruta}: {nombre}")
     no_preguntas = [p.get("pregunta", "")[:60] for p in ficha["preguntas"]
                     if not (p.get("pregunta", "").strip().startswith("¿") and p.get("pregunta", "").strip().endswith("?"))]
+    chequeo("V6 normas verificadas", not normas, "toda ley o decreto citado está comprobado contra su texto oficial" if not normas
+            else "; ".join(normas[:4]) + " (se agrega a baterias/normas/verificadas.json con su cita literal y su fuente oficial)")
     chequeo("V6 sin cifras inventadas", not cifras, "sin cifras fuera de años y normas" if not cifras else "; ".join(cifras[:4]))
     chequeo("V6 sin conclusiones", not conclusiones, "el análisis queda para las personas" if not conclusiones else "; ".join(conclusiones[:4]))
     chequeo("V6 preguntas", not no_preguntas, "todas son preguntas" if not no_preguntas else f"no son preguntas: {no_preguntas}")
@@ -389,6 +409,8 @@ def autoprueba():
                                                    "consulta_soql": "SELECT municipio, count(*) AS n GROUP BY municipio LIMIT 30"}]
         f["gobernanza"]["excluir"] = ["edad", "sexo"]
     variante("salud: afirmaciones por caso y k bajo", sensible, {"V3 sensible: solo agregados", "V3 k mínimo"})
+    variante("norma con el año cambiado (Ley 1581 de 2013)",
+             lambda f: f.update(base_legal="Ley 1581 de 2013"), {"V6 normas verificadas"})
     errores = 0
     for nombre, f, d, esperado in casos:
         obtenido = falla(f, d)

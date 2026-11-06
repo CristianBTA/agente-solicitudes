@@ -5,8 +5,8 @@
 ## Resumen
 
 - **16 activos** valorados en confidencialidad, integridad y disponibilidad.
-- **27 riesgos:** 15 superan el criterio de aceptación (nivel > 10) antes de los controles; después, 1 (R16).
-- **39 controles** del repositorio; 27 tienen prueba automática.
+- **27 riesgos:** 15 superan el criterio de aceptación (nivel > 10) antes de los controles; después, 0.
+- **40 controles** del repositorio; 29 tienen prueba automática.
 - **Declaración de Aplicabilidad:** 64 de los 93 controles del Anexo A aplican; 29 se excluyen con su justificación.
 
 ## La tríada por activo
@@ -50,8 +50,8 @@ Filas: probabilidad (5 arriba). Columnas: impacto, que sale del valor del activo
 |---|---|---|---|---|---|
 | **P5** | · | R07 | **·** | **·** | **·** |
 | **P4** | · | · | **·** | **·** | **·** |
-| **P3** | R23 | R10 | · | **·** | **R16** |
-| **P2** | · | R08, R09, R15, R17, R25 | R03, R27 | · | · |
+| **P3** | R23 | R10 | · | **·** | **·** |
+| **P2** | · | R08, R09, R15, R17, R25 | R03, R16, R27 | · | · |
 | **P1** | · | R18, R21, R22, R24 | R01, R02, R06, R11, R12, R13, R14, R26 | R20 | R04, R05, R19 |
 
 ## Riesgos
@@ -73,7 +73,7 @@ Filas: probabilidad (5 arriba). Columnas: impacto, que sale del valor del activo
 | R13 | integridad | Un aporte trae órdenes escondidas para los agentes o debilita una defensa | 3×5 = 15 | CT19 (prev.), CT20 (prev.), CT16 (prev.), CT25 (det.), CT08 (det.), CT24 (corr.) | 1×3 = 3 | dentro del criterio |
 | R14 | integridad | Un paquete con nombre inventado o alterado entra al entorno (slopsquatting o paquete comprometido) | 2×5 = 10 | CT14 (prev.), CT12 (prev.), CT15 (det.) | 1×3 = 3 | dentro del criterio |
 | R15 | integridad | Un gráfico o un informe engaña (eje truncado, período incompleto sin marcar) o ejecuta algo al abrirse | 3×5 = 15 | CT18 (det.), CT17 (prev.), CT28 (det.) | 2×2 = 4 | dentro del criterio |
-| R16 | integridad | Una referencia legal o una cifra inventada por la IA llega a una ficha de oportunidad o a un informe (alucinación) | 3×5 = 15 | CT35 (prev.) | 3×5 = 15 | pendiente del dueño |
+| R16 | integridad | Una referencia legal o una cifra inventada por la IA llega a una ficha de oportunidad o a un informe (alucinación) | 3×5 = 15 | CT35 (prev.), CT40 (det.) | 2×3 = 6 | dentro del criterio |
 | R17 | integridad | El SGSI declara controles que ya no existen o se queda atrás del código | 3×4 = 12 | CT32 (det.), CT19 (prev.), CT37 (det.) | 2×2 = 4 | dentro del criterio |
 | R18 | integridad | La procedencia o la bitácora no corresponden a lo que se hizo | 2×4 = 8 | CT23 (det.), CT28 (det.), CT20 (prev.) | 1×2 = 2 | dentro del criterio |
 | R19 | integridad | La configuración de GitHub se debilita (protección de main, permisos de los flujos, acciones sin fijar) | 2×5 = 10 | CT30 (prev.), CT14 (prev.), CT20 (prev.), CT21 (det.) | 1×5 = 5 | dentro del criterio |
@@ -87,8 +87,6 @@ Filas: probabilidad (5 arriba). Columnas: impacto, que sale del valor del activo
 | R27 | confidencialidad | Los datos crudos con personas se quedan en el disco más tiempo del necesario | 3×4 = 12 | CT38 (prev.), CT01 (prev.) | 2×3 = 6 | dentro del criterio |
 
 prev. = preventivo, det. = detectivo, corr. = correctivo.
-
-**Pendiente del dueño (6.1.3 f):** R16: comprobar cada referencia legal contra su texto oficial (ley, artículo y cita textual) sin IA, y un verificador ciego de otra familia de modelos para lo que no se pueda comprobar así; mientras tanto, residual 3×5 = 15, por encima del criterio
 
 ## Declaración de Aplicabilidad (ISO/IEC 27001:2022, 6.1.3 d)
 
@@ -126,7 +124,7 @@ prev. = preventivo, det. = detectivo, corr. = correctivo.
 | A.5.28 | Recolección de evidencias | Sí | CT28 Bitácora del copiloto e informe final con todo el texto escapado (D27); CT33 Reporte privado de vulnerabilidades y respuesta según la propiedad afectada (SECURITY.md) | C·I·D | R01, R05, R15, R18 |
 | A.5.29 | Seguridad de la información durante una disrupción | Sí | CT22 Restablecer: todo se reconstruye desde GitHub o un clon, el contrato de datos y la semilla; CT36 El filtro también corre en local con el mismo comando: si GitHub Actions no está, el dueño lo corre antes de aprobar | I·D | R21, R22, R23, R25 |
 | A.5.30 | Preparación de las TIC para la continuidad del negocio | Sí | CT21 Comprobación diaria de que el repositorio sigue abierto a aportes; CT22 Restablecer: todo se reconstruye desde GitHub o un clon, el contrato de datos y la semilla; CT36 El filtro también corre en local con el mismo comando: si GitHub Actions no está, el dueño lo corre antes de aprobar | I·D | R19, R21, R22, R23, R25 |
-| A.5.31 | Requisitos legales, reglamentarios y contractuales | Sí | CT23 Procedencia con fecha y huella, licencia y atribución de la fuente (D6, D19, D20) | I | R18 |
+| A.5.31 | Requisitos legales, reglamentarios y contractuales | Sí | CT23 Procedencia con fecha y huella, licencia y atribución de la fuente (D6, D19, D20); CT40 Normas citadas comprobadas contra su texto oficial: toda ley o decreto de una ficha debe estar en el registro de normas verificadas (V6) | I | R16, R18 |
 | A.5.32 | Derechos de propiedad intelectual | Sí | CT23 Procedencia con fecha y huella, licencia y atribución de la fuente (D6, D19, D20) | I | R18 |
 | A.5.33 | Protección de los registros | Sí | CT07 Criterio e hipótesis sellados con SHA-256 antes del código (D8, D15); CT23 Procedencia con fecha y huella, licencia y atribución de la fuente (D6, D19, D20) | I | R09, R18 |
 | A.5.34 | Privacidad y protección de datos personales | Sí | CT01 Minimización en el contrato de datos (D7); CT03 Barrido determinista de datos personales en datos y salidas, con k-anonimato (D18); CT04 Nunca filas a la IA: el perfil y el custodio trabajan con nombres, tipos y conteos (D3, D18) | C·I | R01, R02, R06, R12, R26, R27 |
@@ -198,7 +196,7 @@ prev. = preventivo, det. = detectivo, corr. = correctivo.
 | A.8.26 | Requisitos de seguridad de las aplicaciones | Sí | CT11 FAILFAST, perfil y limpieza declarada: lo que no cumple el contrato se detiene, se explica o se marca (D3, D5, DL3–DL6); CT16 Cuarentena de instrucciones: los datos y los aportes son datos, nunca órdenes (DB4); CT17 Salidas que no ejecutan nada al abrirse: HTML escapado y fórmulas neutralizadas (D24, DB5) | C·I | R02, R10, R12, R13, R15 |
 | A.8.27 | Arquitectura de sistemas seguros y principios de ingeniería | Sí | CT11 FAILFAST, perfil y limpieza declarada: lo que no cumple el contrato se detiene, se explica o se marca (D3, D5, DL3–DL6); CT16 Cuarentena de instrucciones: los datos y los aportes son datos, nunca órdenes (DB4) | I | R10, R12, R13 |
 | A.8.28 | Codificación segura | Sí | CT12 Compuerta estática (reglas propias y Bandit) y lista cerrada de librerías (D21, D22); CT17 Salidas que no ejecutan nada al abrirse: HTML escapado y fórmulas neutralizadas (D24, DB5) | C·I·D | R02, R04, R11, R12, R14, R15 |
-| A.8.29 | Pruebas de seguridad en el desarrollo y la aceptación | Sí | CT09 Verificación sin IA del resultado: dos implementaciones, caso conocido, conservación, conciliación y repetibilidad (D9–D13); CT10 Probar al probador con mutantes (D14); CT18 Lista de comprobación del gráfico: eje desde cero, período, fuente y cuenta de control (D17); CT19 Filtro automático de aportes, sin IA ni llaves (validar-aporte); CT25 Banco de blindaje con control positivo, con datos y secretos ficticios en carpetas temporales (DB1, DB10); CT26 Revisión ciega de seguridad con prueba por hallazgo (D25); CT35 Fichas de oportunidad validadas sin IA: consultas reales, cruces medidos y sin cifras inventadas (V1–V8) | C·I·D | R01, R08, R10, R11, R12, R13, R15, R16, R17 |
+| A.8.29 | Pruebas de seguridad en el desarrollo y la aceptación | Sí | CT09 Verificación sin IA del resultado: dos implementaciones, caso conocido, conservación, conciliación y repetibilidad (D9–D13); CT10 Probar al probador con mutantes (D14); CT18 Lista de comprobación del gráfico: eje desde cero, período, fuente y cuenta de control (D17); CT19 Filtro automático de aportes, sin IA ni llaves (validar-aporte); CT25 Banco de blindaje con control positivo, con datos y secretos ficticios en carpetas temporales (DB1, DB10); CT26 Revisión ciega de seguridad con prueba por hallazgo (D25); CT35 Fichas de oportunidad validadas sin IA: consultas reales, cruces medidos y sin cifras inventadas (V1–V8); CT40 Normas citadas comprobadas contra su texto oficial: toda ley o decreto de una ficha debe estar en el registro de normas verificadas (V6) | C·I·D | R01, R08, R10, R11, R12, R13, R15, R16, R17 |
 | A.8.30 | Desarrollo contratado externamente | Sí | CT09 Verificación sin IA del resultado: dos implementaciones, caso conocido, conservación, conciliación y repetibilidad (D9–D13); CT12 Compuerta estática (reglas propias y Bandit) y lista cerrada de librerías (D21, D22) | C·I·D | R04, R10, R11, R14 |
 | A.8.31 | Separación de los entornos de desarrollo, prueba y producción | Sí | CT13 Caja de arena: sin red, sin escritura, sin la carpeta personal, entorno mínimo y topes de tiempo y memoria (D23, DB2) | C·I·D | R04, R11, R24 |
 | A.8.32 | Gestión de cambios | Sí | CT08 Manifiesto de integridad de herramientas, fichas y baterías durante la corrida (DB3); CT19 Filtro automático de aportes, sin IA ni llaves (validar-aporte); CT20 main protegida: revisión del dueño (CODEOWNERS), sin borrado ni force-push y aprobación de flujos de forks | C·I·D | R01, R08, R13, R17, R18, R19, R21, R22 |
@@ -243,11 +241,12 @@ prev. = preventivo, det. = detectivo, corr. = correctivo.
 | CT32 | Este SGSI comprobado sin IA: inventario, clasificación, riesgos y Declaración de Aplicabilidad | detectivo | C·I·D | A.5.1, A.5.2, A.5.4, A.5.8, A.5.9, A.5.12, A.5.13, A.5.36 | sgsi:inventario |
 | CT33 | Reporte privado de vulnerabilidades y respuesta según la propiedad afectada (SECURITY.md) | correctivo | C·I·D | A.5.24, A.5.25, A.5.26, A.5.28, A.6.8, A.5.5 | evidencia documental |
 | CT34 | Proveedores con su papel y su límite: GitHub, datos.gov.co, OSV y los asistentes de IA | preventivo | C·I·D | A.5.19, A.5.23 | evidencia documental |
-| CT35 | Fichas de oportunidad validadas sin IA: consultas reales, cruces medidos y sin cifras inventadas (V1–V8) | preventivo | I | A.8.29 | evidencia documental |
+| CT35 | Fichas de oportunidad validadas sin IA: consultas reales, cruces medidos y sin cifras inventadas (V1–V8) | preventivo | I | A.8.29 | autoprueba:validar_ficha |
 | CT36 | El filtro también corre en local con el mismo comando: si GitHub Actions no está, el dueño lo corre antes de aprobar | correctivo | D | A.5.29, A.5.30 | evidencia documental |
 | CT37 | Vigilancia diaria de main: blindaje, baterías, corrida sintética, mutantes y SGSI | detectivo | C·I·D | A.8.16, A.8.8 | evidencia documental |
 | CT38 | Retención mínima: los datos crudos se borran al cerrar la corrida y se reconstruyen con el contrato | preventivo | C | A.8.10 | evidencia documental |
 | CT39 | Conteo de rutas locales del equipo en lo versionado: no puede crecer sin que se note | detectivo | C | A.8.12 | sgsi:secretos |
+| CT40 | Normas citadas comprobadas contra su texto oficial: toda ley o decreto de una ficha debe estar en el registro de normas verificadas (V6) | detectivo | I | A.5.31, A.8.29 | autoprueba:validar_ficha |
 
 ## Etiqueta C·I·D de las corridas publicadas
 

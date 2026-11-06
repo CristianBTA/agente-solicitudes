@@ -324,6 +324,12 @@
       "leccion": "El filtro de aportes solo rechazaba .claude, .cursor y .env: pasaban sin aviso .mcp.json con un comando, .vscode/tasks.json que corre al abrir la carpeta, .devcontainer, .gemini, CLAUDE.md, .cursorrules, .env.local, un flujo nuevo de GitHub con permisos declarados y los enlaces simbólicos. Todo eso corre por sí solo en el equipo del dueño cuando trabaja el clon con un asistente o autoriza la corrida de un fork. Línea base: rechazaba 3 de 31; ahora 31 de 31, sin falsas alarmas en 12 rutas legítimas. Límite: el pull request trae su propia copia del filtro; si toca el filtro o lo que importa, su verde no prueba nada y el dueño lo revisa línea por línea.",
       "origen": "revisión del pendiente «el filtro bloquea la configuración de asistentes» (6-nov-2026): prueba con un aporte simulado que traía nueve archivos así y otro que desactivaba el filtro",
       "prueba": "herramientas/blindaje.py B20"
+    },
+    {
+      "id": "L55",
+      "leccion": "validar_ficha.py (V6) dejaba pasar cualquier referencia legal: en el piloto, un modelo sin la evidencia aceptó «Ley 1581 de 2013» y multas cambiadas. Ahora toda ley o decreto citado en una ficha debe estar en baterias/normas/verificadas.json, comprobado contra su texto oficial con su cita literal; una norma inventada o con el año cambiado no pasa.",
+      "origen": "riesgo R16 del SGSI (6-nov-2026), tratado en lugar de dejarlo por decidir",
+      "prueba": "validar_ficha.py --autoprueba: caso «norma con el año cambiado (Ley 1581 de 2013)»"
     }
   ]
 }

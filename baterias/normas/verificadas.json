@@ -1,0 +1,13 @@
+{
+ "_nota": "Normas comprobadas contra su texto oficial. validar_ficha.py (V6) rechaza toda «Ley N de AAAA» o «Decreto N de AAAA» que no esté aquí: una norma inventada o con el año cambiado no pasa (riesgo R16 del SGSI). Para agregar una: leer el texto en la fuente oficial, copiar la cita literal del artículo que se usa y la fecha de la consulta.",
+ "normas": [
+  {
+   "norma": "Ley 1581 de 2012",
+   "tipo": "ley", "numero": "1581", "anio": 2012,
+   "tema": "protección de datos personales (régimen general de habeas data)",
+   "fuente": "http://www.secretariasenado.gov.co/senado/basedoc/ley_1581_2012.html",
+   "cita": "Artículo 4, literal g) Principio de seguridad: La información sujeta a Tratamiento por el Responsable del Tratamiento o Encargado del Tratamiento a que se refiere la presente ley, se deberá manejar con las medidas técnicas, humanas y administrativas que sean necesarias para otorgar seguridad a los registros evitando su adulteración, pérdida, consulta, uso o acceso no autorizado o fraudulento",
+   "verificada": "2026-11-06"
+  }
+ ]
+}
