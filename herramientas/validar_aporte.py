@@ -16,6 +16,7 @@ Lo corre GitHub Actions en cada pull request, y también se puede correr a mano.
 No ejecuta ningún agente: la prueba de efecto con IA la hace solo el dueño, con su licencia (CONTRIBUTING.md).
 """
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -58,6 +59,12 @@ def main(argv):
     base = argv[argv.index("--base") + 1] if "--base" in argv else "upstream/main"
     if not git("rev-parse", "--verify", "--quiet", base).strip():
         base = "origin/main"
+    # En un pull request, GitHub revisa la fusión del aporte con la base de ESE momento. Cuando la aprobación del dueño
+    # llega más tarde, main ya avanzó: comparar contra el main de hoy haría ver como borrado todo lo que entró entre tanto.
+    # Se compara contra la base con la que GitHub armó la fusión (primer padre del commit de fusión) (L51).
+    padres = git("rev-list", "--parents", "-n", "1", "HEAD").split()
+    if os.environ.get("GITHUB_EVENT_NAME") == "pull_request" and len(padres) == 3:
+        base = padres[1]
     # lo que difiere de la base: commits, cambios sin commit y archivos nuevos sin agregar
     vistos = {}
     for l in git("diff", "--name-status", base).splitlines() + git("diff", "--name-status", f"{base}...HEAD").splitlines():
