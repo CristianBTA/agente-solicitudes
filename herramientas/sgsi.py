@@ -724,6 +724,10 @@ def main(argv):
         for e in efect.values():
             cuenta[e["estado"]] = cuenta.get(e["estado"], 0) + 1
         print("Efectividad de los controles (9.1): " + ", ".join(f"{v} {k}" for k, v in sorted(cuenta.items())))
+        for estado in ("falla", "sin medir aquí"):
+            ids = [f"{k} ({', '.join(t for t, s in v['pruebas'].items() if s != 'pasa')})" for k, v in efect.items() if v["estado"] == estado]
+            if ids:
+                print(f"    {estado}: {'; '.join(ids)}")
     fallas = [f for ch in res.chequeos.values() for f in ch["fallas"]]
     avisos = [a for ch in res.chequeos.values() for a in ch["avisos"]]
     resumen = {"fallas": len(fallas), "avisos": len(avisos),

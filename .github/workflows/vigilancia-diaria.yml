@@ -25,6 +25,6 @@ jobs:
         run: pip install --require-hashes -r requirements.txt
       - name: Vulnerabilidades conocidas en las dependencias fijadas (OSV, sin llaves)
         run: python herramientas/vulnerabilidades.py
-      - name: SGSI con la efectividad de cada control (blindaje, baterías, corrida sintética y mutantes)
+      - name: SGSI con la efectividad de cada control (blindaje, baterías, corrida sintética, mutantes y comprobaciones con red)
         if: always()
-        run: python herramientas/sgsi.py --efectividad
+        run: python herramientas/sgsi.py --efectividad --en-linea
