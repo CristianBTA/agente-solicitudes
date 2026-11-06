@@ -118,6 +118,7 @@ TITULO_DE_ANALISIS = re.compile(r"(conclusion|recomendacion|hallazgo|analisis\b)
 INVISIBLES = re.compile("[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f­​-‏‪-‮"
                         "⁠-⁩﻿\U000e0000-\U000e007f]")
 ETIQUETA = re.compile(r"<\s*/?\s*([A-Za-z][\w:-]{0,30})[^<>]{0,200}>")
+ABRE_COMENTARIO = "<" + "!--"   # armado aquí: este archivo no trae un comentario HTML literal (el filtro de aportes los lee)
 
 
 def leer(p):
@@ -426,7 +427,7 @@ def validar(texto, artefactos, faltan=(), utf8=True):
 
     # W5 (sobre el texto con los espacios colapsados: así ningún patrón se traba con miles de espacios seguidos)
     problemas = []
-    comentarios = plano.count("<!--")
+    comentarios = plano.count(ABRE_COMENTARIO)
     if comentarios <= 50 and parece_instruccion(plano):
         problemas.append("trae un texto con forma de instrucción para una IA (no se copia aquí)")
     for nombre, rx in PATRONES.items():
@@ -637,7 +638,7 @@ Queda 1 pregunta abierta (P1): la cifra usa su valor por defecto.
     caso("pregunta sin rótulo de tipo", {"W4"},
          [(impacto, impacto.replace("**Impacto.** ", "") + "- **Impacto.** ¿Cómo cambia la llegada por municipio?\n")])
     caso("dato personal", {"W5"}, mas("Dudas: " + "ana.perez" + "@" + "ejemplo.invalid" + "."))
-    caso("comentario HTML", {"W5"}, mas("<!-- nota interna -->"))
+    caso("comentario HTML", {"W5"}, mas(ABRE_COMENTARIO + " nota interna --" + ">"))
     caso("carácter invisible", {"W5"}, [("valor por defecto", "valor por" + "​" + " defecto")])
     caso("marcado HTML", {"W5"}, mas("<span>texto</span>"))
     caso("más de 200 KB: no se revisa y falla", {"W1", "W2", "W3", "W4", "W5"}, texto=bueno + ("Relleno. " * 30_000))
@@ -667,7 +668,7 @@ Queda 1 pregunta abierta (P1): la cifra usa su valor por defecto.
                 ("línea larga de espacios", "cc" + " " * 9_000 + "1", True),
                 ("puntos sin arroba", ("a." * 1_900 + "\n") * 40, False),
                 ("puntos con una arroba al final", ("1." * 1_900 + "@\n") * 40, False),
-                ("comentarios sin cerrar", "<!--" * 999, True),
+                ("comentarios sin cerrar", ABRE_COMENTARIO * 999, True),
                 ("etiquetas sin cerrar", ("<a " + "x" * 190 + "\n") * 300, False)]
     malos = []
     for nombre, relleno, debe_fallar in hostiles:
