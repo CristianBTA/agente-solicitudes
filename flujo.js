@@ -213,7 +213,7 @@ const pGraficar = `Eres el GRAFICADOR (etapa 4 · Visualización). La IA genera 
 ${contexto}
 ${reglasComunes}
 
-Con el resultado aprobado (${C}/informe.json → resultado_oficial), la petición y la procedencia (${C}/datos/procedencia.json: fuente y fecha de consulta), escribe:
+Con el resultado aprobado (${C}/informe.json → resultado_oficial), la petición y la procedencia (${C}/datos/procedencia_<tabla>.json, una por tabla: fuente y fecha de consulta; graficar recibe la de la primera tabla), escribe:
 - ${C}/grafico.json: {"pregunta", "medida" (columna de valores), "categoria", "periodo", "periodo_incompleto": bool, "escala": 1 o la división que uses (p. ej. 1e9), "fuera_del_grafico": {"motivo", "valor"} si dejas algo por fuera};
 - ${C}/grafico.py: def graficar(resultado, procedencia) -> plotly Figure (plotly.graph_objects o plotly.express). No escribas ni muestres archivos: el verificador escribe el HTML.
 Reglas del módulo 4: el gráfico responde la pregunta; los textos que vienen de los datos (nombres) se escapan («<» como &lt;) porque Plotly interpreta HTML; la fuente y la fecha salen SOLO de procedencia (nada de valores de respaldo escritos en el código: si falta, que falle); barras desde cero; título con qué, dónde y cuándo; unidades en el eje de valores; fuente y fecha de consulta (dd-mm-aaaa) en una anotación; si muestras solo los primeros N, agrega «Otras» o declara fuera_del_grafico; período incompleto marcado; ningún dato personal.
@@ -249,7 +249,7 @@ const pPresentar = `Eres el PRESENTADOR (etapa 4 · Visualización). La IA propo
 ${contexto}
 
 Sigue tu ficha: ${RAIZ}/agentes/12-presentador.md (léela completa: forma de presentacion.json, evidencias y operaciones de las cifras).
-Puedes leer: ${C}/informe.json (estado, resultado_oficial, preguntas_abiertas), ${C}/spec.json (supuestos y preguntas), ${C}/grafico.json, ${C}/grafico_verificacion.json y la procedencia (${C}/datos/procedencia.json). No leas los datos crudos, la capa limpia, el código de los demás ni bitacora/.
+Puedes leer: ${C}/informe.json (estado, resultado_oficial, preguntas_abiertas), ${C}/spec.json (supuestos y preguntas), ${C}/grafico.json, ${C}/grafico_verificacion.json y la procedencia (${C}/datos/procedencia_<tabla>.json, una por tabla). No leas los datos crudos, la capa limpia, el código de los demás ni bitacora/.
 Escribe SOLO ${C}/presentacion.json: la respuesta primero con la decisión que se pide; SCQA; de 1 a 5 hallazgos con un título que afirma el hallazgo con su cifra (de 6 a 22 palabras, hasta 120 caracteres) y una sola evidencia; método, incertidumbre y límites que nombren cada pregunta abierta (P1, P2…); recomendación con qué, quién, próximo paso y cómo se mide. NO escribas números: cada cifra va como marcador {id} declarado en «cifras» con su cálculo y su formato; el código la calcula desde los datos y la escribe. Ni dígitos, ni magnitudes con palabras («la mitad», «millones»), ni «%» fuera de un marcador; solo se permiten los años del período y los ids P1, S1, H1. No escribas código, HTML, fuente ni fecha: los pone el verificador desde la procedencia.
 Corre ${PY} ${H}/verificar_presentacion.py ${C} y corrige hasta que apruebe (máximo 3 intentos). El código comprueba que la cifra sale de los datos, no que la frase la use bien: cuida que cada cifra diga lo que mide (unidad, universo, período).
 ${bit('4-visualizacion-presentacion', 'Visualización')}`

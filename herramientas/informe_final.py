@@ -21,6 +21,7 @@ from pathlib import Path
 AQUI = Path(__file__).resolve().parent
 sys.path.insert(0, str(AQUI))
 from verificar import fmt, tabla_md, a_num  # noqa: E402
+from rutas import estado_ingesta, procedencias  # noqa: E402
 
 ETAPAS = ["Ingesta", "Procesamiento", "Análisis", "Visualización", "Gobernanza"]
 QUE_HACE_LA_IA = {
@@ -66,13 +67,33 @@ def estado_analisis(c, hip):
     return None, None, None
 
 
-def procedencia(c, spec):
-    from rutas import resolver
-    rutas = list((spec.get("datos_crudos") or {}).values()) + list(spec["datos"].values())   # la procedencia vive junto al dato crudo
-    for p in [c / "procedencia.json"] + [Path(resolver(r)).parent / "procedencia.json" for r in rutas]:
-        if p.exists():
-            return leer(p)
-    return None
+def seccion_ingesta(t, proc):
+    """Lo que dejó la ingesta de UNA tabla: fuente, consulta exacta, versión, huella completa y sus pruebas."""
+    if not proc:
+        return [f"- Sin procedencia: la tabla «{t}» no pasó por la ingesta con contrato."]
+    L = []
+    if proc.get("estado") != "aprobada":
+        L.append(f"- ⚠️ La carga de «{t}» fue **rechazada**" + (f": {proc['motivo']}" if proc.get("motivo") else "") + ".")
+    if proc.get("fuente"):
+        L += [f"- Fuente: {proc['fuente'].get('titulo')} · {proc.get('origen') or ''}",
+              f"- Consultado: {proc.get('consultado_legible')} · filas {fmt(proc.get('filas'))} · conteo de la fuente {fmt(proc.get('conteo_fuente'))}",
+              f"- Huella SHA-256 del archivo: `{proc.get('sha256') or '—'}`"
+              + (" (sin cambios frente a la carga anterior)" if proc.get("sin_cambios") else "")]
+    if proc.get("consulta"):
+        q = proc["consulta"]
+        L.append(f"- Consulta exacta: $select={q.get('select')} · $where={q.get('where')} · $order={q.get('order')} · "
+                 f"{q.get('paginas')} página(s) de {fmt(q.get('limit_por_pagina'))} filas (la lista está en la procedencia)")
+    if proc.get("version_fuente"):
+        v = proc["version_fuente"]
+        L.append("- Versión de la fuente: " + " · ".join(f"{k} {v[k + '_fecha']}" for k in ("rowsUpdatedAt", "dataUpdatedAt", "viewLastModified")
+                                                       if k + "_fecha" in v))
+    if proc.get("nota_de_publicacion"):
+        L.append(f"- Nota: {proc['nota_de_publicacion']}")
+    if proc.get("pruebas"):
+        L += ["", "| Prueba de la carga | Resultado | Detalle |", "|---|---|---|"]
+        L += [f"| {p['prueba']} | {icono(p['ok'])} | {p['detalle']} |" for p in proc["pruebas"]]
+    L += [f"- Aviso: {a}" for a in proc.get("avisos", [])]
+    return L
 
 
 def seccion_procesamiento(c):
@@ -86,7 +107,7 @@ def armar(c):
     from rutas import resolver_datos
     spec = resolver_datos(leer(c / "spec.json"))
     inf = leer(c / "informe.json") or {}
-    proc = procedencia(c, spec)
+    procs = procedencias(c, spec)        # una por tabla: con dos tablas, la de la última ya no reemplaza a la otra
     hip = leer(c / "hipotesis_resultado.json")
     est_analisis, wpv, vigente = estado_analisis(c, hip)
     graf = leer(c / "grafico_verificacion.json")
@@ -98,7 +119,7 @@ def armar(c):
     bat_txt = [l for l in bat.stdout.splitlines() if not l.startswith("RESUMEN")]
 
     estado = {
-        "Ingesta": None if not proc else proc.get("estado") == "aprobada",
+        "Ingesta": estado_ingesta(procs),    # ✅ solo si TODAS las tablas tienen su procedencia aprobada
         "Procesamiento": inf.get("estado") == "aprobado" if inf else None,
         "Análisis": est_analisis,
         "Visualización": None if not graf else graf.get("estado") == "aprobado",
@@ -123,28 +144,17 @@ def armar(c):
         L.append(tabla_md(inf["resultado_oficial"], cols))
         tot = {v: sum(a_num(f.get(v)) or 0 for f in inf["resultado_oficial"]) for v in spec["salida"]["valores"]}
         L.append("\n**Total:** " + " · ".join(f"{v} {fmt(t)}" for v, t in tot.items()))
-    if proc and proc.get("cita"):
-        L += ["", f"**Cita (R9):** {proc['cita']} Licencia {proc.get('licencia') or '—'}; atribución: {proc.get('atribucion') or '—'}."]
+    citas = [f"{p['cita']} Licencia {p.get('licencia') or '—'}; atribución: {p.get('atribucion') or '—'}."
+             for p in procs.values() if p and p.get("cita")]
+    if citas:
+        L += ["", "**Cita (R9):** " + " ".join(citas)]
 
     L += ["", "## 1 · Ingesta: la IA escribe el lector"]
-    if proc:
-        L += [f"- Fuente: {proc['fuente'].get('titulo')} · {proc.get('origen') or ''}",
-              f"- Consultado: {proc.get('consultado_legible')} · filas {fmt(proc.get('filas'))} · conteo de la fuente {fmt(proc.get('conteo_fuente'))}",
-              f"- Huella SHA-256 del archivo: `{proc.get('sha256') or '—'}`"
-              + (" (sin cambios frente a la carga anterior)" if proc.get("sin_cambios") else "")]
-        if proc.get("consulta"):
-            q = proc["consulta"]
-            L.append(f"- Consulta exacta: $select={q.get('select')} · $where={q.get('where')} · $order={q.get('order')} · "
-                     f"{q.get('paginas')} página(s) de {fmt(q.get('limit_por_pagina'))} filas (la lista está en la procedencia)")
-        if proc.get("version_fuente"):
-            v = proc["version_fuente"]
-            L.append("- Versión de la fuente: " + " · ".join(f"{k} {v[k + '_fecha']}" for k in ("rowsUpdatedAt", "dataUpdatedAt", "viewLastModified")
-                                                           if k + "_fecha" in v))
-        if proc.get("nota_de_publicacion"):
-            L.append(f"- Nota: {proc['nota_de_publicacion']}")
-        L += ["", "| Prueba de la carga | Resultado | Detalle |", "|---|---|---|"]
-        L += [f"| {p['prueba']} | {icono(p['ok'])} | {p['detalle']} |" for p in proc.get("pruebas", [])]
-        L += [f"- Aviso: {a}" for a in proc.get("avisos", [])]
+    if any(procs.values()):
+        for t, proc in procs.items():
+            if len(procs) > 1:
+                L += ["", f"### Tabla «{t}»"]
+            L += seccion_ingesta(t, proc)
     else:
         L.append("Sin procedencia: los datos no pasaron por la ingesta con contrato.")
 
@@ -205,8 +215,11 @@ def armar(c):
                     if i.get("clase_por_nombre") or i.get("hallazgos")]
         L.append(f"- Columnas con datos personales en los datos usados: {len(marcadas) or 'ninguna'}"
                  + ("" if not marcadas else ": " + "; ".join(f"{col} ({i.get('clase_por_nombre') or ''} {i.get('hallazgos') or ''})".strip() for _, col, i in marcadas)))
-        if proc and proc.get("columnas_personales_justificadas"):
-            L.append(f"- Columnas personales justificadas en la ingesta: {proc['columnas_personales_justificadas']}")
+        for t, proc in procs.items():
+            if proc and proc.get("columnas_personales_justificadas"):
+                L.append(f"- Columnas personales justificadas en la ingesta de «{t}»: {proc['columnas_personales_justificadas']}")
+            if proc and proc.get("base_legal_sensibles"):
+                L.append(f"- Datos sensibles con base legal en la ingesta de «{t}»: {proc['base_legal_sensibles']}")
         L.append("- Salidas que se publican (informe, resultado, gráfico): "
                  + ("sin datos personales." if not any(gob["salidas"].values()) else f"**con hallazgos**: {gob['salidas']}"))
         k = gob.get("k_anonimato", {})

@@ -57,12 +57,14 @@ print("MARCA" + fig.to_json())
 
 
 def procedencia_de(c, spec):
-    from rutas import resolver
-    rutas = list((spec.get("datos_crudos") or {}).values()) + list(spec["datos"].values())   # la procedencia vive junto al dato crudo
-    for p in [c / "procedencia.json"] + [Path(resolver(r)).parent / "procedencia.json" for r in rutas]:
-        if p.exists():
-            return json.loads(p.read_text(encoding="utf-8"))
-    return {}
+    """La procedencia que recibe el gráfico (fuente y fecha): la de la primera tabla que la tiene; sin tablas en la
+    spec, la procedencia.json de la corrida (corridas viejas y pruebas del banco de blindaje)."""
+    from rutas import procedencias
+    primera = next((p for p in procedencias(c, spec).values() if p and p.get("fuente")), None)
+    if primera:
+        return primera
+    p = c / "procedencia.json"
+    return json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
 
 
 def textos(fig):
@@ -369,6 +371,12 @@ def comprobar(c):
     resultado = inf.get("resultado_oficial") or []
     proc = procedencia_de(c, spec)
     checks = []
+    from rutas import procedencias
+    procs = procedencias(c, spec)
+    if procs:   # el pie del gráfico cita la ingesta: cada tabla debe tener la suya, aprobada
+        faltan = sorted(t for t, p in procs.items() if not p or p.get("estado") != "aprobada")
+        checks.append({"comprobacion": "procedencia aprobada de cada tabla", "ok": not faltan,
+                       "detalle": "cada tabla tiene su procedencia aprobada" if not faltan else f"sin procedencia aprobada: {faltan}"})
     gp = c / "grafico.py"
     dep = dependencias.revisar(gp)
     seg, aviso_seg = seguridad.revisar([gp])

@@ -26,6 +26,36 @@ def resolver_datos(spec):
     return spec
 
 
+def procedencias(c, spec):
+    """La procedencia de CADA tabla de la spec: procedencia_<tabla>.json en la carpeta datos/ de la corrida o junto a su
+    dato crudo (o al limpio). Con varias tablas, ninguna reemplaza a otra. {tabla: procedencia, o None si no hay}.
+    De corridas viejas se acepta el procedencia.json genérico solo si dice que es de esa tabla."""
+    import json
+    crudos = spec.get("datos_crudos") or {}
+    out = {}
+    for t in spec.get("datos") or {}:
+        carpetas = [Path(c) / "datos"] + [Path(resolver(r)).parent for r in (crudos.get(t), spec["datos"].get(t)) if r]
+        p = next((d / f"procedencia_{t}.json" for d in carpetas if (d / f"procedencia_{t}.json").exists()), None)
+        out[t] = json.loads(p.read_text(encoding="utf-8")) if p else None
+        if out[t] is None:
+            for d in carpetas:
+                g = d / "procedencia.json"
+                if g.exists():
+                    viejo = json.loads(g.read_text(encoding="utf-8"))
+                    if viejo.get("tabla") == t:
+                        out[t] = viejo
+                        break
+    return out
+
+
+def estado_ingesta(procs):
+    """True si TODAS las tablas tienen una procedencia aprobada; False si alguna falta o fue rechazada; None si ninguna
+    pasó por la ingesta con contrato (p. ej. datos sintéticos versionados)."""
+    if not procs or not any(procs.values()):
+        return None
+    return all(p and p.get("estado") == "aprobada" for p in procs.values())
+
+
 def autoprueba():
     """Una spec sellada en otra máquina debe resolver datos Y datos_crudos a la copia de este clon."""
     import json

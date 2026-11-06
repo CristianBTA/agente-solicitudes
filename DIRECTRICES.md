@@ -94,8 +94,9 @@ Los identificadores van como texto. Lo que no cumple el tipo rechaza la carga (F
 *Cómo se comprueba:* una columna que no existe en la fuente o una columna personal sin justificar rechazan la carga antes de descargar.
 
 **D6 · Las cinco pruebas de cada carga, más repetibilidad y procedencia.**
-Conteo contra la fuente, llave única, llave sin nulos, rangos y dominios. Leer dos veces debe dar el mismo archivo, byte a byte. Queda una procedencia con fecha, filtro, filas, huella SHA-256, licencia y atribución.
-*Dónde:* `procedencia_<tabla>.json`.
+Conteo contra la fuente, llave única, llave sin nulos, rangos y dominios. Leer dos veces debe dar el mismo archivo, byte a byte. Queda una procedencia con fecha y zona horaria, la consulta exacta (en Socrata, con su orden y sus páginas), la versión de la fuente, filas, huella SHA-256 completa, licencia y atribución.
+Cada tabla tiene su procedencia, y la etapa se aprueba solo si todas lo están. Una carga rechazada no deja su CSV donde lo leen las etapas siguientes, y `verificar.py` comprueba que la huella del crudo sea la de su procedencia.
+*Dónde:* `procedencia_<tabla>.json`, que se publica (no trae filas).
 
 **D7 · Minimización: que un dato sea público no lo vuelve de uso libre.**
 Solo se descargan las columnas que la pregunta necesita. Sin una justificación escrita en el contrato de datos no entra ninguna columna:

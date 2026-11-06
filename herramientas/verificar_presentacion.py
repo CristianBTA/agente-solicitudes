@@ -362,17 +362,22 @@ def normal_sellado(texto):
 
 # ---------------------------------------------------------------- carga ----------------------------------------------------------------
 def procedencia_de(c):
-    for p in (c / "procedencia.json", c / "datos" / "procedencia.json"):
-        if p.exists():
-            return leer_json(p, {}) or {}
+    """La que cita la presentación (fuente y fecha) es la misma que recibe el gráfico: la de la primera tabla que tiene
+    la suya (una procedencia por tabla, L74) o, sin tablas en la spec, la procedencia.json de la corrida. La genérica
+    de datos/, que la ingesta ya no escribe, solo cuenta si no hay otra (corridas viejas)."""
     spec = leer_json(c / "spec.json")
     if spec:
         try:
             import verificar_grafico
             from rutas import resolver_datos
-            return verificar_grafico.procedencia_de(c, resolver_datos(spec)) or {}
+            proc = verificar_grafico.procedencia_de(c, resolver_datos(spec))
+            if proc:
+                return proc
         except Exception:
-            return {}
+            pass
+    for p in (c / "procedencia.json", c / "datos" / "procedencia.json"):
+        if p.exists():
+            return leer_json(p, {}) or {}
     return {}
 
 

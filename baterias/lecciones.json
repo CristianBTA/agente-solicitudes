@@ -438,6 +438,12 @@
       "leccion": "La procedencia guardaba como «origen» una URL sin $order ni $limit: pedida otra vez, la API devolvía 1.000 filas en otro orden frente a las 49.662 ingeridas, y la huella no se podía reproducir. Tampoco guardaba la versión de la fuente ni la zona horaria, y no se publicaba. Ahora guarda la consulta exacta (select, where, order, páginas), una URL que la reproduce, rowsUpdatedAt y viewLastModified, la hora con zona, y procedencia_<tabla>.json se publica (no trae filas).",
       "origen": "revisión de gobernanza de la procedencia (GOB-2), 6-nov-2026",
       "prueba": "herramientas/ingesta.py --autoprueba"
+    },
+    {
+      "id": "L74",
+      "leccion": "Con dos tablas en la misma carpeta, cada carga reescribía procedencia.json: quedaba la de la última, y el informe declaraba la ingesta aprobada aunque la otra tabla se hubiera rechazado. Además, el CSV se escribía antes de probarlo, así que la tabla rechazada quedaba donde la leen las etapas siguientes. Ahora hay una procedencia por tabla, el CSV se escribe solo si la carga se aprueba, la etapa es ✅ solo si todas lo están y verificar.py compara la huella del crudo con la de su procedencia.",
+      "origen": "revisión de gobernanza con varias tablas (GOB-7), 6-nov-2026",
+      "prueba": "herramientas/ingesta.py --autoprueba"
     }
   ]
 }

@@ -234,6 +234,24 @@ def probar(contrato, columnas, filas, conteo_fuente, conteo_de=None):
     return pruebas, avisos, nulos
 
 
+def retirar(salida, tabla, motivo, escribir=True):
+    """Una carga rechazada no deja datos donde los leen las etapas siguientes: si había un <tabla>.csv de una carga
+    anterior, se retira y se dice; y queda la procedencia de esta carga en «rechazada» (nunca la aprobada de antes)."""
+    salida = Path(salida)
+    destino = salida / f"{tabla}.csv"
+    retirado = destino.exists()
+    if retirado:
+        destino.unlink()
+        print(f"  · se retira {destino.name} de una carga anterior: ya no corresponde a una carga aprobada")
+    if escribir:
+        salida.mkdir(parents=True, exist_ok=True)
+        (salida / f"procedencia_{tabla}.json").write_text(json.dumps(
+            {"tabla": tabla, "estado": "rechazada", "motivo": motivo, "archivo": None, "retirado": retirado,
+             "consultado": datetime.now().astimezone().isoformat(timespec="seconds")}, ensure_ascii=False, indent=2),
+            encoding="utf-8")
+    return retirado
+
+
 def miles(n):
     return f"{n:,}".replace(",", ".")
 
@@ -254,6 +272,7 @@ def ingerir(ruta_contrato, salida, repetir=False):
         for linea in rechazo["lineas"]:
             print(f"✗ minimización: {linea}")
         print(f"Ingesta rechazada: {rechazo['motivo']}")
+        retirar(salida, tabla, rechazo["motivo"])
         print("RESUMEN " + json.dumps({"estado": "rechazada", "motivo": rechazo["motivo"], "columnas": rechazo["columnas"]},
                                       ensure_ascii=False))
         return 1
@@ -261,6 +280,7 @@ def ingerir(ruta_contrato, salida, repetir=False):
     filas, conteo_fuente, origen, nota, extra = leer()
     if filas is None:
         print(f"Ingesta rechazada: {nota}")
+        retirar(salida, tabla, nota)
         print("RESUMEN " + json.dumps({"estado": "rechazada", "motivo": nota}, ensure_ascii=False))
         return 1
     salida = Path(salida)
@@ -281,16 +301,17 @@ def ingerir(ruta_contrato, salida, repetir=False):
         w2.writerow(columnas)
         w2.writerows(filas2 or [])
         repetible = hashlib.sha256(b2.getvalue().encode("utf-8")).hexdigest() == huella
-    if anterior != huella:
-        fd, tmp = tempfile.mkstemp(dir=salida, suffix=".tmp")
-        with os.fdopen(fd, "wb") as fh:
-            fh.write(contenido)
-        os.replace(tmp, destino)     # escritura atómica: reemplaza, nunca agrega (R12)
     pruebas, avisos, nulos = probar(contrato, columnas, filas, conteo_fuente, extra.get("conteo_de"))
     if repetible is not None:
         pruebas.append({"prueba": "correr dos veces da lo mismo", "ok": repetible,
                         "detalle": "la segunda lectura dio el mismo archivo, byte a byte" if repetible
                         else "la segunda lectura dio otro archivo"})
+    aprobada = all(p["ok"] for p in pruebas)
+    if aprobada and anterior != huella:
+        fd, tmp = tempfile.mkstemp(dir=salida, suffix=".tmp")
+        with os.fdopen(fd, "wb") as fh:
+            fh.write(contenido)
+        os.replace(tmp, destino)     # escritura atómica: reemplaza, nunca agrega (R12)
     ahora = datetime.now().astimezone()      # con zona horaria: la hora sola no dice cuándo
     unidad = fuente.get("unidad", "filas")
     if fuente["tipo"] == "socrata":
@@ -308,10 +329,14 @@ def ingerir(ruta_contrato, salida, repetir=False):
         "licencia": fuente.get("licencia"), "atribucion": fuente.get("atribucion"),
         "columnas_personales_justificadas": justificadas, "base_legal_sensibles": contrato.get("base_legal_sensibles", {}),
     }
-    proc["estado"] = "aprobada" if all(p["ok"] for p in pruebas) else "rechazada"
-    for nombre in (f"procedencia_{tabla}.json", "procedencia.json"):
-        (salida / nombre).write_text(json.dumps(proc, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"Ingesta {proc['estado']}: {miles(len(filas))} {unidad} → {destino}")
+    proc["estado"] = "aprobada" if aprobada else "rechazada"
+    if not aprobada:
+        proc["archivo"] = None
+        proc["retirado"] = retirar(salida, tabla, "la carga no pasó sus pruebas", escribir=False)
+    # una procedencia por tabla: con varias tablas, ninguna reemplaza a otra (ya no se escribe procedencia.json)
+    (salida / f"procedencia_{tabla}.json").write_text(json.dumps(proc, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"Ingesta {proc['estado']}: {miles(len(filas))} {unidad}" + (f" → {destino}" if aprobada else
+                                                                         " (no se escribe el CSV: no pasó sus pruebas)"))
     for p in pruebas:
         print(f"  {'✓' if p['ok'] else '✗'} {p['prueba']}: {p['detalle']}")
     for a in avisos:
@@ -319,7 +344,8 @@ def ingerir(ruta_contrato, salida, repetir=False):
     if nota:
         print(f"  · nota: {nota}")
     print(f"  · nulos: {nulos}")
-    print(f"  · {'sin cambios frente a la carga anterior' if proc['sin_cambios'] else 'archivo escrito'} · sha256 {huella}")
+    print(f"  · {'sin cambios frente a la carga anterior' if proc['sin_cambios'] else 'archivo escrito' if aprobada else 'sin escribir'}"
+          f" · sha256 {huella}")
     print(f"  · cita: {cita}")
     print("RESUMEN " + json.dumps({"estado": proc["estado"], "filas": len(filas), "conteo_fuente": conteo_fuente,
                                    "fallas": [p["prueba"] for p in pruebas if not p["ok"]]}, ensure_ascii=False))
@@ -407,13 +433,63 @@ def comprobar_procedencia(mod):
     return fallas
 
 
+def comprobar_varias_tablas(mod):
+    """Dos tablas en la misma --salida (el ejemplo local del README): ventas con la llave repetida, clientes correcta.
+    La rechazada no deja su CSV (ni el de una carga anterior), cada tabla tiene su procedencia, la etapa no queda
+    aprobada y verificar.py nota un crudo alterado después de ingerido. Devuelve las fallas."""
+    from contextlib import redirect_stdout
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import rutas
+    import verificar
+    tmp = Path(tempfile.mkdtemp(prefix="ingesta-tablas-"))
+    salida = tmp / "corrida" / "datos"
+    fallas = []
+    try:
+        def cargar(tabla, texto, cols):
+            (tmp / f"{tabla}.csv").write_text(texto, encoding="utf-8")
+            (tmp / f"{tabla}.json").write_text(json.dumps({
+                "fuente": {"tipo": "local", "ruta": str(tmp / f"{tabla}.csv"), "titulo": "Datos de prueba", "licencia": "—",
+                           "atribucion": "—", "unidad": "filas"}, "tabla": tabla, "llave": "id",
+                "columnas": {c: "texto" for c in cols}}), encoding="utf-8")
+            with redirect_stdout(io.StringIO()):
+                return mod.ingerir(tmp / f"{tabla}.json", salida)
+        cargar("ventas", "id,valor\n1,10\n2,20\n", ["id", "valor"])           # una carga anterior, aprobada
+        rc_v = cargar("ventas", "id,valor\n1,10\n1,20\n2,30\n", ["id", "valor"])  # la de hoy: la llave se repite
+        rc_c = cargar("clientes", "id,region\nC1,Norte\nC2,Sur\n", ["id", "region"])
+        if rc_v == 0 or rc_c != 0:
+            fallas.append(f"códigos inesperados: ventas {rc_v} (se esperaba 1), clientes {rc_c} (se esperaba 0)")
+        if (salida / "ventas.csv").exists():
+            fallas.append("la carga rechazada de ventas dejó ventas.csv en --salida, donde lo leen las etapas siguientes")
+        if (salida / "procedencia.json").exists():
+            fallas.append("se escribe el procedencia.json genérico: con dos tablas, la última reemplaza a la otra")
+        spec = {"datos": {"ventas": str(salida / "ventas.csv"), "clientes": str(salida / "clientes.csv")}}
+        procs = rutas.procedencias(tmp / "corrida", spec)
+        if (procs.get("ventas") or {}).get("estado") != "rechazada" or (procs.get("clientes") or {}).get("estado") != "aprobada":
+            fallas.append(f"no hay una procedencia por tabla: {({t: (p or {}).get('estado') for t, p in procs.items()})}")
+        if rutas.estado_ingesta(procs) is not False:
+            fallas.append("con una tabla rechazada, la etapa Ingesta no queda en ⚠️")
+        solo_clientes = {"datos": {"clientes": str(salida / "clientes.csv")}}
+        _, antes = verificar.revisar_procedencias(tmp / "corrida", solo_clientes)
+        with open(salida / "clientes.csv", "a", encoding="utf-8") as fh:
+            fh.write("C3,Este\n")
+        _, despues = verificar.revisar_procedencias(tmp / "corrida", solo_clientes)
+        if antes or not despues:
+            fallas.append(f"verificar.py no nota un crudo alterado después de ingerido (antes {antes}, después {despues})")
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    return fallas
+
+
 def autoprueba():
-    fallas = comprobar_procedencia(sys.modules[__name__])
-    for f in fallas:
-        print(f"✗ {f}")
+    yo = sys.modules[__name__]
+    fallas = comprobar_procedencia(yo)
     print("✓ procedencia: la consulta guardada reproduce la carga, con su versión y su hora con zona" if not fallas else "")
-    print("RESUMEN " + json.dumps({"fallas": fallas}, ensure_ascii=False))
-    return 1 if fallas else 0
+    otras = comprobar_varias_tablas(yo)
+    print("✓ varias tablas: una procedencia por tabla, la rechazada no deja CSV y la huella del crudo se comprueba" if not otras else "")
+    for f in fallas + otras:
+        print(f"✗ {f}")
+    print("RESUMEN " + json.dumps({"fallas": fallas + otras}, ensure_ascii=False))
+    return 1 if fallas or otras else 0
 
 
 def main(argv):

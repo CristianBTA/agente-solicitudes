@@ -237,6 +237,26 @@ def sellar(c):
     return 0
 
 
+def revisar_procedencias(c, spec):
+    """El archivo crudo que se verifica es el que se ingirió: su SHA-256 coincide con el de su procedencia, y la carga
+    está aprobada. Devuelve ({tabla: detalle}, motivos). Sin procedencia (datos sintéticos versionados), no aplica."""
+    from rutas import procedencias
+    crudos = spec.get("datos_crudos") or {}
+    out, motivos = {}, []
+    for t, p in procedencias(c, spec).items():
+        ruta = crudos.get(t) or spec["datos"].get(t)
+        if not p or not ruta or not Path(ruta).exists():
+            continue
+        h = hashlib.sha256(Path(ruta).read_bytes()).hexdigest()
+        out[t] = {"sha256": h, "sha256_procedencia": p.get("sha256"), "estado": p.get("estado"), "coincide": h == p.get("sha256")}
+        if p.get("estado") != "aprobada":
+            motivos.append(f"la ingesta de {t} no está aprobada (su procedencia dice «{p.get('estado')}»)")
+        elif h != p.get("sha256"):
+            motivos.append(f"el archivo crudo de {t} no es el que se ingirió: su huella {h[:12]}… no coincide con la de su "
+                           f"procedencia ({str(p.get('sha256'))[:12]}…)")
+    return out, motivos
+
+
 # ---------------- ejecución ----------------
 def ejecutar_impl(ruta, datos, detalle=False):
     """Corre analizar(datos) en otro proceso, dentro de la caja de arena (herramientas/caja.py): sin red, sin
@@ -597,6 +617,8 @@ def verificar(c, impls, extra=False):
         conc = comparar(res[nombres[0]]["resultado"], res[nombres[1]]["resultado"], claves, valores, tol)
 
     motivos = []
+    origen_datos, motivos_procedencia = revisar_procedencias(c, spec)
+    motivos += motivos_procedencia
     if sellos["estado"] == "sin_sellar":
         motivos.append("el criterio (spec, reglas y caso conocido) no está sellado")
     elif sellos["estado"] == "alterados":
@@ -644,6 +666,7 @@ def verificar(c, impls, extra=False):
         "reglas": [{"id": r["id"], "tipo": r["tipo"], "descripcion": r["descripcion"]} for r in reglas],
         "implementaciones": res, "concordancia": conc, "resultado_oficial": oficial, "fuente_resultado": fuente,
         "anticipo": anticipo or None, "conciliaciones_iguales": conciliaciones_iguales, "caja_de_arena": bool(CAJA),
+        "procedencias": origen_datos,
     }
     resumen = {"estado": inf["estado"], "motivos": motivos, "preguntas_abiertas": inf["preguntas_abiertas"],
                "reglas_rotas": reglas_rotas, "concuerdan": bool(conc and conc["ok"])}
