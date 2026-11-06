@@ -3,11 +3,14 @@
 
 Uso: python informe_final.py <corrida>   escribe informe_final.md e informe_final.html
 
-Junta lo que dejó cada etapa: procedencia (ingesta), informe.json (procesamiento), hipotesis_resultado.json
-(análisis), grafico_verificacion.json (visualización), gobernanza.json y custodio.json (gobernanza),
-la revisión de seguridad y las baterías, y la bitácora del copiloto (bitacora/*.json).
+Junta lo que dejó cada etapa: procedencia (ingesta), informe.json (procesamiento), whitepaper_verificacion.json
+(análisis: lo hacen las personas; la IA solo resume lo desarrollado en whitepaper.md, y las hipótesis de las
+corridas anteriores al 6-nov-2026 salen aparte, como historial), grafico_verificacion.json (visualización),
+gobernanza.json y custodio.json (gobernanza), la revisión de seguridad y las baterías, y la bitácora del copiloto
+(bitacora/*.json).
 El HTML se arma escapando todo el texto: un nombre que traiga <script> se muestra, no se ejecuta.
 """
+import hashlib
 import html
 import json
 import re
@@ -23,17 +26,20 @@ ETAPAS = ["Ingesta", "Procesamiento", "Análisis", "Visualización", "Gobernanza
 QUE_HACE_LA_IA = {
     "Ingesta": "escribe el lector (contrato de datos: fuente, columnas, tipos, llave, dominios)",
     "Procesamiento": "limpia y transforma (especificación, reglas y dos implementaciones)",
-    "Análisis": "propone hipótesis (registradas y selladas antes de probarlas)",
+    "Análisis": "solo resume lo desarrollado en un whitepaper: el análisis lo hacen las personas",
     "Visualización": "genera el gráfico",
     "Gobernanza": "halla datos personales (con nombres, tipos y conteos; nunca filas)",
 }
 COMO_SE_PRUEBA = {
     "Ingesta": "conteo contra la fuente, llave única y sin nulos, tipos, rangos, dominios, minimización, correr dos veces",
     "Procesamiento": "reglas selladas, caso con respuesta conocida, A = B, conciliación, compuertas y caja de arena",
-    "Análisis": "consulta independiente de otro agente, umbral y línea base, registro previo",
+    "Análisis": "secciones obligatorias, cada cifra en los artefactos verificados, sin conclusiones ni recomendaciones, preguntas de costo, calidad e impacto",
     "Visualización": "cuenta de control, eje desde cero, título, unidades, fuente y fecha, sin datos personales",
     "Gobernanza": "barrido determinista, salidas limpias, k-anonimato, comparación con la IA",
 }
+RETIRO = "6-nov-2026"                               # desde ese día el análisis lo hacen las personas
+PLANTILLA = "../../plantillas/analisis_humano.md"   # las corridas viven en corridas/<fecha-nombre>/
+ENLACES_FIJOS = ("whitepaper.md", PLANTILLA)       # los únicos enlaces fuera de *.html: los escribe esta herramienta
 
 
 def leer(p):
@@ -41,7 +47,23 @@ def leer(p):
 
 
 def icono(ok):
-    return "✅" if ok is True else ("⚠️" if ok is False else "—")
+    return "✅" if ok is True else ("⚠️" if ok is False else ("historial" if ok == "historial" else "—"))
+
+
+def estado_analisis(c, hip):
+    """(estado, validación, vigente). El estado sale de la validación del whitepaper, y solo vale si la huella
+    validada es la del whitepaper de hoy. «historial»: corrida anterior al cambio, con las hipótesis de la IA
+    probadas y sin whitepaper. None: no hay ni lo uno ni lo otro."""
+    wpv = leer(c / "whitepaper_verificacion.json")
+    wp = c / "whitepaper.md"
+    if wpv is not None:
+        vigente = wp.exists() and wpv.get("sha256") == hashlib.sha256(wp.read_bytes()).hexdigest()
+        return wpv.get("estado") == "aprobado" and vigente, wpv, vigente
+    if wp.exists():
+        return False, None, False
+    if hip:
+        return ("historial" if hip.get("estado") == "probadas" else False), None, None
+    return None, None, None
 
 
 def procedencia(c, spec):
@@ -66,6 +88,7 @@ def armar(c):
     inf = leer(c / "informe.json") or {}
     proc = procedencia(c, spec)
     hip = leer(c / "hipotesis_resultado.json")
+    est_analisis, wpv, vigente = estado_analisis(c, hip)
     graf = leer(c / "grafico_verificacion.json")
     gob = leer(c / "gobernanza.json")
     cust = leer(c / "custodio.json")
@@ -77,14 +100,18 @@ def armar(c):
     estado = {
         "Ingesta": None if not proc else proc.get("estado") == "aprobada",
         "Procesamiento": inf.get("estado") == "aprobado" if inf else None,
-        "Análisis": None if not hip else hip.get("estado") == "probadas",
+        "Análisis": est_analisis,
         "Visualización": None if not graf else graf.get("estado") == "aprobado",
         "Gobernanza": None if not gob else gob.get("estado") == "aprobado",
     }
     L = [f"# {spec.get('peticion', 'Petición')}", ""]
-    todo_ok = all(v is True for v in estado.values())
+    historial = est_analisis == "historial"
+    todo_ok = all(v is True for e, v in estado.items() if not (e == "Análisis" and historial))
     L.append("**Estado: ✅ todas las etapas aprobadas.**" if todo_ok else
              "**Estado: ⚠️ hay etapas sin aprobar o sin correr; ver la tabla.**")
+    if historial:
+        L.append(f"\n> El análisis de esta corrida es historial: lo hacía la IA con hipótesis, un paso retirado el {RETIRO}. "
+                 "Desde entonces lo hacen las personas (ver Análisis).")
     if inf.get("preguntas_abiertas"):
         L.append(f"\n> {inf['preguntas_abiertas']} pregunta(s) de negocio abiertas: la cifra usa el valor por defecto de cada una (ver Procesamiento).")
     L += ["", "## El pipeline", "| Etapa | La IA… | La prueba sin IA | Estado |", "|---|---|---|---|"]
@@ -125,17 +152,33 @@ def armar(c):
             L.append("- Marcas (las filas no se borran; la spec dice cuáles se excluyen): " + " · ".join(f"{k} {fmt(v)}" for k, v in li["marcas"].items()))
     L.append(seccion_procesamiento(c))
 
-    L += ["", "## 3 · Análisis: la IA propone hipótesis"]
+    L += ["", "## 3 · Análisis: lo hacen las personas",
+          "La IA no da el análisis: el documentador resume lo desarrollado en un whitepaper, y las personas del curso analizan, "
+          "con su hipótesis escrita antes de mirar y su conclusión en la plantilla."]
+    if wpv is not None:
+        cifras = wpv.get("cifras") or []
+        validacion = ("✅ aprobada" if est_analisis is True else
+                      "⚠️ el whitepaper cambió después de validarse" if wpv.get("estado") == "aprobado" and not vigente else "⚠️ sin aprobar")
+        L.append(f"- Whitepaper: [whitepaper.md](whitepaper.md) · validación sin IA (`validar_whitepaper.py`): {validacion}"
+                 + (f" · {sum(1 for x in cifras if x.get('respaldada'))} de {len(cifras)} cifras en los artefactos verificados" if cifras else ""))
+        L += ["", "| Comprobación | Resultado | Detalle |", "|---|---|---|"]
+        L += [f"| {x.get('chequeo')} | {icono(x.get('ok'))} | {str(x.get('detalle')).replace('|', chr(92) + '|')} |"
+              for x in wpv.get("chequeos", [])]
+    elif (c / "whitepaper.md").exists():
+        L.append("- Whitepaper: [whitepaper.md](whitepaper.md) · ⚠️ sin validar: falta correr `validar_whitepaper.py`.")
+    else:
+        L.append("- Whitepaper: no hay." + (f" La corrida es anterior al {RETIRO}: su análisis queda abajo, como historial." if hip else ""))
+    L.append(f"- Plantilla para el análisis de las personas: [plantillas/analisis_humano.md]({PLANTILLA})")
     if hip:
-        L += ["| Hipótesis | Umbral | Valor | Línea base | Veredicto |", "|---|---|---|---|---|"]
+        L += ["", f"### Historial: hipótesis de la IA (retirado el {RETIRO})",
+              "| Hipótesis | Umbral | Valor | Línea base | Veredicto |", "|---|---|---|---|---|"]
         for h in hip["hipotesis"]:
             u = h.get("umbral", {})
             L.append(f"| **{h['id']}** {h['enunciado']} | {u.get('operador')} {u.get('valor')} | {fmt(a_num(h.get('valor')))} | "
                      f"{fmt(a_num(h.get('linea_base_valor')))} ({h.get('linea_base', '')}) | {h['veredicto']} |")
         L += [f"- {p}" for p in hip.get("problemas", [])]
-        L.append("\n_Las hipótesis se sellaron antes de probarlas; la consulta de cada una la escribió otro agente, sin ver el razonamiento de quien las propuso._")
-    else:
-        L.append("No se corrió.")
+        L.append(f"\n_Hasta el {RETIRO} la IA proponía hipótesis, las sellaba antes de probarlas y otro agente escribía la consulta "
+                 "de cada una. Ese paso se retiró: el análisis lo hacen las personas. Se conserva como historial de esta corrida._")
 
     L += ["", "## 4 · Visualización: la IA genera el gráfico"]
     if graf:
@@ -209,6 +252,8 @@ def md_a_html(md, titulo):
         t = re.sub(r"(?<![\w*])_(.+?)_(?![\w*])", r"<em>\1</em>", t)
         t = re.sub(r"`([^`]+)`", r"<code>\1</code>", t)
         t = re.sub(r"\[([^\]]+)\]\(([\w.-]+\.html)\)", r'<a href="\2">\1</a>', t)   # sin «/»: solo archivos de la corrida
+        # y los dos enlaces fijos que escribe esta herramienta (el whitepaper y la plantilla): nunca un destino de los datos
+        t = re.sub(r"\[([^\]]+)\]\((" + "|".join(map(re.escape, ENLACES_FIJOS)) + r")\)", r'<a href="\2">\1</a>', t)
         return t
     out, en_tabla, en_lista = [], False, False
     for raw in md.splitlines():
