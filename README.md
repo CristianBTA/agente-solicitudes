@@ -1,4 +1,4 @@
-# Pipeline de datos con IA: la IA propone, una prueba sin IA comprueba
+# Subagentes para procesamiento de big data: la IA propone, una prueba sin IA comprueba
 
 Un análisis de datos hecho con IA, de la pregunta al informe, en las cinco etapas del ciclo del dato. En cada etapa la IA hace el trabajo y una prueba que no es IA lo comprueba. Quien pide el análisis no lee código: lee un informe de una página con la cifra, lo que se entendió, los supuestos, las preguntas abiertas y qué pasó cada prueba.
 
@@ -10,7 +10,7 @@ Material aplicado del curso **«Big Data con IA»** (NODO · Universidad EAFIT, 
 
 - **Para la clase** (6 y 7 de noviembre de 2026) se usa la etiqueta fija **`clase-2026-11-06`**: una versión probada que no cambia aunque `main` siga avanzando.
   ```bash
-  git clone --branch clase-2026-11-06 https://github.com/CristianBTA/agente-solicitudes
+  git clone --branch clase-2026-11-06 https://github.com/CristianBTA/subagentes-big-data
   ```
   La etiqueta se rehízo una sola vez: el 6 de noviembre a las 15:50 pasó de `7d2fa19` a `42576ec`. Si la descargaste antes, `git pull` no la actualiza: vuelve a clonar, o corre `git fetch --tags --force` y después `git checkout clase-2026-11-06`. Otra versión para la clase llevaría una etiqueta nueva.
 - **La versión final** se prepara en paralelo, con más tiempo, en la rama `version-final`, que todavía no está publicada en GitHub. Junta los arreglos de la revisión ciega de analista senior, el filtro de aportes que toma su juez de la rama base y el cambio por el que el análisis lo hacen las personas. Entra a `main` cuando pase todas las pruebas.
@@ -21,10 +21,10 @@ Material aplicado del curso **«Big Data con IA»** (NODO · Universidad EAFIT, 
 Para aportar con la IA que ya usas (ChatGPT, Gemini, Claude, Copilot u otra), cópiale este texto:
 
 ```text
-Lee https://raw.githubusercontent.com/CristianBTA/agente-solicitudes/main/APORTAR-CON-TU-AGENTE.md, sigue sus «Instrucciones para el agente» y empieza mi aporte al repositorio CristianBTA/agente-solicitudes.
+Lee https://raw.githubusercontent.com/CristianBTA/subagentes-big-data/main/APORTAR-CON-TU-AGENTE.md, sigue sus «Instrucciones para el agente» y empieza mi aporte al repositorio CristianBTA/subagentes-big-data.
 ```
 
-- **La IA te pregunta tu idea y arma el aporte.** Si trabaja con archivos y terminal (Claude Code, Codex, Copilot en VS Code, Cursor), deja listo el *pull request*. Si es un chat, te entrega el texto para el formulario [«Proponer un aporte»](https://github.com/CristianBTA/agente-solicitudes/issues/new?template=aporte.yml).
+- **La IA te pregunta tu idea y arma el aporte.** Si trabaja con archivos y terminal (Claude Code, Codex, Copilot en VS Code, Cursor), deja listo el *pull request*. Si es un chat, te entrega el texto para el formulario [«Proponer un aporte»](https://github.com/CristianBTA/subagentes-big-data/issues/new?template=aporte.yml).
 - **No gasta tu cuota más allá de esa conversación:** el filtro del repositorio no usa IA, y la prueba con IA la paga el dueño.
 - Si tu IA no puede abrir enlaces, pégale el archivo [`APORTAR-CON-TU-AGENTE.md`](APORTAR-CON-TU-AGENTE.md) completo.
 
@@ -43,7 +43,7 @@ Lee https://raw.githubusercontent.com/CristianBTA/agente-solicitudes/main/APORTA
 
 ## Aportar
 
-Cualquiera con cuenta de GitHub puede hacer [fork](https://github.com/CristianBTA/agente-solicitudes/fork) y proponer una lección, un caso de prueba o una regla, sin invitación y **sin gastar su cuota de IA**. El flujo `abierta-a-aportes` comprueba cada día que el repositorio siga abierto: público, con fork y pull requests para cualquiera, y con el formulario y el instructivo publicados. Todo pasa por un embudo antes de entrar:
+Cualquiera con cuenta de GitHub puede hacer [fork](https://github.com/CristianBTA/subagentes-big-data/fork) y proponer una lección, un caso de prueba o una regla, sin invitación y **sin gastar su cuota de IA**. El flujo `abierta-a-aportes` comprueba cada día que el repositorio siga abierto: público, con fork y pull requests para cualquiera, y con el formulario y el instructivo publicados. Todo pasa por un embudo antes de entrar:
 
 1. un filtro automático sin IA (`validar-aporte`): datos personales, seguridad del código y que no rompa nada;
 2. la revisión del dueño;

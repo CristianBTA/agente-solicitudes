@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """¿Puede cualquier persona hacer fork y proponer un aporte? Comprobación sin IA de la configuración pública del repositorio.
 
-Uso: python herramientas/abierta_a_aportes.py [dueño/repositorio]      (por defecto CristianBTA/agente-solicitudes)
+Uso: python herramientas/abierta_a_aportes.py [dueño/repositorio]      (por defecto CristianBTA/subagentes-big-data)
 
 Consulta lo mismo que ve un participante sin iniciar sesión (si existe GITHUB_TOKEN, lo usa solo para no chocar con
 el límite de consultas de la API):
@@ -32,7 +32,7 @@ def pedir(url):
 
 
 def main(argv):
-    repo = argv[0] if argv else "CristianBTA/agente-solicitudes"
+    repo = argv[0] if argv else "CristianBTA/subagentes-big-data"
     res = []
     st, cuerpo = pedir(f"https://api.github.com/repos/{repo}")
     if st != 200:

@@ -7,7 +7,7 @@ La IA propone y una prueba sin IA comprueba. **Que una ficha pase el validador n
 ## Antes de empezar
 
 ```bash
-git clone https://github.com/CristianBTA/agente-solicitudes && cd agente-solicitudes
+git clone https://github.com/CristianBTA/subagentes-big-data && cd subagentes-big-data
 python3.13 -m venv .venv && .venv/bin/pip install --require-hashes -r requirements.txt
 ```
 
@@ -45,7 +45,7 @@ Las tres herramientas se invocan sin interacción, como en `orquestar.mjs`. **Se
 Pégale este texto:
 
 ```text
-En la carpeta del repositorio agente-solicitudes corre: .venv/bin/python herramientas/agente_masivo.py www.datos.gov.co --trabajo fuentes/fichas/mi-corrida --conjuntos <los conjuntos que autorizo> --motor ninguno. Después escribe las fichas siguiendo el ENCARGO.md que genera en esa carpeta, cada una con su bucle de validación, sin tocar los archivos *.dictamen.json. Al final corre el mismo comando con --solo-validar y muéstrame RESULTADO.md.
+En la carpeta del repositorio subagentes-big-data corre: .venv/bin/python herramientas/agente_masivo.py www.datos.gov.co --trabajo fuentes/fichas/mi-corrida --conjuntos <los conjuntos que autorizo> --motor ninguno. Después escribe las fichas siguiendo el ENCARGO.md que genera en esa carpeta, cada una con su bucle de validación, sin tocar los archivos *.dictamen.json. Al final corre el mismo comando con --solo-validar y muéstrame RESULTADO.md.
 ```
 
 ### 3. Paso a paso, sin ninguna IA conectada
