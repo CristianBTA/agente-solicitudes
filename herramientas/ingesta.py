@@ -2,6 +2,7 @@
 """Ingesta con contrato de datos (sin IA): lee la fuente, prueba la carga y deja la procedencia.
 
 Uso: python ingesta.py contrato_datos.json --salida <carpeta> [--repetir]
+     python ingesta.py --autoprueba     prueba sin red, con un Socrata falso, que la procedencia reproduce la carga
 
 El contrato de datos (el «lector» que escribe la IA y revisa una persona) declara:
   fuente:   {tipo: "socrata", dominio, conjunto, titulo, filtro, filtro_legible, licencia, atribucion, unidad}
@@ -26,12 +27,13 @@ import hashlib
 import io
 import json
 import os
+import shutil
 import sys
 import tempfile
 import time
 import urllib.parse
 import urllib.request
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -39,6 +41,7 @@ from gobernanza import clasificar_columna, enmascarar, es_sensible  # noqa: E402
 from reglas_base import contar_registros, leer_tabla  # noqa: E402
 
 PAGINA = 50000
+RAIZ = Path(__file__).resolve().parent.parent
 AGENTE = {"User-Agent": "agente-solicitudes (analisis de datos abiertos)"}
 
 
@@ -77,6 +80,24 @@ def minimizacion(contrato, columnas, descripciones=None):
             "lineas": lineas}
 
 
+def version_fuente(meta):
+    """La versión de la fuente en el momento de la consulta (Socrata: /api/views/<id>.json), en segundos y en fecha con
+    zona: SECOP II cambia a diario, y sin esto no se sabe si una diferencia viene de la fuente o del pipeline."""
+    out = {}
+    for k in ("rowsUpdatedAt", "dataUpdatedAt", "viewLastModified", "publicationDate", "indexUpdatedAt"):
+        v = (meta or {}).get(k)
+        if isinstance(v, (int, float)):
+            out[k] = v
+            out[f"{k}_fecha"] = datetime.fromtimestamp(v, timezone.utc).isoformat()
+    return out
+
+
+def portable(p):
+    """La ruta dentro del repositorio, relativa (la procedencia se publica y no lleva la carpeta de la máquina)."""
+    p = Path(p).resolve()
+    return str(p.relative_to(RAIZ)) if RAIZ in p.parents else str(p)
+
+
 def socrata(fuente, columnas, llave, meta=None):
     base = f"https://{fuente['dominio']}"
     meta = meta or json.loads(pedir(f"{base}/api/views/{fuente['conjunto']}.json"))
@@ -87,14 +108,14 @@ def socrata(fuente, columnas, llave, meta=None):
     q = lambda p: urllib.parse.urlencode({"$" + k: v for k, v in p.items()})
     contar = lambda: int(json.loads(pedir(f"{base}/resource/{fuente['conjunto']}.json?"
                                           + q({"select": "count(*) AS n", "where": fuente["filtro"]})))[0]["n"])
+    recurso = f"{base}/resource/{fuente['conjunto']}.csv?"
     for _ in range(2):
         antes = contar()
-        filas, off = [], 0
+        filas, off, paginas = [], 0, []
         while True:
-            txt = pedir(f"{base}/resource/{fuente['conjunto']}.csv?" + q({
-                "select": ",".join(columnas), "where": fuente["filtro"], "order": llave,
-                "limit": str(PAGINA), "offset": str(off)}))
-            lector = list(csv.reader(io.StringIO(txt), strict=True))
+            paginas.append(recurso + q({"select": ",".join(columnas), "where": fuente["filtro"], "order": llave,
+                                        "limit": str(PAGINA), "offset": str(off)}))
+            lector = list(csv.reader(io.StringIO(pedir(paginas[-1])), strict=True))
             if lector and lector[0] != columnas:
                 return None, None, None, f"la fuente devolvió columnas distintas: {lector[0]}", {}
             filas += lector[1:]
@@ -103,8 +124,12 @@ def socrata(fuente, columnas, llave, meta=None):
             off += PAGINA
         despues = contar()
         if antes == despues:
-            url = f"{base}/resource/{fuente['conjunto']}.csv?" + q({"select": ",".join(columnas), "where": fuente["filtro"]})
-            return filas, despues, url, None, {"conteo_de": "count(*) de la API, el mismo antes y después de descargar"}
+            # la consulta EXACTA: con su orden y su tamaño; sin $order la fuente devuelve otro orden y sin $limit, 1.000 filas
+            consulta = {"select": ",".join(columnas), "where": fuente["filtro"], "order": llave, "limit_por_pagina": PAGINA,
+                        "paginas": len(paginas)}
+            origen = recurso + q({"select": ",".join(columnas), "where": fuente["filtro"], "order": llave, "limit": str(despues)})
+            return filas, despues, origen, None, {"conteo_de": "count(*) de la API, el mismo antes y después de descargar",
+                                                  "consulta": consulta, "paginas": paginas, "version_fuente": version_fuente(meta)}
     # FAILFAST: con la fuente cambiando no hay una carga que defender; nada se aprueba con una nota
     return None, None, None, "la fuente cambió mientras se descargaba (dos veces); vuelva a correr", {}
 
@@ -133,7 +158,7 @@ def local(fuente, columnas):
     nota = None if lineas == len(cuerpo) else (
         f"el archivo tiene {lineas} líneas y {len(cuerpo)} registros: hay saltos de línea dentro de campos "
         "(se leyó respetando las comillas, como multiLine=True)")
-    return filas, conteo, str(ruta.resolve()), nota, {"conteo_de": de_donde}
+    return filas, conteo, portable(ruta), nota, {"conteo_de": de_donde}
 
 
 def convertir(tipo, v):
@@ -266,7 +291,7 @@ def ingerir(ruta_contrato, salida, repetir=False):
         pruebas.append({"prueba": "correr dos veces da lo mismo", "ok": repetible,
                         "detalle": "la segunda lectura dio el mismo archivo, byte a byte" if repetible
                         else "la segunda lectura dio otro archivo"})
-    ahora = datetime.now()
+    ahora = datetime.now().astimezone()      # con zona horaria: la hora sola no dice cuándo
     unidad = fuente.get("unidad", "filas")
     if fuente["tipo"] == "socrata":
         cita = (f"{fuente['titulo']}, {fuente['dominio'].replace('www.', '')} ({fuente['conjunto']}), "
@@ -274,9 +299,10 @@ def ingerir(ruta_contrato, salida, repetir=False):
     else:
         cita = f"{fuente['titulo']}, archivo {Path(fuente['ruta']).name}, leído el {ahora:%d-%m-%Y}. {miles(len(filas))} {unidad}."
     proc = {
-        "tabla": tabla, "archivo": str(destino), "fuente": fuente, "origen": origen, "llave": llave,
+        "tabla": tabla, "archivo": portable(destino), "fuente": fuente, "origen": origen, "llave": llave,
+        "consulta": extra.get("consulta"), "paginas": extra.get("paginas"), "version_fuente": extra.get("version_fuente"),
         "columnas": contrato["columnas"], "consultado": ahora.isoformat(timespec="seconds"),
-        "consultado_legible": f"{ahora:%d-%m-%Y %H:%M}", "filas": len(filas), "conteo_fuente": conteo_fuente,
+        "consultado_legible": f"{ahora:%d-%m-%Y %H:%M} (UTC{ahora:%z})", "filas": len(filas), "conteo_fuente": conteo_fuente,
         "sha256": huella, "sha256_anterior": anterior, "sin_cambios": anterior == huella,
         "nulos": nulos, "avisos": avisos, "nota": nota, "pruebas": pruebas, "cita": cita,
         "licencia": fuente.get("licencia"), "atribucion": fuente.get("atribucion"),
@@ -293,14 +319,106 @@ def ingerir(ruta_contrato, salida, repetir=False):
     if nota:
         print(f"  · nota: {nota}")
     print(f"  · nulos: {nulos}")
-    print(f"  · {'sin cambios frente a la carga anterior' if proc['sin_cambios'] else 'archivo escrito'} · sha256 {huella[:16]}…")
+    print(f"  · {'sin cambios frente a la carga anterior' if proc['sin_cambios'] else 'archivo escrito'} · sha256 {huella}")
     print(f"  · cita: {cita}")
     print("RESUMEN " + json.dumps({"estado": proc["estado"], "filas": len(filas), "conteo_fuente": conteo_fuente,
                                    "fallas": [p["prueba"] for p in pruebas if not p["ok"]]}, ensure_ascii=False))
     return 0 if proc["estado"] == "aprobada" else 1
 
 
+def socrata_falso(filas_fuente, meta, cab):
+    """Un Socrata de prueba, sin red: pagina con $offset, ordena con $order y, sin $limit, devuelve 1.000 filas, como
+    el de verdad. Sin $order, devuelve su orden «natural», que no es el de la llave."""
+    def pedir_falso(url, intentos=3):
+        partes = urllib.parse.urlsplit(url)
+        qs = dict(urllib.parse.parse_qsl(partes.query))
+        if "/api/views/" in partes.path:
+            return json.dumps(meta)
+        if partes.path.endswith(".json"):
+            return json.dumps([{"n": str(len(filas_fuente))}])
+        filas = sorted(filas_fuente, key=lambda f: f[0]) if "$order" in qs else list(filas_fuente)
+        off, lim = int(qs.get("$offset", 0)), int(qs.get("$limit", 1000))
+        buf = io.StringIO()
+        w = csv.writer(buf, lineterminator="\n", quoting=csv.QUOTE_ALL)
+        w.writerow(cab)
+        w.writerows(filas[off:off + lim])
+        return buf.getvalue()
+    return pedir_falso
+
+
+def comprobar_procedencia(mod):
+    """Prueba sin red de la procedencia que deja `mod` (este módulo u otra versión de ingesta.py). Devuelve las fallas."""
+    import random
+    from contextlib import redirect_stdout
+    cab = ["llave", "valor"]
+    filas_fuente = [[f"K{i:05d}", str(10 * i)] for i in range(2500)]
+    random.Random(7).shuffle(filas_fuente)
+    meta = {"columns": [{"fieldName": "llave", "description": "Identificador del registro"},
+                        {"fieldName": "valor", "description": "Valor del registro"}],
+            "rowsUpdatedAt": 1793866132, "viewLastModified": 1792907125}
+    falso = socrata_falso(filas_fuente, meta, cab)
+    viejo = (mod.pedir, mod.PAGINA)
+    mod.pedir, mod.PAGINA = falso, 1000          # tres páginas de 1.000
+    tmp = Path(tempfile.mkdtemp(prefix="ingesta-autoprueba-"))
+    fallas = []
+    try:
+        contrato = {"fuente": {"tipo": "socrata", "dominio": "datos.ejemplo.invalid", "conjunto": "abcd-1234", "titulo": "Fuente de prueba",
+                               "filtro": "1=1", "licencia": "—", "atribucion": "—", "unidad": "filas"},
+                    "tabla": "t", "llave": "llave", "columnas": {"llave": "texto", "valor": "entero"}}
+        (tmp / "t.json").write_text(json.dumps(contrato), encoding="utf-8")
+        with redirect_stdout(io.StringIO()):
+            rc = mod.ingerir(tmp / "t.json", tmp / "datos")
+        p = tmp / "datos" / "procedencia_t.json"
+        proc = json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+        if rc != 0 or proc.get("estado") != "aprobada":
+            fallas.append(f"la carga de prueba no se aprobó (código {rc})")
+
+        def huella(urls):
+            filas = []
+            for u in urls:
+                filas += list(csv.reader(io.StringIO(falso(u))))[1:]
+            buf = io.StringIO()
+            w = csv.writer(buf, lineterminator="\n")
+            w.writerow(cab)
+            w.writerows(filas)
+            return hashlib.sha256(buf.getvalue().encode("utf-8")).hexdigest(), len(filas)
+
+        if proc.get("origen"):
+            h, n = huella([proc["origen"]])
+            if h != proc.get("sha256"):
+                fallas.append(f"bajar «origen» no reproduce la carga: {n} filas y otra huella (la carga: {proc.get('filas')} filas)")
+        else:
+            fallas.append("la procedencia no trae «origen»")
+        if not proc.get("paginas") or huella(proc["paginas"])[0] != proc.get("sha256"):
+            fallas.append("la procedencia no trae la lista de páginas que reproduce la carga")
+        if (proc.get("consulta") or {}).get("order") != "llave":
+            fallas.append("la procedencia no guarda la consulta completa (select, where, order y tamaño de página)")
+        try:
+            con_zona = datetime.fromisoformat(proc.get("consultado") or "").tzinfo is not None
+        except ValueError:
+            con_zona = False
+        if not con_zona:
+            fallas.append(f"«consultado» sin zona horaria: {proc.get('consultado')}")
+        if (proc.get("version_fuente") or {}).get("rowsUpdatedAt") != meta["rowsUpdatedAt"]:
+            fallas.append("la procedencia no guarda la versión de la fuente (rowsUpdatedAt, viewLastModified)")
+    finally:
+        mod.pedir, mod.PAGINA = viejo
+        shutil.rmtree(tmp, ignore_errors=True)
+    return fallas
+
+
+def autoprueba():
+    fallas = comprobar_procedencia(sys.modules[__name__])
+    for f in fallas:
+        print(f"✗ {f}")
+    print("✓ procedencia: la consulta guardada reproduce la carga, con su versión y su hora con zona" if not fallas else "")
+    print("RESUMEN " + json.dumps({"fallas": fallas}, ensure_ascii=False))
+    return 1 if fallas else 0
+
+
 def main(argv):
+    if "--autoprueba" in argv:
+        return autoprueba()
     if len(argv) < 3 or "--salida" not in argv:
         raise SystemExit(__doc__)
     salida = argv[argv.index("--salida") + 1]

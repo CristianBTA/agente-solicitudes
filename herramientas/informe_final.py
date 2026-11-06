@@ -130,8 +130,18 @@ def armar(c):
     if proc:
         L += [f"- Fuente: {proc['fuente'].get('titulo')} · {proc.get('origen') or ''}",
               f"- Consultado: {proc.get('consultado_legible')} · filas {fmt(proc.get('filas'))} · conteo de la fuente {fmt(proc.get('conteo_fuente'))}",
-              f"- Huella SHA-256 del archivo: `{(proc.get('sha256') or '')[:16]}…`"
+              f"- Huella SHA-256 del archivo: `{proc.get('sha256') or '—'}`"
               + (" (sin cambios frente a la carga anterior)" if proc.get("sin_cambios") else "")]
+        if proc.get("consulta"):
+            q = proc["consulta"]
+            L.append(f"- Consulta exacta: $select={q.get('select')} · $where={q.get('where')} · $order={q.get('order')} · "
+                     f"{q.get('paginas')} página(s) de {fmt(q.get('limit_por_pagina'))} filas (la lista está en la procedencia)")
+        if proc.get("version_fuente"):
+            v = proc["version_fuente"]
+            L.append("- Versión de la fuente: " + " · ".join(f"{k} {v[k + '_fecha']}" for k in ("rowsUpdatedAt", "dataUpdatedAt", "viewLastModified")
+                                                           if k + "_fecha" in v))
+        if proc.get("nota_de_publicacion"):
+            L.append(f"- Nota: {proc['nota_de_publicacion']}")
         L += ["", "| Prueba de la carga | Resultado | Detalle |", "|---|---|---|"]
         L += [f"| {p['prueba']} | {icono(p['ok'])} | {p['detalle']} |" for p in proc.get("pruebas", [])]
         L += [f"- Aviso: {a}" for a in proc.get("avisos", [])]

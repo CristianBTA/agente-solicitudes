@@ -39,7 +39,7 @@
    "evidencia": [
     {
      "archivo": ".gitignore",
-     "contiene": "^corridas/\\*/datos/$"
+     "contiene": "^corridas/\\*/datos/\\*\\.csv$"
     },
     {
      "archivo": "herramientas/validar_aporte.py",

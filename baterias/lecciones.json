@@ -432,6 +432,12 @@
       "leccion": "El filtro de aportes solo miraba los .csv dentro de una carpeta datos/: el extracto completo de SECOP entraba como .tsv (5,5 MB) o .json (11,8 MB), un caso conocido con 1.500 filas reales pasaba, y una tabla de personas sin «señor» ni «C.C.» delante no se veía. El filtro detecta tablas por su contenido, pone topes de bytes, filas y ids de SECOP, y en toda tabla las columnas de personas solo aceptan valores con la forma ficticia de la guía.",
       "origen": "revisión de gobernanza del filtro de aportes (GOB-6), 6-nov-2026",
       "prueba": "herramientas/validar_aporte.py --autoprueba"
+    },
+    {
+      "id": "L73",
+      "leccion": "La procedencia guardaba como «origen» una URL sin $order ni $limit: pedida otra vez, la API devolvía 1.000 filas en otro orden frente a las 49.662 ingeridas, y la huella no se podía reproducir. Tampoco guardaba la versión de la fuente ni la zona horaria, y no se publicaba. Ahora guarda la consulta exacta (select, where, order, páginas), una URL que la reproduce, rowsUpdatedAt y viewLastModified, la hora con zona, y procedencia_<tabla>.json se publica (no trae filas).",
+      "origen": "revisión de gobernanza de la procedencia (GOB-2), 6-nov-2026",
+      "prueba": "herramientas/ingesta.py --autoprueba"
     }
   ]
 }
