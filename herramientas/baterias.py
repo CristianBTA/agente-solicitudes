@@ -12,6 +12,7 @@ Uso:
    no_deben_salir.txt, y el barrido de gobernanza tiene que encontrarlos.
 3. Lecciones: cada lección apunta a una prueba; si apunta a un archivo de la batería, el archivo existe.
 4. Cruces: el perfil explica por qué no cruza cada valor (baterias/cruces/esperado.json) y no explica un ausente.
+5. Fechas: el perfil cuenta aparte las fechas que no existen en el calendario (baterias/fechas/casos.json).
 """
 import json
 import shutil
@@ -121,6 +122,20 @@ def bateria_cruces():
     return {"bateria": "cruces", "casos": casos, "fallas": fallas}
 
 
+def bateria_fechas():
+    """Una fecha que no existe en el calendario (mes 13, 30 de febrero) se cuenta aparte y no entra al rango."""
+    from perfilar import perfil_fechas
+    d = json.loads((BAT / "fechas" / "casos.json").read_text(encoding="utf-8"))
+    fallas = []
+    for c in d["casos"]:
+        p = perfil_fechas(c["valores"]) or {}
+        obtenido = {**p, "fechas_imposibles": p.get("fechas_imposibles", 0)}
+        for k, v in c.items():
+            if k not in ("nombre", "valores") and obtenido.get(k) != v:
+                fallas.append(f"{c['nombre']}: {k} = {obtenido.get(k)} (se esperaba {v})")
+    return {"bateria": "fechas", "casos": len(d["casos"]), "fallas": fallas}
+
+
 def bateria_lecciones():
     d = json.loads((BAT / "lecciones.json").read_text(encoding="utf-8"))
     fallas = []
@@ -153,7 +168,7 @@ def main(argv):
         print(f"Lección {d['lecciones'][-1]['id']} agregada.")
         return 0
     res = [bateria_seguridad(), bateria_privacidad(), bateria_failfast(), bateria_inyeccion(), bateria_cruces(),
-           bateria_lecciones()]
+           bateria_fechas(), bateria_lecciones()]
     for r in res:
         print(f"{'✓' if not r['fallas'] else '✗'} {r['bateria']}: {r['casos']} casos" + ("" if not r["fallas"] else " · " + "; ".join(r["fallas"])))
     malos = sum(len(r["fallas"]) for r in res)

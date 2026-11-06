@@ -1,0 +1,20 @@
+{
+  "_que_prueba": "Una fecha con forma de fecha que no existe en el calendario se cuenta aparte y no entra al rango; las fechas válidas no se marcan.",
+  "casos": [
+    {"nombre": "el caso del issue #8: ISO, barras y mes 13",
+     "valores": ["2026-04-03", "03/04/2026", "2026-13-04"],
+     "fechas_imposibles": 1, "rango_aaaa-mm-dd": ["2026-04-03", "2026-04-03"]},
+    {"nombre": "30 de febrero en ISO y 31/02 con barras",
+     "valores": ["2026-02-28", "2026-02-30", "31/02/2026", "25/04/2026", "2026-03-01"],
+     "fechas_imposibles": 2, "rango_aaaa-mm-dd": ["2026-02-28", "2026-03-01"]},
+    {"nombre": "con hora y mes 13",
+     "valores": ["2026-01-05T10:00:00", "2026-13-05T08:00:00", "2026-01-31T23:59:00"],
+     "fechas_imposibles": 1, "rango_aaaa-mm-dd": ["2026-01-05", "2026-01-31"]},
+    {"nombre": "un día imposible no demuestra el orden día primero",
+     "valores": ["45/03/2026", "04/05/2026", "06/07/2026"],
+     "fechas_imposibles": 1, "lectura_demostrada": "no se puede demostrar con los datos"},
+    {"nombre": "control: todas existen (29 de febrero bisiesto, 31 de diciembre, mes primero)",
+     "valores": ["2028-02-29", "2026-12-31", "29/02/2028", "13/01/2026", "01/13/2026"],
+     "fechas_imposibles": 0, "rango_aaaa-mm-dd": ["2026-12-31", "2028-02-29"]}
+  ]
+}

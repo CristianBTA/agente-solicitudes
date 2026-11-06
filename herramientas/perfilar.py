@@ -13,6 +13,7 @@ import re
 import sys
 import unicodedata
 from collections import Counter, defaultdict
+from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -75,6 +76,15 @@ def numero(v):
         return None
 
 
+def existe(anio, mes, dia):
+    """La fecha está en el calendario: 2026-13-04 o el 30 de febrero tienen forma de fecha, pero no existen."""
+    try:
+        date(int(anio), int(mes), int(dia))
+        return True
+    except ValueError:
+        return False
+
+
 def perfil_fechas(valores):
     iso = [v for v in valores if ISO.match(v)]
     barras = [BARRAS.match(v) for v in valores]
@@ -84,6 +94,16 @@ def perfil_fechas(valores):
     if len(iso) + len(barras) < 0.8 * len(valores):
         return None
     p = {"aaaa-mm-dd": len(iso), "con_barras": len(barras)}
+    # una fecha imposible se pierde en silencio al convertir (queda vacía o se descarta): se cuenta aparte
+    iso_imposibles = [v for v in iso if not existe(*re.match(r"(\d{4})-(\d{1,2})-(\d{1,2})", v).groups())]
+    barras_imposibles = [m for m in barras if not (existe(m.group(3), m.group(2), m.group(1)) or
+                                                   existe(m.group(3), m.group(1), m.group(2)))]
+    if iso_imposibles or barras_imposibles:
+        p["fechas_imposibles"] = len(iso_imposibles) + len(barras_imposibles)
+        p["ejemplos_imposibles"] = sorted(set(iso_imposibles) | {m.group(0) for m in barras_imposibles})[:3]
+    fuera = set(iso_imposibles)
+    iso = [v for v in iso if v not in fuera]
+    barras = [m for m in barras if not any(m is b for b in barras_imposibles)]
     if iso:
         dias = [v[:10] for v in iso]
         p["rango_aaaa-mm-dd"] = [min(dias), max(dias)]
@@ -281,6 +301,9 @@ def resumen(p):
                 L.append(f"      numérico: min {m['min']:g} · max {m['max']:g} · suma {m['suma']:,.0f} · negativos {m['negativos']} · ceros {m['ceros']}")
             if "fechas" in c:
                 L.append(f"      fechas: {json.dumps(c['fechas'], ensure_ascii=False)}")
+                if c["fechas"].get("fechas_imposibles"):
+                    L.append(f"      ! {c['fechas']['fechas_imposibles']} fechas que no existen en el calendario (mes 13, 30 de febrero), "
+                             f"ej. {c['fechas']['ejemplos_imposibles']}: al convertirlas se pierden en silencio")
             if c.get("variantes_de_escritura"):
                 L.append(f"      ! variantes de escritura de un mismo valor: {len(c['variantes_de_escritura'])} grupos, ej. {c['variantes_de_escritura'][:3]}")
             if c.get("posible_inyeccion"):

@@ -264,6 +264,12 @@
       "leccion": "El filtro rechazaba cualquier cambio a herramientas/blindaje.py porque el banco de ataques trae, a propósito, frases con forma de orden (sus cargas de prueba). Un archivo que ya las tenía solo falla si el cambio agrega una nueva; si las conserva, queda como aviso para el dueño.",
       "origen": "pull request de la lección L43 (6-nov-2026): primer cambio al banco de ataques que pasó por el filtro",
       "prueba": "validar_aporte.py: agregar una orden a una herramienta (o una más a blindaje.py) falla; conservar las cargas de blindaje.py es aviso"
+    },
+    {
+      "id": "L45",
+      "leccion": "Una fecha con forma de fecha que no existe en el calendario (2026-13-04, 30 de febrero) se pierde en silencio al convertirla: el lector la deja vacía y el documento sale del período sin error. Con 5 fechas del semestre en mes 13, la cifra de R1 bajó 178.151.800 y el perfil mostraba el rango hasta 2026-13-29 sin aviso. El perfil las cuenta aparte, las deja fuera del rango y no las usa para demostrar el orden día/mes.",
+      "origen": "aporte del grupo (issue #8): ingesta de un archivo con fechas en varios formatos guardadas como texto, 6-nov-2026",
+      "prueba": "bateria:fechas/casos.json"
     }
   ]
 }
