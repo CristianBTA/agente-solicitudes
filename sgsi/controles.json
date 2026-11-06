@@ -113,7 +113,7 @@
    "id": "CT19", "nombre": "Filtro automático de aportes, sin IA ni llaves (validar-aporte)", "tipo": "preventivo", "protege": ["C", "I"],
    "anexo_a": ["A.8.32", "A.8.29", "A.8.4", "A.8.25"],
    "evidencia": [{"archivo": ".github/workflows/validar-aporte.yml", "contiene": "validar_aporte\\.py"}, {"archivo": "herramientas/validar_aporte.py", "contiene": "sgsi\\.py"}],
-   "pruebas": ["B07"]
+   "pruebas": ["B07", "B20"]
   },
   {
    "id": "CT20", "nombre": "main protegida: revisión del dueño (CODEOWNERS), sin borrado ni force-push y aprobación de flujos de forks", "tipo": "preventivo", "protege": ["I", "D"],

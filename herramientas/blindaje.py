@@ -343,6 +343,32 @@ def b19():
     finally:
         shutil.rmtree(d, ignore_errors=True)
 
+
+@prueba("B20", "aportes → equipo del dueño", "un aporte trae configuración de asistente o editor, un flujo de GitHub o llaves")
+def b20():
+    import validar_aporte
+    motivo = getattr(validar_aporte, "motivo_prohibido", None)
+    if motivo is None:
+        return r("CEDE", "el filtro de aportes no revisa la configuración de asistentes y editores")
+    # cada una se ejecuta o se obedece sola al abrir el clon, corre en las máquinas del dueño o filtra un secreto
+    malas = [".mcp.json", ".claude/settings.json", ".vscode/tasks.json", ".vscode/settings.json", ".idea/workspace.xml",
+             ".devcontainer/devcontainer.json", ".gemini/settings.json", ".codex/config.toml", ".cursor/rules/a.mdc",
+             ".cursorrules", ".windsurfrules", ".clinerules", ".aider.conf.yml", ".kiro/steering/a.md",
+             "CLAUDE.md", "CLAUDE.local.md", "agentes/CLAUDE.md", "GEMINI.md", ".pre-commit-config.yaml", ".gitmodules",
+             ".envrc", ".env", ".env.local", "ejemplo/.env.production", ".npmrc", ".pypirc", "id_ed25519", "id_rsa.pub"]
+    flujos = [".github/workflows/x.yml", ".github/CODEOWNERS", ".github/copilot-instructions.md"]
+    buenas = ["README.md", "AGENTS.md", "agentes/12-presentador.md", "herramientas/color.py", "baterias/grafico/caso.json",
+              "baterias/limpieza/caso.csv", "baterias/fechas/caso.csv", "ejemplo/negocio.md", "docs/entorno.md",
+              "evidencia/blindaje/README.md", "sgsi/controles.json", "historial/NOTA-SELLOS.md"]
+    pasan = [m for m in malas if not motivo(m)]
+    pasan += [f for f in flujos if not validar_aporte.DEL_DUENO.match(f)]
+    falsas = [b for b in buenas if motivo(b) or validar_aporte.DEL_DUENO.match(b)]
+    if pasan or falsas:
+        return r("CEDE", f"pasan {len(pasan)} de {len(malas) + len(flujos)}: {pasan[:6]}; falsas alarmas: {falsas}")
+    return r("RESISTE", f"rechaza las {len(malas)} configuraciones y llaves y reserva al dueño los {len(flujos)} archivos de .github, "
+                        f"sin falsas alarmas en {len(buenas)} rutas legítimas")
+
+
 def main(argv):
     solo = set(argv[argv.index("--solo") + 1].split(",")) if "--solo" in argv else None
     filas = []
