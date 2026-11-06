@@ -35,6 +35,10 @@ cmp /tmp/datos-prueba/ventas.csv ejemplo/datos/ventas.csv && echo "datos idénti
 # 5b. Blindaje: se ataca cada capa a propósito (caja de arena, compuerta, perfil, salidas, integridad, dependencias)
 .venv/bin/python herramientas/blindaje.py
 
+# 5c. SGSI: la tríada C·I·D, los riesgos y la Declaración de Aplicabilidad, comprobados sin IA (y el probador, probado)
+.venv/bin/python herramientas/sgsi.py --autoprueba
+.venv/bin/python herramientas/sgsi.py --efectividad
+
 # 6. (Opcional, con red) SECOP II: los datos no vienen en el repositorio; se descargan con su contrato y se prueban al cargar
 .venv/bin/python herramientas/ingesta.py ejemplo-secop/contrato_recorte_2024-2026.json --salida ejemplo-secop/datos --repetir
 .venv/bin/python herramientas/verificar.py corridas/2026-11-06-secop-medellin-2025
@@ -42,7 +46,7 @@ cmp /tmp/datos-prueba/ventas.csv ejemplo/datos/ventas.csv && echo "datos idénti
 
 SECOP II se actualiza a diario. Si el recorte de hoy no es idéntico al del 6-nov-2026, el paso 6 puede dar otras cifras: es lo esperado, y la procedencia de la carga dice qué cambió (filas, huella).
 
-Lo que debe salir: las cinco baterías en ✓, el blindaje con todas sus pruebas en «RESISTE» (en Linux, B01 sale «NO APLICA»: no hay sandbox-exec), la corrida en «aprobado», la referencia `m00` sin fallas y las mutantes `m01` a `m12` con al menos una falla cada una, los datos idénticos y la gobernanza aprobada. Si algo no sale así, el repositorio no cumple lo que dice.
+Lo que debe salir: las cinco baterías en ✓, el blindaje con todas sus pruebas en «RESISTE» (en Linux, B01 sale «NO APLICA»: no hay sandbox-exec), la corrida en «aprobado», la referencia `m00` sin fallas y las mutantes `m01` a `m12` con al menos una falla cada una, los datos idénticos, la gobernanza aprobada y el SGSI sin fallas, con sus 21 mutantes atrapados. Si algo no sale así, el repositorio no cumple lo que dice.
 
 ---
 
@@ -222,6 +226,27 @@ El mismo patrón del generador y el validador, aplicado al pipeline entero: un a
 **DB9 · La independencia se audita, no se supone.** Se revisan las transcripciones reales: ningún agente puede haber abierto lo que su ficha le prohíbe (`evidencia/blindaje/auditar_independencia.py`: 16 agentes, 0 accesos prohibidos).
 
 **DB10 · Quien toca una herramienta corre el banco de blindaje.** El filtro de aportes lo corre si el aporte cambia `herramientas/`: debilitar una defensa hace fallar el aporte.
+
+## J · SGSI: la tríada C·I·D aplicada al pipeline
+
+La seguridad del repositorio, ordenada como un sistema de gestión (ISO/IEC 27001:2022) y comprobada sin IA, igual que el análisis. El método, el alcance y los proveedores están en [`sgsi/README.md`](sgsi/README.md); lo que hay hoy, en [`sgsi/INFORME-SGSI.md`](sgsi/INFORME-SGSI.md).
+
+**DS1 · Cada activo dice cuánto vale en confidencialidad, en integridad y en disponibilidad, y por qué.** Su clasificación sale de la C, y lo restringido nunca entra al repositorio público (A.5.9, A.5.12).
+*Cómo se comprueba:* `sgsi.py` cruza el inventario con `git ls-files` y `.gitignore`: los datos de SECOP con personas deben quedar ignorados y sin versionar.
+
+**DS2 · Cada riesgo pierde una sola propiedad, y su impacto no se escribe: sale del valor del activo.** Así nadie baja un riesgo bajando el impacto a mano. Nivel = probabilidad × impacto; criterio de aceptación: 10 o menos (6.1.2).
+
+**DS3 · La regla de la tríada.** La confidencialidad no tiene reversa: solo un control preventivo baja su riesgo. La integridad se corrige si se detecta: hace falta un control detectivo. La disponibilidad se restablece: hace falta un control correctivo. Si un residual baja sin el control que corresponde, la herramienta lo rechaza.
+
+**DS4 · La Declaración de Aplicabilidad tiene los 93 controles del Anexo A, y cada «sí» apunta a un control que existe en el repositorio** (6.1.3 d). Un control cuya evidencia desaparece invalida su fila.
+
+**DS5 · Un control vale lo que su prueba.** `--efectividad` corre el banco de blindaje, las baterías, la corrida sintética y los mutantes, y solo cuenta los controles que pasan (9.1). La vigilancia diaria (`vigilancia-diaria`) lo repite sobre `main` y consulta OSV por vulnerabilidades conocidas en las dependencias fijadas (A.8.8).
+
+**DS6 · Probar al probador también aquí.** `sgsi.py --autoprueba` daña el SGSI 21 veces a propósito (un riesgo de C rebajado con un control detectivo, una fila de la SoA que dice «sí» sin control, evidencia que ya no existe…) y debe atraparlas todas, con los datos de hoy como control positivo.
+
+**DS7 · Lo que queda por encima del criterio se ve y lo decide el dueño del riesgo, por escrito** (6.1.3 f). Hoy: R16, una referencia legal inventada por la IA que `validar_ficha.py` deja pasar.
+
+**DS8 · Cada corrida sale con su etiqueta C·I·D:** si sus salidas se pueden publicar (barrido y k-anonimato), si su criterio sigue sellado (huellas recalculadas) y si se puede reconstruir (contrato de datos o semilla). Las vulnerabilidades se reportan en privado y se responden según la propiedad que se perdió ([`SECURITY.md`](SECURITY.md)).
 
 ## Correspondencia con el curso «Big Data con IA» (NODO · EAFIT)
 

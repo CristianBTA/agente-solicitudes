@@ -26,6 +26,7 @@ Lee https://raw.githubusercontent.com/CristianBTA/agente-solicitudes/main/APORTA
 
 - **Los subagentes y sus parámetros:** [`agentes/`](agentes/README.md). Once fichas independientes de la herramienta (rol, qué puede leer y qué no, qué entrega, reglas, lo que nunca hace y la prueba sin IA que lo comprueba), las reglas comunes y la matriz de quién puede ver qué.
 - **Cómo validar el trabajo y qué exige cada práctica:** [`DIRECTRICES.md`](DIRECTRICES.md), con la guía «Validar este repositorio en 15 minutos».
+- **La seguridad como sistema (SGSI):** [`sgsi/`](sgsi/README.md). Inventario con su valor en confidencialidad, integridad y disponibilidad, 27 riesgos, la Declaración de Aplicabilidad de los 93 controles de ISO/IEC 27001:2022 y la regla de la tríada (la confidencialidad no tiene reversa, la integridad se corrige, la disponibilidad se restablece), comprobados sin IA por `herramientas/sgsi.py`. Las vulnerabilidades se reportan en privado: [`SECURITY.md`](SECURITY.md).
 - **Qué se midió:** [`evidencia/README.md`](evidencia/README.md). Generadores de un solo disparo frente al sistema verificado, en datos sintéticos y en SECOP II, con la prueba del criterio por mutantes (12 de 12 y 11 de 11) y los costos.
 
 ## Aportar
@@ -78,6 +79,8 @@ Con archivos locales, `datos` reemplaza a `fuente`: `{"ventas": "<ruta>/ventas.c
 | `herramientas/blindaje.py` | Banco de ataques al pipeline: caja de arena, compuerta, perfil, salidas, integridad, dependencias y generalización (15 pruebas, con control positivo) |
 | `herramientas/integridad.py` | Manifiesto de integridad: sella herramientas, fichas y baterías al inicio y lo comprueba al final |
 | `herramientas/informe_final.py` | Informe de las cinco etapas en Markdown y HTML, con todo el texto escapado |
+| `herramientas/sgsi.py` | SGSI sin IA: inventario C·I·D, riesgos con la regla de la tríada, Declaración de Aplicabilidad, etiqueta C·I·D de cada corrida; `--efectividad` y `--autoprueba` |
+| `herramientas/vulnerabilidades.py` | Vulnerabilidades conocidas (OSV) en las dependencias fijadas de `requirements.txt`, sin llaves |
 
 ## Estructura
 
@@ -91,9 +94,11 @@ ejemplo-secop/           glosario de SECOP II (los datos no se publican: se desc
 corridas/<fecha-nombre>/ spec, reglas, caso conocido, implementaciones, bitácora e informes de cada corrida
 evidencia/               experimentos: oráculos, mutantes, código y advertencias de los generadores de un solo disparo
 DIRECTRICES.md           directrices de nivel senior y cómo validar este repositorio
+sgsi/                    SGSI: activos, riesgos, controles, Declaración de Aplicabilidad e informe generado
+SECURITY.md              cómo reportar una vulnerabilidad en privado y cómo se responde según C, I o D
 CONTRIBUTING.md          cómo aportar sin gastar cuota, y el embudo de validación
 CHANGELOG.md             versiones y aportes aceptados, con crédito
-.github/                 filtro automático (GitHub Actions), formulario de aporte, plantilla y dueño de las revisiones
+.github/                 filtro automático y vigilancia diaria (GitHub Actions), formulario de aporte, plantilla y dueño de las revisiones
 ```
 
 ## Licencias
