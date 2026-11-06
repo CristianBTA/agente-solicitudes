@@ -28,6 +28,7 @@ Cada aporte aceptado queda aquí, con el usuario de GitHub de quien lo propuso (
 - `sgsi/`: 16 activos valorados en confidencialidad, integridad y disponibilidad; 27 riesgos; 39 controles del repositorio y la Declaración de Aplicabilidad de los 93 controles del Anexo A de ISO/IEC 27001:2022 (64 aplican, 29 se excluyen con su justificación).
 - `herramientas/sgsi.py`: lo comprueba sin IA, con la regla de la tríada (C sin reversa → preventivo; I se corrige → detectivo; D se restablece → correctivo), el impacto tomado del activo, la cobertura de 6.1.2 c 1 y la etiqueta C·I·D de cada corrida. `--autoprueba`: 21 de 21 SGSI dañados atrapados. `--efectividad`: 27 controles operando y 12 documentales.
 - Controles nuevos que salieron de la valoración: vigilancia diaria de `main` y de vulnerabilidades conocidas en las dependencias (OSV), escaneo de secretos y de permisos de los flujos en cada aporte, reporte privado de vulnerabilidades (`SECURITY.md`) y retención mínima de los datos crudos.
+- Lección L42: el filtro corría en Linux, donde no hay `sandbox-exec`; B11 y B12 cedían y todo aporte que tocara `herramientas/` habría fallado. El filtro y la vigilancia corren ahora en macOS, y `sgsi.py` lo exige.
 - Riesgo que queda a decisión del dueño: R16, referencias legales inventadas por la IA que `validar_ficha.py` deja pasar (residual 15, por encima del criterio de 10).
 
 ## Aportes del grupo

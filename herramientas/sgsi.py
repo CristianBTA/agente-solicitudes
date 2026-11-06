@@ -15,8 +15,8 @@ Lee sgsi/activos.json, sgsi/controles.json, sgsi/riesgos.json y sgsi/soa.json, y
                 clasificación concuerda con su C (pública: C <= 2; interna: C = 3; restringida: C >= 4);
   restringidos  nada restringido está en el repositorio público: lo que debe quedar fuera está ignorado y sin versionar;
   secretos      ningún archivo versionado trae llaves o tokens;
-  permisos      los flujos de GitHub piden solo lectura, no usan pull_request_target, no leen secretos propios y
-                fijan cada acción a su commit;
+  permisos      los flujos de GitHub piden solo lectura, no usan pull_request_target, no leen secretos propios,
+                fijan cada acción a su commit y, si corren el banco de blindaje, lo hacen en macOS (sandbox-exec);
   controles     cada control apunta a evidencia que existe y a pruebas que existen;
   riesgos       impacto = valor del activo en la propiedad que se pierde; nivel = probabilidad × impacto;
                 la regla de la tríada (curso NODO, clase 1):
@@ -189,6 +189,8 @@ def comprobar_permisos(res):
         otros = sorted(set(re.findall(r"secrets\.([A-Za-z0-9_]+)", t)) - {"GITHUB_TOKEN"})
         if otros:
             res.falla("permisos", f"{nombre}: lee secretos propios {otros} (el filtro de aportes no usa llaves)")
+        if re.search(r"blindaje\.py|validar_aporte\.py|sgsi\.py --efectividad", t) and not re.search(r"runs-on:\s*macos", t):
+            res.falla("permisos", f"{nombre}: corre el banco de blindaje fuera de macOS, donde la caja de arena no existe (L42)")
         for u in re.findall(r"uses:\s*([^\s#]+)", t):
             if not re.search(r"@[0-9a-f]{40}$", u):
                 res.falla("permisos", f"{nombre}: la acción {u} no está fijada a un commit")

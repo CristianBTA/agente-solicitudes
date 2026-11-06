@@ -46,7 +46,7 @@ cmp /tmp/datos-prueba/ventas.csv ejemplo/datos/ventas.csv && echo "datos idénti
 
 SECOP II se actualiza a diario. Si el recorte de hoy no es idéntico al del 6-nov-2026, el paso 6 puede dar otras cifras: es lo esperado, y la procedencia de la carga dice qué cambió (filas, huella).
 
-Lo que debe salir: las cinco baterías en ✓, el blindaje con todas sus pruebas en «RESISTE» (en Linux, B01 sale «NO APLICA»: no hay sandbox-exec), la corrida en «aprobado», la referencia `m00` sin fallas y las mutantes `m01` a `m12` con al menos una falla cada una, los datos idénticos, la gobernanza aprobada y el SGSI sin fallas, con sus 21 mutantes atrapados. Si algo no sale así, el repositorio no cumple lo que dice.
+Lo que debe salir: las cinco baterías en ✓, el blindaje con todas sus pruebas en «RESISTE» (en Linux no hay sandbox-exec: B01 sale «NO APLICA» y B11 y B12 ceden, por eso el filtro de aportes corre en macOS), la corrida en «aprobado», la referencia `m00` sin fallas y las mutantes `m01` a `m12` con al menos una falla cada una, los datos idénticos, la gobernanza aprobada y el SGSI sin fallas, con sus 21 mutantes atrapados. Si algo no sale así, el repositorio no cumple lo que dice.
 
 ---
 
