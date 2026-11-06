@@ -16,7 +16,7 @@ import sys
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
-FIJOS = ["herramientas/*.py", "herramientas/permitidas.json", "requirements.txt", "flujo.js", "agentes/*.md"]
+FIJOS = ["herramientas/*.py", "herramientas/permitidas.json", "herramientas/permitidas_usuario.json", "requirements.txt", "flujo.js", "agentes/*.md"]
 CRECEN = ["baterias/**/*"]
 
 

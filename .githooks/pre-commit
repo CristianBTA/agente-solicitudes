@@ -1,0 +1,12 @@
+#!/bin/sh
+# Freno de git: el código que no pasa la compuerta no entra al repositorio, lo haya escrito quien lo haya escrito.
+# Revisa lo preparado para el commit, no el disco. Se activa una vez por clon: git config core.hooksPath .githooks
+raiz=$(git rev-parse --show-toplevel) || exit 2
+python="$raiz/.venv/bin/python"
+[ -x "$python" ] || python=python3
+"$python" -I "$raiz/herramientas/comprobar.py" --preparado
+estado=$?
+if [ "$estado" -ne 0 ]; then
+    echo "La compuerta no dejó pasar el commit: corrige lo que dice arriba. Si no se pudo revisar: pip install --require-hashes -r requirements-compuerta.txt" >&2
+    exit 1
+fi

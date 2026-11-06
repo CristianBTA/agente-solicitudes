@@ -87,7 +87,9 @@ def main(argv):
         problemas.append("las hipótesis cambiaron después de sellarse")
     hp = c / "hipotesis.py"
     dep = dependencias.revisar(hp)
-    seg, _ = seguridad.revisar([hp])
+    seg, aviso_seg = seguridad.revisar([hp])
+    if aviso_seg:
+        problemas.append(f"no se pudo revisar la seguridad: {aviso_seg}")   # falla cerrada
     bloqueos = (dep.get("no_permitidas") or []) + (dep.get("intenta_instalar") or []) + [h["regla"] for h in seg[0]["bloquean"]]
     if bloqueos:
         problemas.append(f"hipotesis.py no pasa las compuertas: {bloqueos}")

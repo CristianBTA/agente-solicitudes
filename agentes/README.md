@@ -19,6 +19,8 @@ Cada ficha define un subagente: qué hace, qué puede leer y qué no, qué entre
 
 Las [reglas comunes](00-reglas-comunes.md) aplican a todos.
 
+Fuera del pipeline, para escribir código de usuario con datos: la ficha [Ingeniero de datos seguro](../conexion/claude-code/ingeniero-datos-seguro.md) trae la compuerta conectada; `herramientas/comprobar.py` decide, no la ficha.
+
 ## Quién puede ver qué
 La independencia es lo que evita que el que prueba comparta los puntos ciegos del que hace. Por eso cada subagente tiene cosas que **no** puede leer.
 

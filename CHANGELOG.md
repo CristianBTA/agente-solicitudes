@@ -44,6 +44,14 @@ Cada aporte aceptado queda aquí, con el usuario de GitHub de quien lo propuso (
 - `orquestar.mjs` corre `flujo.js` tal cual con agy (`agy -p`) o con Codex (`codex exec`). Cada subagente es una llamada nueva de la CLI, con su respuesta JSON validada contra el esquema del flujo y un reintento solo para el formato. Las respuestas vacías o bloqueadas detienen el flujo.
 - Las llamadas no encienden servidores MCP y el registro de cada subagente queda en `<corrida>/motor/`, fuera de git. `--simulacro` recorre el flujo sin IA: muestra las 15 llamadas con los dos motores.
 
+## v1.6 · 6 de noviembre de 2026 · compuerta de seguridad conectada y medida
+
+- `herramientas/seguridad_cwe.py`: reglas para 11 debilidades y dos perfiles, función pura y código de usuario.
+- `herramientas/comprobar.py`: la compuerta como un solo comando, también para cuadernos; si no puede revisar, no aprueba.
+- Conexión: gancho de Claude Code, freno de git y filtro de GitHub (`conexion/`).
+- Medida con lotes sellados (`medir_compuerta.py`) y con código generado de verdad y jurado a ciegas (`medir_real.py`). Resultados en `evidencia/compuerta/README.md`.
+- Un ataque de 16 revisores con acceso a las reglas: sus hallazgos confirmados y los lotes revelados pasaron a las baterías.
+
 ## Aportes del grupo
 
 Cada aporte entra sin nombre hasta que quien lo propuso acepta aparecer (la casilla del pull request o del formulario).

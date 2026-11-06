@@ -336,6 +336,66 @@
       "leccion": "El filtro de aportes corre la copia del propio pull request: un aporte que lo edita, lo renombra, cambia lo que importa o agrega un módulo con el nombre de uno estándar (herramientas/unicodedata.py) lo apaga desde adentro y sale en verde (simulado: filtro vaciado, una llave .pem y un flujo con curl | sh, en verde). Ahora un segundo chequeo, rutas-protegidas, corre la versión de main con pull_request_target: nunca trae ni ejecuta el código del aporte, solo lee por la API los nombres de los archivos que cambia, y bloquea a quien no es el dueño si toca el filtro, lo que corre, los flujos o un nombre de módulo que importan las herramientas. El SGSI ya no prohíbe pull_request_target: lo acepta solo sin ref ni head del aporte, sin credenciales en el checkout y sin datos del evento dentro de un comando.",
       "origen": "límite documentado en L54; el dueño pidió cerrarlo con código (6-nov-2026)",
       "prueba": "herramientas/blindaje.py B21"
+    },
+    {
+      "id": "L57",
+      "leccion": "Un comentario # nosec apagaba Bandit: el código de la IA podía silenciar el analizador con una sola palabra. Bandit corre siempre con --ignore-nosec.",
+      "origen": "diagnóstico de la compuerta, 6-nov-2026",
+      "prueba": "bateria:seguridad/malos/nosec_no_apaga_bandit.py"
+    },
+    {
+      "id": "L58",
+      "leccion": "Prohibir por contrato no es detectar: la compuerta de la función pura bloqueaba 36 de 66 fragmentos vulnerables y daba 8 falsas alarmas de 22 con código correcto que usa red. Hacen falta dos perfiles y reglas por debilidad.",
+      "origen": "primera medida con un lote a ciegas, 6-nov-2026",
+      "prueba": "herramientas/seguridad_cwe.py bateria:seguridad/malos_usuario"
+    },
+    {
+      "id": "L59",
+      "leccion": "En español «nombre» y «clave» son variables corrientes (nombre de un modelo, clave de un cruce), no datos personales: la regla se probó contra los cuadernos reales del curso antes de abrir ningún lote.",
+      "origen": "falsas alarmas en los cuadernos del curso, 6-nov-2026",
+      "prueba": "bateria:seguridad/buenos_usuario/ok_nombre_no_es_dato_personal.py"
+    },
+    {
+      "id": "L60",
+      "leccion": "Si quien escribe las reglas también escribe las pruebas, la cifra sale bien por construcción: el lote lo escribe otro modelo sin ver la compuerta, se sella por huella, y revelarlo lo descarta como medida. La meta se juzga con la cota inferior.",
+      "origen": "diseño de la medida, 6-nov-2026",
+      "prueba": "herramientas/medir_compuerta.py"
+    },
+    {
+      "id": "L61",
+      "leccion": "Las etiquetas de un lote también fallan: un revisor independiente encontró 8 discutibles o erradas de 88, y un fragmento «seguro» extraía un .tar sin filtro. Se revisan antes de medir y se pide uno nuevo, sin que el autor de las reglas las vea.",
+      "origen": "revisión ciega del lote, 6-nov-2026",
+      "prueba": "herramientas/medir_compuerta.py"
+    },
+    {
+      "id": "L62",
+      "leccion": "Después de corregir, los lotes revelados dieron 66 de 66, y el siguiente lote sin ver dio 58. La cifra que vale es la del lote que nadie ha visto: revelar lo gasta como medida y sus fragmentos pasan a las baterías.",
+      "origen": "lotes sellados B y C, 6-nov-2026",
+      "prueba": "herramientas/medir_compuerta.py"
+    },
+    {
+      "id": "L63",
+      "leccion": "Una caída de Bandit contaba como cero hallazgos: un logging.py en la carpeta bastaba para apagarlo. Toda falla al revisar sale con 2 y nunca aprueba; Bandit corre aislado, en una carpeta vacía y con tope de tiempo.",
+      "origen": "ataque a la compuerta, 6-nov-2026",
+      "prueba": "bateria:seguridad/malos_usuario/ataque_caidas_cookie_utf7.py"
+    },
+    {
+      "id": "L64",
+      "leccion": "Un gancho en la ficha de un proyecto no corre sin la confirmación de confianza de la carpeta, y no avisa: se entrega código inseguro con la bitácora vacía. Se instala a nivel de usuario y se comprueba mirando COMPUERTA_BITACORA.",
+      "origen": "prueba de extremo a extremo, 6-nov-2026",
+      "prueba": "conexion/claude-code/README.md"
+    },
+    {
+      "id": "L65",
+      "leccion": "Medida con código real, la compuerta rechazó 35 de 55 programas cuando el jurado veía 8 vulnerables, y 10 quedaron sin entregar. Los lotes no lo mostraban: una compuerta se mide también por lo que deja de entregar.",
+      "origen": "medida real, 6-nov-2026",
+      "prueba": "evidencia/compuerta/README.md"
+    },
+    {
+      "id": "L66",
+      "leccion": "El 40 % de código vulnerable no se reprodujo con un modelo actual: el jurado vio 8 de 55 sin compuerta. Una cifra de otro modelo y otra época no es línea base: se mide la propia.",
+      "origen": "medida real, 6-nov-2026",
+      "prueba": "evidencia/compuerta/README.md"
     }
   ]
 }

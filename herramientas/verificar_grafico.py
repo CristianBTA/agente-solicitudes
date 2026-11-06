@@ -371,8 +371,8 @@ def comprobar(c):
     checks = []
     gp = c / "grafico.py"
     dep = dependencias.revisar(gp)
-    seg, _ = seguridad.revisar([gp])
-    bloqueos = (dep.get("no_permitidas") or []) + (dep.get("intenta_instalar") or []) + [h["regla"] for h in seg[0]["bloquean"]]
+    seg, aviso_seg = seguridad.revisar([gp])
+    bloqueos = (dep.get("no_permitidas") or []) + (dep.get("intenta_instalar") or []) + [h["regla"] for h in seg[0]["bloquean"]] + ([f"no se pudo revisar: {aviso_seg}"] if aviso_seg else [])   # falla cerrada
     checks.append({"comprobacion": "compuertas de seguridad y librerías", "ok": not bloqueos, "detalle": str(bloqueos or "sin hallazgos")})
     if bloqueos:
         return checks, None

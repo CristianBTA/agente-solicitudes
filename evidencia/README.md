@@ -82,6 +82,8 @@ Todo quedó corregido, comprobado con las pruebas del propio revisor y convertid
 
 **Costo:** una corrida completa cuesta entre 1,5 y 1,9 millones de tokens. Por eso los participantes no corren el flujo para aportar (ver `CONTRIBUTING.md`).
 
+La compuerta de seguridad tiene su propia evidencia: [`compuerta/README.md`](compuerta/README.md).
+
 ## Qué se concluye, sin adornos
 
 1. **Con acceso a los datos y un glosario claro, el modelo de un solo disparo acertó 6 de 6** (contando la decisión declarada sobre la universidad privada) y avisó bien. La intuición de que los modelos actuales son confiables se sostiene en estas pruebas.

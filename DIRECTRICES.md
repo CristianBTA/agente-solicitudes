@@ -198,6 +198,8 @@ El código de la IA solo importa la biblioteca estándar y lo de `herramientas/p
 **D22 · Contrato estrecho y análisis estático antes de ejecutar.**
 El código de la IA es una función pura. Antes de correrlo se revisan con reglas propias y con Bandit: ejecución de texto, comandos, deserialización, red, escritura, reflexión y secretos. Si algo bloquea, no se ejecuta.
 *Dónde:* `herramientas/seguridad.py` y `herramientas/dependencias.py`.
+*Dos perfiles:* `pura` es el contrato de este párrafo. `usuario` es para código que sí necesita red y archivos: permite TLS, escritura y procesos con lista de argumentos, y bloquea la debilidad en sí (11 CWE, `herramientas/seguridad_cwe.py`). Un comentario `# nosec` no apaga nada.
+*Cómo se mide:* con un lote que escribe otro modelo sin ver la compuerta (`herramientas/medir_compuerta.py`). Revelar un lote lo descarta como medida; la meta se juzga con la cota inferior.
 
 **D23 · Caja de arena.** Sin red y sin escritura fuera de una carpeta temporal (`herramientas/caja.py`).
 
@@ -285,3 +287,4 @@ R13 y R16 son de PySpark: aquí no aplican, porque los datos caben en memoria (9
 - Si el especificador y el revisor entienden mal lo mismo, el error pasa. Por eso el informe muestra la interpretación, los supuestos y las preguntas: es lo único que una persona tiene que leer.
 - El barrido de datos personales usa expresiones regulares: puede dejar pasar formas que no conoce. La minimización (D7) es la primera defensa.
 - La caja de arena depende de `sandbox-exec` de macOS.
+- La compuerta de seguridad es análisis estático: sigue el dato dentro de una función, no entre funciones, y solo conoce las 11 debilidades de su catálogo. Su cifra vale para ese catálogo y para fragmentos cortos; no es un certificado de que el código sea seguro.
