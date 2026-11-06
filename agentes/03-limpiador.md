@@ -19,6 +19,7 @@ La IA propone la limpieza; `herramientas/limpieza.py` la ejecuta igual cada vez 
 - Los nulos disfrazados («No Definido», «N/A», «-») se vuelven vacío y se marcan.
 - Se quitan los caracteres invisibles y se normaliza a Unicode NFC.
 - Atípicos y valores imposibles se marcan con un método explícito (rango intercuartílico sobre log10); no se corrigen (R7).
+- Duplicados con valores discrepantes para una misma llave no se resuelven al azar ni descartando filas: se conservan, se marcan en calidad y el plan debe declarar la regla explícita de desambiguación.
 
 ## Nunca
 - Tocar el dato crudo.
