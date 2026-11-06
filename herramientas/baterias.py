@@ -13,6 +13,7 @@ Uso:
 3. Lecciones: cada lección apunta a una prueba; si apunta a un archivo de la batería, el archivo existe.
 4. Cruces: el perfil explica por qué no cruza cada valor (baterias/cruces/esperado.json) y no explica un ausente.
 5. Fechas: el perfil cuenta aparte las fechas que no existen en el calendario (baterias/fechas/casos.json).
+6. Repetidos: una llave repetida nunca se resuelve por el orden del archivo sin aviso (baterias/limpieza/).
 """
 import json
 import shutil
@@ -142,6 +143,35 @@ def bateria_fechas():
     return {"bateria": "fechas", "casos": len(d["casos"]), "fallas": fallas}
 
 
+def bateria_repetidos():
+    """Llaves repetidas: nunca gana una fila por el orden del archivo sin avisarlo; el desempate del plan decide."""
+    import csv
+    import tempfile
+    import limpieza
+    d = BAT / "limpieza"
+    esperado = json.loads((d / "repetidos_esperado.json").read_text(encoding="utf-8"))
+    fallas = []
+    for c in esperado["casos"]:
+        tmp = Path(tempfile.mkdtemp(prefix="bateria-repetidos-"))
+        try:
+            op = {"op": "repetidos", "columnas": ["id"], "marca": "repetido"}
+            if c["desempate"]:
+                op["desempate"] = c["desempate"]
+            plan = {"tabla": "t", "entrada": str(d / "repetidos.csv"), "salida": str(tmp / "t.csv"), "llave": "id", "operaciones": [op]}
+            (tmp / "plan.json").write_text(json.dumps(plan), encoding="utf-8")
+            inf = limpieza.limpiar(tmp / "plan.json", informe=False)
+            ok = {f["id"]: f["region"] for f in csv.DictReader(open(tmp / "t.csv", encoding="utf-8")) if f.get("calidad_ok") == "1"}
+            for k, v in c["conserva"].items():
+                if ok.get(k) != v:
+                    fallas.append(f"{c['nombre']}: {k} conserva {ok.get(k)} (se esperaba {v})")
+            aviso = inf["operaciones"][0].get("aviso")
+            if (c["aviso"] is None) != (aviso is None) or (c["aviso"] and c["aviso"] not in aviso):
+                fallas.append(f"{c['nombre']}: aviso «{aviso}» (se esperaba «{c['aviso']}»)")
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+    return {"bateria": "repetidos", "casos": len(esperado["casos"]), "fallas": fallas}
+
+
 def bateria_lecciones():
     d = json.loads((BAT / "lecciones.json").read_text(encoding="utf-8"))
     fallas = []
@@ -174,7 +204,7 @@ def main(argv):
         print(f"Lección {d['lecciones'][-1]['id']} agregada.")
         return 0
     res = [bateria_seguridad(), bateria_privacidad(), bateria_failfast(), bateria_inyeccion(), bateria_cruces(),
-           bateria_fechas(), bateria_lecciones()]
+           bateria_fechas(), bateria_repetidos(), bateria_lecciones()]
     for r in res:
         print(f"{'✓' if not r['fallas'] else '✗'} {r['bateria']}: {r['casos']} casos" + ("" if not r["fallas"] else " · " + "; ".join(r["fallas"])))
     malos = sum(len(r["fallas"]) for r in res)

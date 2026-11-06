@@ -19,7 +19,9 @@ Operaciones (en orden):
   {"op": "numero", "columna", "decimal": "." , "marca": "numero_invalido"}
   {"op": "rango", "columna", "min", "max", "marca"}                 marca, no corrige (R7)
   {"op": "atipicos", "columna", "k": 3, "marca"}                    rango intercuartílico sobre log10 de los positivos
-  {"op": "repetidos", "columnas": [...] o "fila_completa", "marca": "repetido"}   marca desde la segunda aparición
+  {"op": "repetidos", "columnas": [...] o "fila_completa", "marca": "repetido",
+   "desempate": {"columna": "fecha_actualizacion", "conservar": "ultimo"}}   marca todas menos la que se conserva:
+      sin desempate, la primera del archivo; si la llave se repite con valores distintos y no hay desempate, avisa
   {"op": "comparar", "izquierda", "operador": "<", "derecha", "marca"}             p. ej. fin antes de inicio
 Umbrales: {"completitud_minima": {col: 0.99}, "validez_minima": {col: 0.999}, "unicidad": [col], "marcadas_maximo": {marca: n}}
 """
@@ -257,12 +259,41 @@ def limpiar(plan_ruta, entrada=None, salida=None, informe=True):
                 ej.append(f"límites: {10 ** bajo:,.0f} a {10 ** alto:,.0f}".replace(",", "."))
         elif op == "repetidos":
             claves = cols if o.get("columnas") == "fila_completa" else o["columnas"]
-            vistos = set()
+            grupos = {}
             for i, f in enumerate(filas):
-                k = tuple(f.get(c, "").strip().upper() for c in claves)
-                if k in vistos:
-                    marca(i, o.get("marca", "repetido"))
-                vistos.add(k)
+                grupos.setdefault(tuple(f.get(c, "").strip().upper() for c in claves), []).append(i)
+            des = o.get("desempate")
+            if des and des.get("columna") not in cols:
+                raise SystemExit(f"El desempate de repetidos usa la columna {des.get('columna')}, que no existe (R1)")
+            distintas = empates = 0
+            for idx in grupos.values():
+                if len(idx) < 2:
+                    continue
+                if len({tuple(filas[i].get(c, "") for c in cols) for i in idx}) > 1:
+                    distintas += 1
+                ganador = idx[0]   # sin desempate: la primera del archivo (el orden del archivo no es un criterio)
+                if des:
+                    vals = [filas[i].get(des["columna"], "").strip() for i in idx]
+                    try:
+                        claves_orden = [(float(v), i) if v else (float("-inf"), i) for v, i in zip(vals, idx)]
+                    except ValueError:
+                        claves_orden = [(v, i) for v, i in zip(vals, idx)]   # texto: fechas en aaaa-mm-dd (operación fecha antes)
+                    orden = sorted(claves_orden)
+                    ganador = (orden[-1] if des.get("conservar", "ultimo") == "ultimo" else orden[0])[1]
+                    tope = orden[-1][0] if des.get("conservar", "ultimo") == "ultimo" else orden[0][0]
+                    empatadas = [i for k, i in orden if k == tope]
+                    if len({tuple(filas[i].get(c, "") for c in cols) for i in empatadas}) > 1:   # filas idénticas no son empate
+                        empates += 1
+                for i in idx:
+                    if i != ganador:
+                        marca(i, o.get("marca", "repetido"))
+            if distintas and not des:
+                aviso_rep = (f"{distintas} llaves repetidas con valores distintos: se conservó la primera del archivo sin criterio; "
+                             "declara desempate (columna y conservar: ultimo o primero)")
+            elif empates:
+                aviso_rep = f"{empates} llaves repetidas empatan en {des['columna']}: el orden del archivo decidió entre las empatadas"
+            else:
+                aviso_rep = None
         elif op == "comparar":
             fn = OPS[o["operador"]]
             for i, f in enumerate(filas):
@@ -278,6 +309,8 @@ def limpiar(plan_ruta, entrada=None, salida=None, informe=True):
             raise SystemExit(f"Operación desconocida: {op}")
         reporte.append({"op": op, "columna": col or o.get("columnas") or f"{o.get('izquierda')} {o.get('operador')} {o.get('derecha')}",
                         "filas_cambiadas": cambiadas, "filas_marcadas": marcadas, "ejemplos": ej, "marca": o.get("marca")})
+        if op == "repetidos" and aviso_rep:
+            reporte[-1]["aviso"] = aviso_rep
 
     # defensa por defecto: una celda de texto que empieza con = + - @ se ejecutaría como fórmula al abrirla en Excel
     neutralizadas = 0
@@ -350,6 +383,8 @@ def limpiar(plan_ruta, entrada=None, salida=None, informe=True):
     for r in reporte:
         print(f"  · {r['op']} {r['columna']}: cambiadas {r['filas_cambiadas']} · marcadas {r['filas_marcadas']}"
               + (f" · {'; '.join(r['ejemplos'][:2])}" if r["ejemplos"] else ""))
+        if r.get("aviso"):
+            print(f"    ! {r['aviso']}")
     for p in pruebas:
         print(f"  {'✓' if p['ok'] else '✗'} {p['prueba']}: {p['detalle']}")
     print("RESUMEN " + json.dumps({"estado": informe["estado"], "filas": len(filas), "marcas": conteo_marcas,

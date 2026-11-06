@@ -294,6 +294,12 @@
       "leccion": "Una regla de lectura se valida con fuentes de varios dominios y formatos, no solo con la del caso: el lector debe servir para cualquier base de big data. En una columna donde el punto ya es decimal (12.5, 3.14159), 1.250 es un decimal y no miles: la regla de L46 detenía esa lectura. Y la revisión celda por celda se hace solo donde hay un «=» o un punto: con 12 conjuntos de datos.gov.co (550.000 filas) el sobrecosto bajó de +3,19 s a +1,14 s, con la misma detección.",
       "origen": "re-validación de L40, L45 y L46 con 12 conjuntos de datos.gov.co (IDEAM, tasas de interés, matrícula, CUIF, combustibles, RUNT, hurtos, EVA, subsidios, cobertura móvil, violencia intrafamiliar, DIVIPOLA), 6-nov-2026",
       "prueba": "bateria:failfast/se_leen/punto_decimal_con_tres_decimales.csv bateria:failfast/se_leen/codigos_con_forma_de_monto.csv"
+    },
+    {
+      "id": "L50",
+      "leccion": "Una llave repetida con valores distintos (el maestro de clientes con dos regiones) se resolvía por el orden del archivo: la operación repetidos marcaba desde la segunda aparición y el plan no podía pedir «la más reciente». Con los datos de ejemplo, 2 clientes quedaban en una región vieja (94.793.600 en ventas) y solo lo atrapaba el caso conocido; la corrida sellada de SECOP resolvió así 3 llaves de su caso conocido. Ahora el plan declara desempate (columna y conservar) y la limpieza avisa cuando falta o cuando hay empates.",
+      "origen": "aporte del grupo (PR #11): integración de fuentes con maestros de registros; el dueño lo volvió verificable en limpieza.py, 6-nov-2026",
+      "prueba": "bateria:limpieza/repetidos_esperado.json"
     }
   ]
 }

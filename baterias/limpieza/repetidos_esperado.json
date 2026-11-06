@@ -1,0 +1,13 @@
+{
+  "_que_prueba": "Llaves repetidas: sin desempate se conserva la primera del archivo y se avisa si hay valores distintos; con desempate se conserva la que dice el plan (fecha o número), y un empate también se avisa.",
+  "casos": [
+    {"nombre": "sin desempate", "desempate": null,
+     "conserva": {"C1": "Antioquia", "C2": "Valle", "C3": "Risaralda", "C4": "Antioquia"}, "aviso": "2 llaves repetidas con valores distintos"},
+    {"nombre": "fecha, el último", "desempate": {"columna": "fecha_actualizacion", "conservar": "ultimo"},
+     "conserva": {"C1": "Caldas", "C2": "Valle", "C4": "Antioquia"}, "aviso": "1 llaves repetidas empatan"},
+    {"nombre": "fecha, el primero", "desempate": {"columna": "fecha_actualizacion", "conservar": "primero"},
+     "conserva": {"C1": "Antioquia", "C2": "Valle", "C4": "Antioquia"}, "aviso": "1 llaves repetidas empatan"},
+    {"nombre": "número: 10 gana a 9 (no por texto)", "desempate": {"columna": "puntos", "conservar": "ultimo"},
+     "conserva": {"C1": "Caldas", "C2": "Valle", "C3": "Risaralda", "C4": "Antioquia"}, "aviso": null}
+  ]
+}
