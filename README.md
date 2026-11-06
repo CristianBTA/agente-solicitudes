@@ -48,6 +48,8 @@ Recorre un catálogo completo de datos abiertos (datos.gov.co tiene 8.470 conjun
 .venv/bin/python herramientas/agente_masivo.py www.datos.gov.co --trabajo fichas-hoy --top 8 --motor agy   # o --motor ninguno para usar otra IA
 ```
 
+Cómo invocarlo desde la terminal, con agy o con cualquier IA de terminal, y el texto listo para pegar: [`AGENTE-MASIVO.md`](AGENTE-MASIVO.md).
+
 El validador (`herramientas/validar_ficha.py`, V1 a V16) mide la forma: columnas, consultas reales, cruces medidos, grano, sumas creíbles, lugar, k-anonimato y normas verificadas. **Que una ficha pase no la hace publicable:** el juicio de valor lo hacen un juez ciego y las personas.
 
 ## Instalar
