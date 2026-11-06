@@ -219,14 +219,14 @@ prev. = preventivo, det. = detectivo, corr. = correctivo.
 | CT08 | Manifiesto de integridad de herramientas, fichas y baterías durante la corrida (DB3) | detectivo | I | A.8.9, A.8.32 | B02 |
 | CT09 | Verificación sin IA del resultado: dos implementaciones, caso conocido, conservación, conciliación y repetibilidad (D9–D13) | detectivo | I | A.8.29, A.8.30 | corrida-sintetica, B05 |
 | CT10 | Probar al probador con mutantes (D14) | detectivo | I | A.8.29 | mutantes |
-| CT11 | FAILFAST, perfil y limpieza declarada: lo que no cumple el contrato se detiene, se explica o se marca (D3, D5, DL3–DL6) | preventivo | I | A.8.26, A.8.27 | bateria:failfast, bateria:cruces, bateria:fechas, bateria:repetidos, B09, B19 |
+| CT11 | FAILFAST, perfil y limpieza declarada: lo que no cumple el contrato se detiene, se explica o se marca (D3, D5, DL3–DL6) | preventivo | I | A.8.26, A.8.27 | bateria:failfast, bateria:cruces, bateria:fechas, bateria:repetidos, bateria:factor, B09, B19 |
 | CT12 | Compuerta estática (reglas propias y Bandit) y lista cerrada de librerías (D21, D22) | preventivo | C·I·D | A.8.28, A.8.7, A.8.19, A.8.30 | bateria:seguridad, B15 |
 | CT13 | Caja de arena: sin red, sin escritura, sin la carpeta personal, entorno mínimo y topes de tiempo y memoria (D23, DB2) | preventivo | C·I·D | A.8.22, A.8.31, A.8.6, A.8.1 | B00, B01, B10, B11, B12, B13, B14 |
 | CT14 | Cadena de suministro fijada: dependencias con huella y acciones fijadas a su commit (DB7) | preventivo | I | A.5.21, A.8.19 | B08, sgsi:permisos |
 | CT15 | Vigilancia diaria de vulnerabilidades conocidas en las dependencias fijadas (OSV) | detectivo | C·I·D | A.8.8, A.5.7 | red:vulnerabilidades |
 | CT16 | Cuarentena de instrucciones: los datos y los aportes son datos, nunca órdenes (DB4) | preventivo | I | A.8.26, A.8.27 | bateria:inyeccion, B04, B07 |
 | CT17 | Salidas que no ejecutan nada al abrirse: HTML escapado y fórmulas neutralizadas (D24, DB5) | preventivo | C·I | A.8.28, A.8.26 | B03, B17, B18 |
-| CT18 | Lista de comprobación del gráfico: eje desde cero, período, fuente y cuenta de control (D17) | detectivo | I | A.8.29 | B17 |
+| CT18 | Lista de comprobación del gráfico: eje desde cero, período, fuente y cuenta de control (D17) | detectivo | I | A.8.29 | B17, bateria:grafico |
 | CT19 | Filtro automático de aportes, sin IA ni llaves (validar-aporte) | preventivo | C·I | A.8.32, A.8.29, A.8.4, A.8.25 | B07, B20 |
 | CT20 | main protegida: revisión del dueño (CODEOWNERS), sin borrado ni force-push y aprobación de flujos de forks | preventivo | I·D | A.8.4, A.8.32, A.5.3, A.5.18 | evidencia documental |
 | CT21 | Comprobación diaria de que el repositorio sigue abierto a aportes | detectivo | I·D | A.8.16, A.5.30, A.5.22 | red:abierta_a_aportes |
