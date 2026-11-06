@@ -70,6 +70,7 @@ Con archivos locales, `datos` reemplaza a `fuente`: `{"ventas": "<ruta>/ventas.c
 node orquestar.mjs --motor agy   --args corrida.json      # agy -p (Gemini por defecto)
 node orquestar.mjs --motor codex --args corrida.json      # codex exec
 node orquestar.mjs --motor codex --args corrida.json --simulacro   # sin IA: muestra cada llamada y recorre el flujo
+node orquestar.mjs --motor agy --comprobar                        # dos llamadas mínimas antes de una corrida completa
 ```
 
 - **Requisitos:** Node 18 o más, la CLI con sesión iniciada (`agy`, o `codex login`) y el `.venv` de [Instalar](#instalar).
