@@ -276,6 +276,12 @@
       "leccion": "Una columna de montos con punto de miles (78.000) mezclada con montos sin separador (1628100) se lee sin error, y float(\"78.000\") da 78,0: el monto se divide por mil en silencio. El lector se detiene si una columna solo numérica trae punto de miles inequívoco (1.250.000, 1.250,50) o mezclado con enteros largos. Las columnas de texto o de códigos no se revisan: en SECOP, referencia_del_contrato trae 3 valores con forma de monto entre 91.072 códigos.",
       "origen": "aporte del grupo (issue #10): una IA leyó montos con punto de miles como decimales, 6-nov-2026",
       "prueba": "bateria:failfast/monto_con_punto_de_miles.csv"
+    },
+    {
+      "id": "L47",
+      "leccion": "Una lista de módulos prohibidos se queda corta si se cierra caso por caso: runpy ejecuta un archivo que la compuerta nunca revisó, y code, timeit, cProfile, profile, pdb, trace y doctest ejecutan texto como código; zipimport carga código, pydoc lanza comandos, y asyncio y concurrent.futures lanzan procesos con create_subprocess_* y ProcessPoolExecutor. Las 14 muestras pasaban la compuerta; ahora se bloquean, y los hilos y asyncio sin procesos siguen pasando.",
+      "origen": "aporte del grupo (issue #9): runpy; el dueño cerró la familia completa, 6-nov-2026",
+      "prueba": "bateria:seguridad/malos/runpy.py bateria:seguridad/malos/procesos_pool_from.py bateria:seguridad/buenos/hilos_threadpool.py"
     }
   ]
 }
