@@ -1,15 +1,19 @@
 #!/usr/bin/env python3
-"""Análisis: prueba las hipótesis que propuso la IA (sin IA).
+"""Análisis: prueba hipótesis registradas antes de mirar los datos (sin IA).
+
+Desde el 6-nov-2026 las hipótesis las escriben las personas del curso (plantillas/analisis_humano.md), no la IA:
+esta herramienta se conserva para ellas. En las corridas anteriores, las escribía la IA (proponente y probador,
+hoy en historial/agentes-retirados/).
 
 Uso:
   python verificar_hipotesis.py <corrida> --sellar   sella hipotesis.json (registro previo, antes de probar)
   python verificar_hipotesis.py <corrida>            corre hipotesis.py y escribe hipotesis_resultado.json
 
-hipotesis.json  (lo escribe el proponente ANTES de cualquier prueba):
+hipotesis.json  (se escribe y se sella ANTES de cualquier prueba):
   [{"id": "H1", "enunciado": "...", "medida": "qué número se calcula y sobre qué filas",
     "umbral": {"operador": ">" | ">=" | "<" | "<=" | "entre", "valor": número o [a, b]},
     "linea_base": "contra qué se compara", "por_que_importa": "..."}]
-hipotesis.py    (lo escribe el probador, sin ver el razonamiento del proponente; calcula desde los CSV):
+hipotesis.py    (la consulta de cada hipótesis; calcula desde los CSV que recibe en datos):
   from reglas_base import hipotesis
   @hipotesis("H1")
   def h1(datos): return {"valor": 0.42, "linea_base": 0.2, "detalle": "..."}
