@@ -5,7 +5,8 @@ Uso: python ingesta.py contrato_datos.json --salida <carpeta> [--repetir]
 
 El contrato de datos (el «lector» que escribe la IA y revisa una persona) declara:
   fuente:   {tipo: "socrata", dominio, conjunto, titulo, filtro, filtro_legible, licencia, atribucion, unidad}
-            o {tipo: "local", ruta, titulo, licencia, atribucion, unidad}
+            o {tipo: "local", ruta, titulo, licencia, atribucion, unidad, conteo (opcional: filas que declara quien
+            entrega el archivo; si no lo dice, se cuentan aparte, con otro método que el del lector)}
   tabla, llave, columnas: {columna: "texto" | "entero" | "decimal" | "fecha"}
   dominios: {columna: [valores]}        duros: si un valor no está, la carga se rechaza
   rangos:   {columna: [min, max]}       duros (fechas como "aaaa-mm-dd")
@@ -32,6 +33,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from gobernanza import clasificar_columna, enmascarar  # noqa: E402
+from reglas_base import contar_registros, leer_tabla  # noqa: E402
 
 PAGINA = 50000
 AGENTE = {"User-Agent": "agente-solicitudes (analisis de datos abiertos)"}
@@ -54,7 +56,7 @@ def socrata(fuente, columnas, llave):
     existen = {c["fieldName"] for c in meta.get("columns", [])}
     inventadas = [c for c in columnas if c not in existen]
     if inventadas:
-        return None, None, None, f"columnas que no existen en la fuente: {inventadas}"
+        return None, None, None, f"columnas que no existen en la fuente: {inventadas}", {}
     q = lambda p: urllib.parse.urlencode({"$" + k: v for k, v in p.items()})
     contar = lambda: int(json.loads(pedir(f"{base}/resource/{fuente['conjunto']}.json?"
                                           + q({"select": "count(*) AS n", "where": fuente["filtro"]})))[0]["n"])
@@ -67,7 +69,7 @@ def socrata(fuente, columnas, llave):
                 "limit": str(PAGINA), "offset": str(off)}))
             lector = list(csv.reader(io.StringIO(txt), strict=True))
             if lector and lector[0] != columnas:
-                return None, None, None, f"la fuente devolvió columnas distintas: {lector[0]}"
+                return None, None, None, f"la fuente devolvió columnas distintas: {lector[0]}", {}
             filas += lector[1:]
             if len(lector) - 1 < PAGINA:
                 break
@@ -75,25 +77,36 @@ def socrata(fuente, columnas, llave):
         despues = contar()
         if antes == despues:
             url = f"{base}/resource/{fuente['conjunto']}.csv?" + q({"select": ",".join(columnas), "where": fuente["filtro"]})
-            return filas, despues, url, None
-    return filas, despues, None, "la fuente cambió mientras se descargaba (dos veces); vuelva a correr"
+            return filas, despues, url, None, {"conteo_de": "count(*) de la API, el mismo antes y después de descargar"}
+    # FAILFAST: con la fuente cambiando no hay una carga que defender; nada se aprueba con una nota
+    return None, None, None, "la fuente cambió mientras se descargaba (dos veces); vuelva a correr", {}
 
 
 def local(fuente, columnas):
+    """CSV local con el mismo lector estricto de las reglas (reglas_base.leer_tabla): una fila con más o menos campos,
+    una línea vacía o una comilla sin cerrar rechazan la carga con su número de línea; nada se rellena ni se recorta.
+    El conteo de la fuente sale aparte: el que declara el contrato (fuente.conteo) o los saltos de línea fuera de
+    comillas, que es otra cuenta, no la del mismo lector."""
     ruta = Path(fuente["ruta"])
     texto = ruta.read_text(encoding="utf-8-sig")
-    lector = list(csv.reader(io.StringIO(texto), strict=True))
-    cab, cuerpo = lector[0], lector[1:]
+    try:
+        cab, cuerpo, _ = leer_tabla(texto, f"de {ruta.name}")
+    except ValueError as e:
+        return None, None, None, str(e), {}
     faltan = [c for c in columnas if c not in cab]
     if faltan:
-        return None, None, None, f"columnas que no existen en el archivo: {faltan}"
+        return None, None, None, f"columnas que no existen en el archivo: {faltan}", {}
     idx = [cab.index(c) for c in columnas]
-    filas = [[f[i] if i < len(f) else "" for i in idx] for f in cuerpo]
+    filas = [[f[i] for i in idx] for f in cuerpo]
+    if fuente.get("conteo") is not None:
+        conteo, de_donde = int(fuente["conteo"]), "el que declara el contrato (fuente.conteo)"
+    else:
+        conteo, de_donde = contar_registros(texto), "contado aparte: saltos de línea fuera de comillas"
     lineas = texto.count("\n") - 1
     nota = None if lineas == len(cuerpo) else (
         f"el archivo tiene {lineas} líneas y {len(cuerpo)} registros: hay saltos de línea dentro de campos "
         "(se leyó respetando las comillas, como multiLine=True)")
-    return filas, len(cuerpo), str(ruta.resolve()), nota
+    return filas, conteo, str(ruta.resolve()), nota, {"conteo_de": de_donde}
 
 
 def convertir(tipo, v):
@@ -116,13 +129,14 @@ def limite(tipo, x):
     return date.fromisoformat(x) if tipo == "fecha" and x is not None else x
 
 
-def probar(contrato, columnas, filas, conteo_fuente):
+def probar(contrato, columnas, filas, conteo_fuente, conteo_de=None):
     tipos = contrato["columnas"]
     llave = contrato["llave"]
     ik = columnas.index(llave)
     pruebas, avisos, nulos = [], [], {}
     pruebas.append({"prueba": "conteo contra la fuente", "ok": len(filas) == conteo_fuente,
-                    "detalle": f"filas leídas {len(filas)} · conteo de la fuente {conteo_fuente}"})
+                    "detalle": f"filas leídas {len(filas)} · conteo de la fuente {conteo_fuente}"
+                              + (f" ({conteo_de})" if conteo_de else "")})
     llaves = [f[ik].strip() for f in filas]
     vacias = sum(1 for k in llaves if not k)
     repetidas = len(llaves) - len(set(llaves))
@@ -186,9 +200,9 @@ def ingerir(ruta_contrato, salida, repetir=False):
                                        "columnas": personales}, ensure_ascii=False))
         return 1
     leer = (lambda: socrata(fuente, columnas, llave)) if fuente["tipo"] == "socrata" else (lambda: local(fuente, columnas))
-    filas, conteo_fuente, origen, nota = leer()
+    filas, conteo_fuente, origen, nota, extra = leer()
     if filas is None:
-        print(f"✗ {nota}")
+        print(f"Ingesta rechazada: {nota}")
         print("RESUMEN " + json.dumps({"estado": "rechazada", "motivo": nota}, ensure_ascii=False))
         return 1
     salida = Path(salida)
@@ -203,7 +217,7 @@ def ingerir(ruta_contrato, salida, repetir=False):
     anterior = hashlib.sha256(destino.read_bytes()).hexdigest() if destino.exists() else None
     repetible = None
     if repetir:
-        filas2, _, _, _ = leer()
+        filas2 = leer()[0]
         b2 = io.StringIO()
         w2 = csv.writer(b2, lineterminator="\n")
         w2.writerow(columnas)
@@ -214,7 +228,7 @@ def ingerir(ruta_contrato, salida, repetir=False):
         with os.fdopen(fd, "wb") as fh:
             fh.write(contenido)
         os.replace(tmp, destino)     # escritura atómica: reemplaza, nunca agrega (R12)
-    pruebas, avisos, nulos = probar(contrato, columnas, filas, conteo_fuente)
+    pruebas, avisos, nulos = probar(contrato, columnas, filas, conteo_fuente, extra.get("conteo_de"))
     if repetible is not None:
         pruebas.append({"prueba": "correr dos veces da lo mismo", "ok": repetible,
                         "detalle": "la segunda lectura dio el mismo archivo, byte a byte" if repetible

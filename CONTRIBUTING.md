@@ -25,7 +25,7 @@ Copia en tu asistente (Claude, ChatGPT, Copilot, Gemini…) el texto de [«Conec
 | Código peligroso que debería bloquearse | `baterias/seguridad/malos/<nombre>.py` | La compuerta debe bloquearlo; si hoy no lo bloquea, encontraste un hueco |
 | Código legítimo que se bloquea por error | `baterias/seguridad/buenos/<nombre>.py` | Debe pasar la compuerta |
 | Caso de privacidad | `baterias/privacidad/` | El barrido debe detectarlo, o no marcarlo si no es personal |
-| Archivo mal formado (FAILFAST) | `baterias/failfast/<nombre>.csv` | La lectura debe detenerse con error |
+| Archivo mal formado (FAILFAST) | `baterias/failfast/<nombre>.csv` | La lectura y la ingesta local deben detenerse con error y número de línea |
 | Mutante: un error típico de análisis | `evidencia/sintetico/mutantes/` | El criterio debe atraparlo sin dar falsas alarmas |
 | Regla para la ficha de un subagente | `agentes/<ficha>.md` | Prueba de efecto con IA, que hace el dueño (nivel 3) |
 | Definición del glosario | `ejemplo/negocio.md` o `ejemplo-secop/negocio.md` | La revisa el dueño |

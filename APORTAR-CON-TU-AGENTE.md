@@ -102,7 +102,7 @@ Cada tipo tiene una pregunta: **¿lo atrapa hoy el repositorio?**
 ```bash
 .venv/bin/python -c "import sys; sys.path.insert(0,'herramientas'); from reglas_base import leer_csv; leer_csv('baterias/failfast/<nombre>.csv')"
 ```
-Si no da error, es un hueco del lector. Para proponer el arreglo, lee `herramientas/reglas_base.py` (función `leer_csv`).
+Si no da error, es un hueco del lector. `baterias.py` además lo pasa por la ingesta local, que debe rechazarlo diciendo en qué línea. Para proponer el arreglo, lee `herramientas/reglas_base.py` (`_lector_estricto`, que comparten `leer_tabla`, `leer_csv` y `recorrer_csv`).
 
 **Mutante.**
 1. Copia `evidencia/sintetico/mutantes/m00_referencia_sin_errores.py` con el siguiente número libre y cambia **una sola cosa**.

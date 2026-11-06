@@ -414,6 +414,12 @@
       "leccion": "python -c pone la carpeta actual en sys.path: un json.py plantado donde se lanzaba la caja reemplazaba al de la biblioteca estándar dentro del ejecutor. La caja corre con python -P.",
       "origen": "revisión del filtro de aportes (GOB-1), 6-nov-2026",
       "prueba": "herramientas/blindaje.py B23"
+    },
+    {
+      "id": "L70",
+      "leccion": "Con CSV locales, la ingesta rellenaba con vacíos los campos que faltaban, descartaba los que sobraban y comparaba el conteo contra sí mismo: «2,1,500» (miles con coma, sin comillas) perdía el 500 y la carga se aprobaba con ✓ en el conteo. La ingesta lee con el mismo lector estricto de las reglas (leer_tabla: rechaza con el número de línea) y el conteo sale aparte: el que declara el contrato o los saltos de línea fuera de comillas.",
+      "origen": "revisión de gobernanza de la ingesta (GOB-3), 6-nov-2026",
+      "prueba": "bateria:failfast/miles_con_coma_sin_comillas.csv"
     }
   ]
 }

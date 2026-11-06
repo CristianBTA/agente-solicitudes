@@ -19,10 +19,13 @@ Uso:
 8. Gráfico: las figuras de baterias/grafico/buenos pasan las comprobaciones de forma y color, y cada figura de
    malos falla justo la comprobación que ataca (ni otra, ni ninguna).
 """
+import csv
 import json
+import re
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 AQUI = Path(__file__).resolve().parent
@@ -98,26 +101,67 @@ def bateria_privacidad():
     return {"bateria": "privacidad", "casos": len(secretos) + 3 + 6 + n_cols, "fallas": fallas}
 
 
+def ingerir_local(p, carpeta):
+    """La ingesta local de un CSV con un contrato mínimo (todas las columnas como texto y justificadas: son casos
+    ficticios). Devuelve su RESUMEN."""
+    with open(p, newline="", encoding="utf-8-sig") as fh:
+        cab = next(csv.reader(fh), None) or ["vacio"]
+    contrato = {"fuente": {"tipo": "local", "ruta": str(p), "titulo": "caso de la batería", "licencia": "—",
+                           "atribucion": "—", "unidad": "filas"},
+                "tabla": "caso", "llave": cab[0], "columnas": {c: "texto" for c in cab},
+                "personales_justificadas": {c: "caso de prueba con valores ficticios" for c in cab}}
+    (carpeta / "contrato.json").write_text(json.dumps(contrato, ensure_ascii=False), encoding="utf-8")
+    r = subprocess.run([sys.executable, str(AQUI / "ingesta.py"), str(carpeta / "contrato.json"), "--salida",  # nosec B603
+                        str(carpeta / "salida")], capture_output=True, text=True)
+    linea = next((l for l in reversed(r.stdout.splitlines()) if l.startswith("RESUMEN ")), None)
+    return json.loads(linea[len("RESUMEN "):]) if linea else {"estado": "sin RESUMEN", "salida": r.stderr[-160:]}
+
+
 def bateria_failfast():
-    """Un CSV mal formado detiene la lectura: nunca se lee a medias en silencio (FAILFAST)."""
-    from reglas_base import leer_csv, recorrer_csv
+    """Un CSV mal formado detiene la lectura: nunca se lee a medias ni se rellena en silencio (FAILFAST). Se prueba con
+    los dos lectores de las reglas (leer_csv y recorrer_csv, que recorre fila por fila con las mismas detenciones) y
+    con la ingesta local, que es la que escribe los datos del pipeline: la ingesta debe rechazarlo y decir en qué
+    línea. Control positivo: los CSV bien formados de ejemplo/datos se leen completos, con los dos lectores y con la
+    ingesta."""
+    from reglas_base import contar_registros, leer_csv, recorrer_csv
     fallas, casos = [], sorted((BAT / "failfast").glob("*.csv"))
     lectores = (("leer_csv", leer_csv), ("recorrer_csv", lambda p: sum(1 for _ in recorrer_csv(p))))   # los dos, igual
-    for p in casos:
-        for nombre, leer in lectores:
-            try:
-                leer(p)
-                fallas.append(falla(p.name, f"{p.name} se leyó sin error con {nombre}"))
-            except Exception:
-                pass
     buenos = sorted((BAT / "failfast" / "se_leen").glob("*.csv"))   # y lo legítimo de cualquier fuente se lee (sin falsas alarmas)
-    for p in buenos:
-        for nombre, leer in lectores:
-            try:
-                leer(p)
-            except Exception as e:
-                fallas.append(falla(p.name, f"falsa alarma con {nombre}: {p.name} se detuvo ({str(e)[:80]})"))
-    return {"bateria": "failfast", "casos": 2 * (len(casos) + len(buenos)), "fallas": fallas}
+    controles = sorted((RAIZ / "ejemplo" / "datos").glob("*.csv"))
+    tmp = Path(tempfile.mkdtemp(prefix="bateria-failfast-"))
+    try:
+        for p in casos:
+            for nombre, leer in lectores:
+                try:
+                    leer(p)
+                    fallas.append(falla(p.name, f"{p.name} se leyó sin error con {nombre}"))
+                except Exception:
+                    pass
+            r = ingerir_local(p, tmp)
+            if r.get("estado") != "rechazada" or not re.search(r"l[ií]nea \d+", str(r.get("motivo") or "")):
+                fallas.append(falla(p.name, f"la ingesta local no rechazó {p.name} diciendo la línea: {str(r)[:160]}"))
+        for p in buenos:
+            for nombre, leer in lectores:
+                try:
+                    leer(p)
+                except Exception as e:
+                    fallas.append(falla(p.name, f"falsa alarma con {nombre}: {p.name} se detuvo ({str(e)[:80]})"))
+        for p in controles:
+            esperado = contar_registros(p.read_text(encoding="utf-8-sig"))
+            for nombre, contar in (("leer_csv", lambda x: len(leer_csv(x))), ("recorrer_csv", lambda x: sum(1 for _ in recorrer_csv(x)))):
+                try:
+                    n = contar(p)
+                except Exception as e:
+                    n = f"se detuvo ({str(e)[:80]})"
+                if n != esperado:
+                    fallas.append(falla(p.name, f"control positivo: {p.name} bien formado no se leyó completo con {nombre} ({esperado} filas): {n}"))
+            r = ingerir_local(p, tmp)
+            de_formato = {"conteo contra la fuente", "tipos declarados (FAILFAST)"} & set(r.get("fallas") or [])
+            if r.get("motivo") or de_formato or r.get("filas") != esperado or r.get("conteo_fuente") != esperado:
+                fallas.append(falla(p.name, f"control positivo: {p.name} bien formado no se leyó completo ({esperado} filas): {str(r)[:160]}"))
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    return {"bateria": "failfast", "casos": 3 * len(casos) + 2 * len(buenos) + 3 * len(controles), "fallas": fallas}
 
 
 def bateria_inyeccion():
