@@ -5,6 +5,7 @@
 //   node orquestar.mjs --motor agy   --args corrida.json
 //   node orquestar.mjs --motor codex --args corrida.json
 //   node orquestar.mjs --motor codex --args corrida.json --simulacro   (sin IA: muestra cada llamada y recorre el flujo)
+//   node orquestar.mjs --motor agy --comprobar   (dos llamadas mínimas: la CLI responde, corre un comando y devuelve JSON)
 //
 // Opciones: --modelo <m> (subagentes normales), --modelo-ligero <m> (los que solo corren un comando),
 //           --modelo-respaldo <m> (agy: si el filtro de Gemini bloquea la respuesta), --tope-min <n> (por subagente, 60),
@@ -21,7 +22,8 @@ const opt = (k, d) => { const i = argv.indexOf(k); return i >= 0 && argv[i + 1] 
 const flag = (k) => argv.includes(k)
 
 const MOTOR = opt('--motor')
-if (!['agy', 'codex'].includes(MOTOR) || !opt('--args')) {
+const COMPROBAR = flag('--comprobar')
+if (!['agy', 'codex'].includes(MOTOR) || (!opt('--args') && !COMPROBAR)) {
   console.error('Uso: node orquestar.mjs --motor agy|codex --args <archivo.json> [--simulacro] [--modelo m] [--modelo-ligero m] [--tope-min 60]')
   process.exit(2)
 }
@@ -35,7 +37,7 @@ const BIN = MOTOR === 'agy' ? (process.env.AGY_BIN || 'agy') : (process.env.CODE
 
 // ---- argumentos de la corrida: los mismos de la herramienta Workflow; las rutas relativas se vuelven absolutas ----
 const abs = (r) => (r && !path.isAbsolute(r) ? path.resolve(r) : r)
-const A = JSON.parse(fs.readFileSync(opt('--args'), 'utf8'))
+const A = COMPROBAR ? { corrida: fs.mkdtempSync(path.join(os.tmpdir(), 'orquestar-comprobar-')) } : JSON.parse(fs.readFileSync(opt('--args'), 'utf8'))
 A.raiz = abs(A.raiz) || RAIZ
 A.corrida = abs(A.corrida)
 A.glosario = abs(A.glosario)
@@ -205,6 +207,22 @@ async function agent(prompt, opts = {}) {
   if (error) { log(`✗ ${etiqueta}: ${error}`); return null }
   log(`✓ ${etiqueta}`)
   return obj
+}
+
+// ---- --comprobar: dos llamadas mínimas (modelo ligero y normal) antes de gastar una corrida completa ----
+// El agente corre wc -l sobre flujo.js y el número se compara con el que calcula este código: si lo inventa, no pasa.
+if (COMPROBAR) {
+  const real = fs.readFileSync(path.join(RAIZ, 'flujo.js'), 'utf8').split('\n').length - 1
+  const S = { type: 'object', properties: { ok: { type: 'boolean' }, lineas: { type: 'number' } }, required: ['ok', 'lineas'] }
+  const p = `Ejecuta exactamente este comando y ningún otro: wc -l ${path.join(RAIZ, 'flujo.js')}\nDevuelve ok (true si el comando corrió) y lineas (el número que imprime). No modifiques ningún archivo.`
+  let todo = true
+  for (const [nombre, o] of [['modelo ligero', { model: 'haiku' }], ['modelo normal', { effort: 'high' }]]) {
+    const r = await agent(p, { label: `comprobación · ${nombre}`, schema: S, ...o })
+    const bien = !!r && r.ok === true && r.lineas === real
+    todo = todo && bien
+    log(bien ? `✓ ${MOTOR} · ${nombre}: corrió el comando y devolvió JSON válido (${real} líneas)` : `✗ ${MOTOR} · ${nombre}: ${JSON.stringify(r)}; se esperaban ${real} líneas (ver ${REGISTRO})`)
+  }
+  process.exit(todo ? 0 : 1)
 }
 
 // ---- flujo.js tal cual: solo se quita «export» para ejecutarlo como cuerpo de una función ----
