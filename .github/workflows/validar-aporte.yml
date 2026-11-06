@@ -3,6 +3,7 @@ name: validar-aporte
 on:
   pull_request:
     branches: [main]
+  workflow_dispatch:   # el dueño puede correr el mismo filtro sobre main (sin cambios: baterías, corrida, mutantes y SGSI)
 permissions:
   contents: read
 jobs:

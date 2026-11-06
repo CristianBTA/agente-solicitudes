@@ -264,7 +264,7 @@ La seguridad del repositorio, ordenada como un sistema de gestión (ISO/IEC 2700
 
 **DS6 · Probar al probador también aquí.** `sgsi.py --autoprueba` daña el SGSI 21 veces a propósito (un riesgo de C rebajado con un control detectivo, una fila de la SoA que dice «sí» sin control, evidencia que ya no existe…) y debe atraparlas todas, con los datos de hoy como control positivo.
 
-**DS7 · Lo que queda por encima del criterio se ve y lo decide el dueño del riesgo, por escrito** (6.1.3 f). Hoy: R16, una referencia legal inventada por la IA que `validar_ficha.py` deja pasar.
+**DS7 · Lo que queda por encima del criterio se ve y lo decide el dueño del riesgo, por escrito** (6.1.3 f). R16 (una referencia legal inventada por la IA) estuvo por encima del criterio hasta que se trató: hoy toda ley o decreto de una ficha debe estar comprobado contra su texto oficial en `baterias/normas/verificadas.json` (V6, CT40).
 
 **DS8 · Cada corrida sale con su etiqueta C·I·D:** si sus salidas se pueden publicar (barrido y k-anonimato), si su criterio sigue sellado (huellas recalculadas) y si se puede reconstruir (contrato de datos o semilla). Las vulnerabilidades se reportan en privado y se responden según la propiedad que se perdió ([`SECURITY.md`](SECURITY.md)).
 

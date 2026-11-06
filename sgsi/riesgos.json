@@ -9,247 +9,687 @@
  "rutas_locales_aceptadas": 21,
  "riesgos": [
   {
-   "id": "R01", "propiedad": "C", "activos": ["A01", "A02"],
+   "id": "R01",
+   "propiedad": "C",
+   "activos": [
+    "A01",
+    "A02"
+   ],
    "amenaza": "Datos de SECOP II con personas se suben al repositorio público (un «git add .» o un aporte con la carpeta datos/ o limpio/)",
    "vulnerabilidad": "los datos viven en carpetas del mismo clon que se publica",
-   "probabilidad": {"valor": 3, "por": "es el error más común en repositorios de clase: agregar todo lo que hay en la carpeta"},
-   "controles": ["CT02", "CT01", "CT19", "CT31", "CT33"],
-   "residual": {"probabilidad": 1, "impacto": 3, "por": "el .gitignore y el filtro de archivos frenan la subida (CT02, CT19), y si algo saliera sería solo lo minimizado: sin columnas de personas sin justificar (CT01)"},
-   "tratamiento": "mitigar", "dueño": "@CristianBTA"
+   "probabilidad": {
+    "valor": 3,
+    "por": "es el error más común en repositorios de clase: agregar todo lo que hay en la carpeta"
+   },
+   "controles": [
+    "CT02",
+    "CT01",
+    "CT19",
+    "CT31",
+    "CT33"
+   ],
+   "residual": {
+    "probabilidad": 1,
+    "impacto": 3,
+    "por": "el .gitignore y el filtro de archivos frenan la subida (CT02, CT19), y si algo saliera sería solo lo minimizado: sin columnas de personas sin justificar (CT01)"
+   },
+   "tratamiento": "mitigar",
+   "dueño": "@CristianBTA"
   },
   {
-   "id": "R02", "propiedad": "C", "activos": ["A01", "A09"],
+   "id": "R02",
+   "propiedad": "C",
+   "activos": [
+    "A01",
+    "A09"
+   ],
    "amenaza": "Una salida publicada (informe, gráfico o tabla) lleva cédulas, nombres o texto libre de personas",
    "vulnerabilidad": "las salidas se construyen con datos que sí traen personas",
-   "probabilidad": {"valor": 3, "por": "un agrupamiento por contratista o una columna de texto libre basta para publicar personas"},
-   "controles": ["CT03", "CT04", "CT01", "CT17"],
-   "residual": {"probabilidad": 1, "impacto": 3, "por": "el barrido determinista y el k-anonimato bloquean la publicación (CT03), la IA nunca ve filas (CT04) y lo que no se descarga no se publica (CT01)"},
-   "tratamiento": "mitigar", "dueño": "@CristianBTA"
+   "probabilidad": {
+    "valor": 3,
+    "por": "un agrupamiento por contratista o una columna de texto libre basta para publicar personas"
+   },
+   "controles": [
+    "CT03",
+    "CT04",
+    "CT01",
+    "CT17"
+   ],
+   "residual": {
+    "probabilidad": 1,
+    "impacto": 3,
+    "por": "el barrido determinista y el k-anonimato bloquean la publicación (CT03), la IA nunca ve filas (CT04) y lo que no se descarga no se publica (CT01)"
+   },
+   "tratamiento": "mitigar",
+   "dueño": "@CristianBTA"
   },
   {
-   "id": "R03", "propiedad": "C", "activos": ["A04"],
+   "id": "R03",
+   "propiedad": "C",
+   "activos": [
+    "A04"
+   ],
    "amenaza": "Un generador ve el criterio sellado (reglas o caso conocido) y escribe para pasar la prueba",
    "vulnerabilidad": "la separación descansa en lo que la orquestación le entrega a cada agente y en su ficha",
-   "probabilidad": {"valor": 3, "por": "un agente con acceso a archivos puede abrir lo que está en la carpeta de la corrida"},
-   "controles": ["CT05", "CT06"],
-   "residual": {"probabilidad": 2, "impacto": 3, "por": "la matriz de quién puede ver qué y la orquestación limitan lo que recibe cada agente (CT05); la auditoría (CT06) solo detecta, y en confidencialidad detectar no deshace"},
-   "tratamiento": "mitigar", "dueño": "@CristianBTA"
+   "probabilidad": {
+    "valor": 3,
+    "por": "un agente con acceso a archivos puede abrir lo que está en la carpeta de la corrida"
+   },
+   "controles": [
+    "CT05",
+    "CT06"
+   ],
+   "residual": {
+    "probabilidad": 2,
+    "impacto": 3,
+    "por": "la matriz de quién puede ver qué y la orquestación limitan lo que recibe cada agente (CT05); la auditoría (CT06) solo detecta, y en confidencialidad detectar no deshace"
+   },
+   "tratamiento": "mitigar",
+   "dueño": "@CristianBTA"
   },
   {
-   "id": "R04", "propiedad": "C", "activos": ["A13"],
+   "id": "R04",
+   "propiedad": "C",
+   "activos": [
+    "A13"
+   ],
    "amenaza": "El código de la IA lee secretos del entorno o archivos de la carpeta personal y los saca",
    "vulnerabilidad": "el código generado corre en el equipo del dueño, donde viven sus llaves",
-   "probabilidad": {"valor": 3, "por": "un generador puede escribir código que lee variables de entorno o rutas personales, por error o por una instrucción inyectada"},
-   "controles": ["CT13", "CT12"],
-   "residual": {"probabilidad": 1, "impacto": 5, "por": "la caja de arena niega la red, la carpeta personal y el entorno con secretos (CT13: B01, B11, B14), y la compuerta bloquea antes de ejecutar (CT12)"},
-   "tratamiento": "mitigar", "dueño": "@CristianBTA"
+   "probabilidad": {
+    "valor": 3,
+    "por": "un generador puede escribir código que lee variables de entorno o rutas personales, por error o por una instrucción inyectada"
+   },
+   "controles": [
+    "CT13",
+    "CT12"
+   ],
+   "residual": {
+    "probabilidad": 1,
+    "impacto": 5,
+    "por": "la caja de arena niega la red, la carpeta personal y el entorno con secretos (CT13: B01, B11, B14), y la compuerta bloquea antes de ejecutar (CT12)"
+   },
+   "tratamiento": "mitigar",
+   "dueño": "@CristianBTA"
   },
   {
-   "id": "R05", "propiedad": "C", "activos": ["A13"],
+   "id": "R05",
+   "propiedad": "C",
+   "activos": [
+    "A13"
+   ],
    "amenaza": "Un token o una llave queda en un commit o en un aporte",
    "vulnerabilidad": "las llaves se usan en el mismo equipo donde se escribe el código",
-   "probabilidad": {"valor": 2, "por": "el pipeline no necesita llaves, pero sí el entorno del dueño"},
-   "controles": ["CT29", "CT02", "CT30", "CT33"],
-   "residual": {"probabilidad": 1, "impacto": 5, "por": "escaneo propio de lo versionado y protección de envíos de GitHub (CT29), archivos de llaves prohibidos (CT02) y flujos sin secretos propios (CT30)"},
-   "tratamiento": "mitigar", "dueño": "@CristianBTA"
+   "probabilidad": {
+    "valor": 2,
+    "por": "el pipeline no necesita llaves, pero sí el entorno del dueño"
+   },
+   "controles": [
+    "CT29",
+    "CT02",
+    "CT30",
+    "CT33"
+   ],
+   "residual": {
+    "probabilidad": 1,
+    "impacto": 5,
+    "por": "escaneo propio de lo versionado y protección de envíos de GitHub (CT29), archivos de llaves prohibidos (CT02) y flujos sin secretos propios (CT30)"
+   },
+   "tratamiento": "mitigar",
+   "dueño": "@CristianBTA"
   },
   {
-   "id": "R06", "propiedad": "C", "activos": ["A01"],
+   "id": "R06",
+   "propiedad": "C",
+   "activos": [
+    "A01"
+   ],
    "amenaza": "Texto libre de SECOP con cédulas o nombres escritos a mano llega al perfil, a la IA o al informe",
    "vulnerabilidad": "objeto, descripción y justificación son texto libre: en SECOP, cerca de 1 de cada 1.000 filas trae datos de personas",
-   "probabilidad": {"valor": 3, "por": "basta con descargar una columna de texto libre"},
-   "controles": ["CT01", "CT04", "CT03"],
-   "residual": {"probabilidad": 1, "impacto": 3, "por": "el texto libre no entra sin justificación (CT01), el perfil no muestra sus valores (CT04) y el barrido revisa todo lo que sale (CT03)"},
-   "tratamiento": "mitigar", "dueño": "@CristianBTA"
+   "probabilidad": {
+    "valor": 3,
+    "por": "basta con descargar una columna de texto libre"
+   },
+   "controles": [
+    "CT01",
+    "CT04",
+    "CT03"
+   ],
+   "residual": {
+    "probabilidad": 1,
+    "impacto": 3,
+    "por": "el texto libre no entra sin justificación (CT01), el perfil no muestra sus valores (CT04) y el barrido revisa todo lo que sale (CT03)"
+   },
+   "tratamiento": "mitigar",
+   "dueño": "@CristianBTA"
   },
   {
-   "id": "R07", "propiedad": "C", "activos": ["A15"],
+   "id": "R07",
+   "propiedad": "C",
+   "activos": [
+    "A15"
+   ],
    "amenaza": "Archivos versionados guardan rutas absolutas del equipo del dueño",
    "vulnerabilidad": "flujo.js y los JSON de algunas corridas escriben la ruta completa del clon",
-   "probabilidad": {"valor": 5, "por": "ya ocurrió: 21 líneas en 13 archivos (flujo.js, historial y JSON de las corridas)"},
-   "controles": ["CT39"],
-   "tratamiento": "aceptar", "dueño": "@CristianBTA",
+   "probabilidad": {
+    "valor": 5,
+    "por": "ya ocurrió: 21 líneas en 13 archivos (flujo.js, historial y JSON de las corridas)"
+   },
+   "controles": [
+    "CT39"
+   ],
+   "tratamiento": "aceptar",
+   "dueño": "@CristianBTA",
    "plan": "se acepta por estar dentro del criterio: revela el usuario del equipo, no un secreto; spec.json está sellado y cambiarlo exige rehacer los sellos. CT39 avisa si la cifra crece. Mejora sugerida: que flujo.js y gobernanza.py escriban rutas relativas al clon"
   },
   {
-   "id": "R08", "propiedad": "I", "activos": ["A05", "A06", "A07"],
+   "id": "R08",
+   "propiedad": "I",
+   "activos": [
+    "A05",
+    "A06",
+    "A07"
+   ],
    "amenaza": "Un agente o un aporte edita una herramienta, una ficha o una batería para que todo apruebe",
    "vulnerabilidad": "los agentes trabajan con acceso a archivos dentro del mismo clon",
-   "probabilidad": {"valor": 3, "por": "un agente que no logra pasar la verificación tiene el incentivo y el acceso para cambiarla"},
-   "controles": ["CT08", "CT20", "CT19", "CT25", "CT37"],
-   "residual": {"probabilidad": 2, "impacto": 2, "por": "el manifiesto de integridad marca la corrida como alterada antes del informe (CT08, B02), y en main nada entra sin filtro ni revisión (CT19, CT20); la vigilancia diaria detecta una defensa debilitada (CT37)"},
-   "tratamiento": "mitigar", "dueño": "@CristianBTA"
+   "probabilidad": {
+    "valor": 3,
+    "por": "un agente que no logra pasar la verificación tiene el incentivo y el acceso para cambiarla"
+   },
+   "controles": [
+    "CT08",
+    "CT20",
+    "CT19",
+    "CT25",
+    "CT37"
+   ],
+   "residual": {
+    "probabilidad": 2,
+    "impacto": 2,
+    "por": "el manifiesto de integridad marca la corrida como alterada antes del informe (CT08, B02), y en main nada entra sin filtro ni revisión (CT19, CT20); la vigilancia diaria detecta una defensa debilitada (CT37)"
+   },
+   "tratamiento": "mitigar",
+   "dueño": "@CristianBTA"
   },
   {
-   "id": "R09", "propiedad": "I", "activos": ["A04"],
+   "id": "R09",
+   "propiedad": "I",
+   "activos": [
+    "A04"
+   ],
    "amenaza": "El criterio o el umbral se cambia después de ver el resultado",
    "vulnerabilidad": "quien ve una cifra incómoda puede mover la regla",
-   "probabilidad": {"valor": 3, "por": "es el sesgo más común del análisis: ajustar el umbral al dato"},
-   "controles": ["CT07", "CT05", "CT06"],
-   "residual": {"probabilidad": 2, "impacto": 2, "por": "las huellas SHA-256 del criterio y de las hipótesis se sellan antes del código y se recalculan al verificar (CT07): un cambio invalida la aprobación"},
-   "tratamiento": "mitigar", "dueño": "@CristianBTA"
+   "probabilidad": {
+    "valor": 3,
+    "por": "es el sesgo más común del análisis: ajustar el umbral al dato"
+   },
+   "controles": [
+    "CT07",
+    "CT05",
+    "CT06"
+   ],
+   "residual": {
+    "probabilidad": 2,
+    "impacto": 2,
+    "por": "las huellas SHA-256 del criterio y de las hipótesis se sellan antes del código y se recalculan al verificar (CT07): un cambio invalida la aprobación"
+   },
+   "tratamiento": "mitigar",
+   "dueño": "@CristianBTA"
   },
   {
-   "id": "R10", "propiedad": "I", "activos": ["A08", "A09", "A02"],
+   "id": "R10",
+   "propiedad": "I",
+   "activos": [
+    "A08",
+    "A09",
+    "A02"
+   ],
    "amenaza": "El código de la IA trae un error silencioso (fechas, duplicados, uniones, marcas) y la cifra sale mal",
    "vulnerabilidad": "los generadores fallan en los bordes que no aparecen en una muestra",
-   "probabilidad": {"valor": 4, "por": "ya pasó en este repositorio: dayfirst que invierte fechas (L01), fechas con hora (L02) y duplicados legítimos borrados (L08)"},
-   "controles": ["CT09", "CT10", "CT11", "CT27", "CT24"],
-   "residual": {"probabilidad": 3, "impacto": 2, "por": "el contrato y FAILFAST cortan parte de los errores (CT11); los demás los detectan dos implementaciones, el caso conocido y la conservación antes de aprobar (CT09), con el criterio probado contra mutantes (CT10)"},
-   "tratamiento": "mitigar", "dueño": "@CristianBTA"
+   "probabilidad": {
+    "valor": 4,
+    "por": "ya pasó en este repositorio: dayfirst que invierte fechas (L01), fechas con hora (L02) y duplicados legítimos borrados (L08)"
+   },
+   "controles": [
+    "CT09",
+    "CT10",
+    "CT11",
+    "CT27",
+    "CT24"
+   ],
+   "residual": {
+    "probabilidad": 3,
+    "impacto": 2,
+    "por": "el contrato y FAILFAST cortan parte de los errores (CT11); los demás los detectan dos implementaciones, el caso conocido y la conservación antes de aprobar (CT09), con el criterio probado contra mutantes (CT10)"
+   },
+   "tratamiento": "mitigar",
+   "dueño": "@CristianBTA"
   },
   {
-   "id": "R11", "propiedad": "I", "activos": ["A14"],
+   "id": "R11",
+   "propiedad": "I",
+   "activos": [
+    "A14"
+   ],
    "amenaza": "El código de la IA trae algo peligroso (ejecutar texto, abrir la red, deserializar, instalar paquetes) y corre en el equipo",
    "vulnerabilidad": "el pipeline ejecuta código que nadie escribió a mano",
-   "probabilidad": {"valor": 3, "por": "los modelos proponen eval, pickle o instalaciones cuando algo no les funciona"},
-   "controles": ["CT12", "CT13", "CT26", "CT25"],
-   "residual": {"probabilidad": 1, "impacto": 3, "por": "la compuerta bloquea antes de ejecutar (CT12) y la caja de arena limita lo que pasa si algo se cuela (CT13); el revisor ciego y el banco de ataques detectan lo que la compuerta no conoce (CT26, CT25)"},
-   "tratamiento": "mitigar", "dueño": "@CristianBTA"
+   "probabilidad": {
+    "valor": 3,
+    "por": "los modelos proponen eval, pickle o instalaciones cuando algo no les funciona"
+   },
+   "controles": [
+    "CT12",
+    "CT13",
+    "CT26",
+    "CT25"
+   ],
+   "residual": {
+    "probabilidad": 1,
+    "impacto": 3,
+    "por": "la compuerta bloquea antes de ejecutar (CT12) y la caja de arena limita lo que pasa si algo se cuela (CT13); el revisor ciego y el banco de ataques detectan lo que la compuerta no conoce (CT26, CT25)"
+   },
+   "tratamiento": "mitigar",
+   "dueño": "@CristianBTA"
   },
   {
-   "id": "R12", "propiedad": "I", "activos": ["A09"],
+   "id": "R12",
+   "propiedad": "I",
+   "activos": [
+    "A09"
+   ],
    "amenaza": "Un valor de los datos con forma de instrucción cambia lo que hace la IA (inyección)",
    "vulnerabilidad": "los modelos leen como texto todo lo que reciben",
-   "probabilidad": {"valor": 3, "por": "cualquier dato abierto se puede envenenar con un texto que da órdenes"},
-   "controles": ["CT16", "CT17", "CT04", "CT25"],
-   "residual": {"probabilidad": 1, "impacto": 3, "por": "cuarentena en el perfil y la limpieza (CT16), la IA no ve filas (CT04) y las salidas no publican el texto-instrucción (CT17); B04, B17 y B18 lo atacan en cada corrida del banco (CT25)"},
-   "tratamiento": "mitigar", "dueño": "@CristianBTA"
+   "probabilidad": {
+    "valor": 3,
+    "por": "cualquier dato abierto se puede envenenar con un texto que da órdenes"
+   },
+   "controles": [
+    "CT16",
+    "CT17",
+    "CT04",
+    "CT25"
+   ],
+   "residual": {
+    "probabilidad": 1,
+    "impacto": 3,
+    "por": "cuarentena en el perfil y la limpieza (CT16), la IA no ve filas (CT04) y las salidas no publican el texto-instrucción (CT17); B04, B17 y B18 lo atacan en cada corrida del banco (CT25)"
+   },
+   "tratamiento": "mitigar",
+   "dueño": "@CristianBTA"
   },
   {
-   "id": "R13", "propiedad": "I", "activos": ["A11", "A06", "A07"],
+   "id": "R13",
+   "propiedad": "I",
+   "activos": [
+    "A11",
+    "A06",
+    "A07"
+   ],
    "amenaza": "Un aporte trae órdenes escondidas para los agentes o debilita una defensa",
    "vulnerabilidad": "el repositorio es público y cualquiera puede proponer",
-   "probabilidad": {"valor": 3, "por": "repositorio abierto a todo el grupo y a cualquiera con cuenta de GitHub"},
-   "controles": ["CT19", "CT20", "CT16", "CT25", "CT08", "CT24"],
-   "residual": {"probabilidad": 1, "impacto": 3, "por": "el filtro rechaza órdenes a los agentes y corre el banco si se toca una herramienta (CT19, CT16), y el dueño revisa antes de entrar (CT20)"},
-   "tratamiento": "mitigar", "dueño": "@CristianBTA"
+   "probabilidad": {
+    "valor": 3,
+    "por": "repositorio abierto a todo el grupo y a cualquiera con cuenta de GitHub"
+   },
+   "controles": [
+    "CT19",
+    "CT20",
+    "CT16",
+    "CT25",
+    "CT08",
+    "CT24"
+   ],
+   "residual": {
+    "probabilidad": 1,
+    "impacto": 3,
+    "por": "el filtro rechaza órdenes a los agentes y corre el banco si se toca una herramienta (CT19, CT16), y el dueño revisa antes de entrar (CT20)"
+   },
+   "tratamiento": "mitigar",
+   "dueño": "@CristianBTA"
   },
   {
-   "id": "R14", "propiedad": "I", "activos": ["A14"],
+   "id": "R14",
+   "propiedad": "I",
+   "activos": [
+    "A14"
+   ],
    "amenaza": "Un paquete con nombre inventado o alterado entra al entorno (slopsquatting o paquete comprometido)",
    "vulnerabilidad": "la IA propone nombres de paquetes que no siempre existen",
-   "probabilidad": {"valor": 2, "por": "las versiones están fijadas, pero la IA puede proponer instalar algo nuevo"},
-   "controles": ["CT14", "CT12", "CT15"],
-   "residual": {"probabilidad": 1, "impacto": 3, "por": "solo se instala desde requirements.txt con huella (CT14), el código no puede importar fuera de la lista (CT12) y una vulnerabilidad publicada en una versión fijada se detecta al día siguiente (CT15)"},
-   "tratamiento": "mitigar", "dueño": "@CristianBTA"
+   "probabilidad": {
+    "valor": 2,
+    "por": "las versiones están fijadas, pero la IA puede proponer instalar algo nuevo"
+   },
+   "controles": [
+    "CT14",
+    "CT12",
+    "CT15"
+   ],
+   "residual": {
+    "probabilidad": 1,
+    "impacto": 3,
+    "por": "solo se instala desde requirements.txt con huella (CT14), el código no puede importar fuera de la lista (CT12) y una vulnerabilidad publicada en una versión fijada se detecta al día siguiente (CT15)"
+   },
+   "tratamiento": "mitigar",
+   "dueño": "@CristianBTA"
   },
   {
-   "id": "R15", "propiedad": "I", "activos": ["A09"],
+   "id": "R15",
+   "propiedad": "I",
+   "activos": [
+    "A09"
+   ],
    "amenaza": "Un gráfico o un informe engaña (eje truncado, período incompleto sin marcar) o ejecuta algo al abrirse",
    "vulnerabilidad": "la IA genera la visualización y el formato",
-   "probabilidad": {"valor": 3, "por": "los graficadores recortan el eje para que la diferencia se vea más grande"},
-   "controles": ["CT18", "CT17", "CT28"],
-   "residual": {"probabilidad": 2, "impacto": 2, "por": "la lista de comprobación del gráfico bloquea antes de publicar (CT18) y el HTML lo escribe el verificador, escapado (CT17, CT28)"},
-   "tratamiento": "mitigar", "dueño": "@CristianBTA"
+   "probabilidad": {
+    "valor": 3,
+    "por": "los graficadores recortan el eje para que la diferencia se vea más grande"
+   },
+   "controles": [
+    "CT18",
+    "CT17",
+    "CT28"
+   ],
+   "residual": {
+    "probabilidad": 2,
+    "impacto": 2,
+    "por": "la lista de comprobación del gráfico bloquea antes de publicar (CT18) y el HTML lo escribe el verificador, escapado (CT17, CT28)"
+   },
+   "tratamiento": "mitigar",
+   "dueño": "@CristianBTA"
   },
   {
-   "id": "R16", "propiedad": "I", "activos": ["A09"],
+   "id": "R16",
+   "propiedad": "I",
+   "activos": [
+    "A09"
+   ],
    "amenaza": "Una referencia legal o una cifra inventada por la IA llega a una ficha de oportunidad o a un informe (alucinación)",
-   "vulnerabilidad": "validar_ficha.py (V6) deja pasar años y referencias legales sin comprobarlas contra su texto oficial",
-   "probabilidad": {"valor": 3, "por": "los modelos citan normas con números parecidos a los reales; sin el texto oficial, nada lo nota"},
-   "controles": ["CT35"],
-   "tratamiento": "por decidir", "dueño": "@CristianBTA",
-   "plan": "comprobar cada referencia legal contra su texto oficial (ley, artículo y cita textual) sin IA, y un verificador ciego de otra familia de modelos para lo que no se pueda comprobar así; mientras tanto, residual 3×5 = 15, por encima del criterio"
+   "vulnerabilidad": "los modelos citan normas con números o años parecidos a los reales; antes, validar_ficha.py (V6) dejaba pasar cualquier referencia legal",
+   "probabilidad": {
+    "valor": 3,
+    "por": "los modelos citan normas con números parecidos a los reales; sin el texto oficial, nada lo nota"
+   },
+   "controles": [
+    "CT35",
+    "CT40"
+   ],
+   "tratamiento": "mitigar",
+   "dueño": "@CristianBTA",
+   "residual": {
+    "probabilidad": 2,
+    "impacto": 3,
+    "por": "una ley o un decreto que no está comprobado contra su texto oficial, o con el año cambiado, ya no pasa la ficha (CT40, con su caso en la autoprueba); queda una norma real citada para otro tema, que el registro no distingue"
+   }
   },
   {
-   "id": "R17", "propiedad": "I", "activos": ["A16"],
+   "id": "R17",
+   "propiedad": "I",
+   "activos": [
+    "A16"
+   ],
    "amenaza": "El SGSI declara controles que ya no existen o se queda atrás del código",
    "vulnerabilidad": "los documentos de seguridad se escriben una vez y el código sigue cambiando",
-   "probabilidad": {"valor": 3, "por": "cada día entran cambios a las herramientas y a las corridas"},
-   "controles": ["CT32", "CT19", "CT37"],
-   "residual": {"probabilidad": 2, "impacto": 2, "por": "sgsi.py comprueba que cada evidencia exista y corre en el filtro de cada aporte (CT19) y en la vigilancia diaria (CT37): una evidencia rota se ve antes de entrar o al día siguiente"},
-   "tratamiento": "mitigar", "dueño": "@CristianBTA"
+   "probabilidad": {
+    "valor": 3,
+    "por": "cada día entran cambios a las herramientas y a las corridas"
+   },
+   "controles": [
+    "CT32",
+    "CT19",
+    "CT37"
+   ],
+   "residual": {
+    "probabilidad": 2,
+    "impacto": 2,
+    "por": "sgsi.py comprueba que cada evidencia exista y corre en el filtro de cada aporte (CT19) y en la vigilancia diaria (CT37): una evidencia rota se ve antes de entrar o al día siguiente"
+   },
+   "tratamiento": "mitigar",
+   "dueño": "@CristianBTA"
   },
   {
-   "id": "R18", "propiedad": "I", "activos": ["A10"],
+   "id": "R18",
+   "propiedad": "I",
+   "activos": [
+    "A10"
+   ],
    "amenaza": "La procedencia o la bitácora no corresponden a lo que se hizo",
    "vulnerabilidad": "son archivos de texto que se pueden editar a mano",
-   "probabilidad": {"valor": 2, "por": "las escriben las herramientas, no las personas, pero nada impide editarlas después"},
-   "controles": ["CT23", "CT28", "CT20"],
-   "residual": {"probabilidad": 1, "impacto": 2, "por": "la procedencia guarda la huella de los datos y una segunda carga debe dar el mismo archivo (CT23); en main, todo cambio pasa por revisión (CT20)"},
-   "tratamiento": "mitigar", "dueño": "@CristianBTA"
+   "probabilidad": {
+    "valor": 2,
+    "por": "las escriben las herramientas, no las personas, pero nada impide editarlas después"
+   },
+   "controles": [
+    "CT23",
+    "CT28",
+    "CT20"
+   ],
+   "residual": {
+    "probabilidad": 1,
+    "impacto": 2,
+    "por": "la procedencia guarda la huella de los datos y una segunda carga debe dar el mismo archivo (CT23); en main, todo cambio pasa por revisión (CT20)"
+   },
+   "tratamiento": "mitigar",
+   "dueño": "@CristianBTA"
   },
   {
-   "id": "R19", "propiedad": "I", "activos": ["A12"],
+   "id": "R19",
+   "propiedad": "I",
+   "activos": [
+    "A12"
+   ],
    "amenaza": "La configuración de GitHub se debilita (protección de main, permisos de los flujos, acciones sin fijar)",
    "vulnerabilidad": "los ajustes del repositorio se cambian en la web, fuera de git",
-   "probabilidad": {"valor": 2, "por": "solo el dueño puede cambiarlos, pero lo hace a mano y sin registro en el repositorio"},
-   "controles": ["CT30", "CT14", "CT20", "CT21"],
-   "residual": {"probabilidad": 1, "impacto": 5, "por": "los flujos versionados deben pedir solo lectura y fijar sus acciones, y sgsi.py lo comprueba en cada aporte (CT30, CT14); el impacto no baja porque la protección de main no se comprueba sola: la comprobación diaria (CT21) solo ve fork, pull requests, issues y el instructivo"},
-   "tratamiento": "mitigar", "dueño": "@CristianBTA"
+   "probabilidad": {
+    "valor": 2,
+    "por": "solo el dueño puede cambiarlos, pero lo hace a mano y sin registro en el repositorio"
+   },
+   "controles": [
+    "CT30",
+    "CT14",
+    "CT20",
+    "CT21"
+   ],
+   "residual": {
+    "probabilidad": 1,
+    "impacto": 5,
+    "por": "los flujos versionados deben pedir solo lectura y fijar sus acciones, y sgsi.py lo comprueba en cada aporte (CT30, CT14); el impacto no baja porque la protección de main no se comprueba sola: la comprobación diaria (CT21) solo ve fork, pull requests, issues y el instructivo"
+   },
+   "tratamiento": "mitigar",
+   "dueño": "@CristianBTA"
   },
   {
-   "id": "R20", "propiedad": "I", "activos": ["A13"],
+   "id": "R20",
+   "propiedad": "I",
+   "activos": [
+    "A13"
+   ],
    "amenaza": "Roban la sesión o un token del dueño y cambian main o la configuración sin revisión",
    "vulnerabilidad": "el dueño puede saltar la protección de main",
-   "probabilidad": {"valor": 2, "por": "las cuentas de GitHub son un blanco común del robo de sesiones"},
-   "controles": ["CT29", "CT30", "CT37"],
-   "residual": {"probabilidad": 1, "impacto": 4, "por": "ningún token vive en el repositorio ni en los flujos (CT29, CT30); si alguien debilita una defensa en main, la vigilancia diaria falla y GitHub avisa al dueño por correo (CT37)"},
-   "tratamiento": "mitigar", "dueño": "@CristianBTA"
+   "probabilidad": {
+    "valor": 2,
+    "por": "las cuentas de GitHub son un blanco común del robo de sesiones"
+   },
+   "controles": [
+    "CT29",
+    "CT30",
+    "CT37"
+   ],
+   "residual": {
+    "probabilidad": 1,
+    "impacto": 4,
+    "por": "ningún token vive en el repositorio ni en los flujos (CT29, CT30); si alguien debilita una defensa en main, la vigilancia diaria falla y GitHub avisa al dueño por correo (CT37)"
+   },
+   "tratamiento": "mitigar",
+   "dueño": "@CristianBTA"
   },
   {
-   "id": "R21", "propiedad": "D", "activos": ["A12"],
+   "id": "R21",
+   "propiedad": "D",
+   "activos": [
+    "A12"
+   ],
    "amenaza": "El repositorio deja de recibir aportes en plena clase (fork o pull requests apagados, plantilla o instructivo borrados)",
    "vulnerabilidad": "depende de ajustes de GitHub y de archivos en main",
-   "probabilidad": {"valor": 2, "por": "un cambio de ajustes o un archivo borrado por error"},
-   "controles": ["CT21", "CT22", "CT20"],
-   "residual": {"probabilidad": 1, "impacto": 2, "por": "main no deja borrar sin revisión (CT20); la comprobación diaria avisa (CT21) y se restablece desde git o los ajustes en minutos (CT22)"},
-   "tratamiento": "mitigar", "dueño": "@CristianBTA"
+   "probabilidad": {
+    "valor": 2,
+    "por": "un cambio de ajustes o un archivo borrado por error"
+   },
+   "controles": [
+    "CT21",
+    "CT22",
+    "CT20"
+   ],
+   "residual": {
+    "probabilidad": 1,
+    "impacto": 2,
+    "por": "main no deja borrar sin revisión (CT20); la comprobación diaria avisa (CT21) y se restablece desde git o los ajustes en minutos (CT22)"
+   },
+   "tratamiento": "mitigar",
+   "dueño": "@CristianBTA"
   },
   {
-   "id": "R22", "propiedad": "D", "activos": ["A05", "A06", "A07"],
+   "id": "R22",
+   "propiedad": "D",
+   "activos": [
+    "A05",
+    "A06",
+    "A07"
+   ],
    "amenaza": "Se pierde el repositorio o el equipo del dueño (borrado, daño o secuestro de datos)",
    "vulnerabilidad": "el trabajo vive en un equipo y en una cuenta",
-   "probabilidad": {"valor": 2, "por": "pérdida de equipo o borrado accidental"},
-   "controles": ["CT22", "CT20"],
-   "residual": {"probabilidad": 1, "impacto": 2, "por": "main no se puede borrar ni reescribir (CT20) y git es redundante: GitHub y cada clon tienen todo; los datos se rehacen con el contrato y la semilla (CT22)"},
-   "tratamiento": "mitigar", "dueño": "@CristianBTA"
+   "probabilidad": {
+    "valor": 2,
+    "por": "pérdida de equipo o borrado accidental"
+   },
+   "controles": [
+    "CT22",
+    "CT20"
+   ],
+   "residual": {
+    "probabilidad": 1,
+    "impacto": 2,
+    "por": "main no se puede borrar ni reescribir (CT20) y git es redundante: GitHub y cada clon tienen todo; los datos se rehacen con el contrato y la semilla (CT22)"
+   },
+   "tratamiento": "mitigar",
+   "dueño": "@CristianBTA"
   },
   {
-   "id": "R23", "propiedad": "D", "activos": ["A01"],
+   "id": "R23",
+   "propiedad": "D",
+   "activos": [
+    "A01"
+   ],
    "amenaza": "datos.gov.co no responde o el conjunto cambia y la cifra no se puede reproducir",
    "vulnerabilidad": "SECOP II se actualiza a diario y la fuente es de un tercero",
-   "probabilidad": {"valor": 3, "por": "el conjunto cambia todos los días; caídas del portal ya han pasado"},
-   "controles": ["CT22"],
-   "residual": {"probabilidad": 3, "impacto": 1, "por": "la probabilidad no depende del repositorio; el impacto baja porque la procedencia dice qué cambió y la corrida se repite con el contrato cuando el portal vuelve (CT22)"},
-   "tratamiento": "mitigar", "dueño": "@CristianBTA"
+   "probabilidad": {
+    "valor": 3,
+    "por": "el conjunto cambia todos los días; caídas del portal ya han pasado"
+   },
+   "controles": [
+    "CT22"
+   ],
+   "residual": {
+    "probabilidad": 3,
+    "impacto": 1,
+    "por": "la probabilidad no depende del repositorio; el impacto baja porque la procedencia dice qué cambió y la corrida se repite con el contrato cuando el portal vuelve (CT22)"
+   },
+   "tratamiento": "mitigar",
+   "dueño": "@CristianBTA"
   },
   {
-   "id": "R24", "propiedad": "D", "activos": ["A14"],
+   "id": "R24",
+   "propiedad": "D",
+   "activos": [
+    "A14"
+   ],
    "amenaza": "El código de la IA agota la memoria o no termina y la corrida se cae",
    "vulnerabilidad": "el código generado puede cargar todo en memoria o quedar en un bucle",
-   "probabilidad": {"valor": 3, "por": "con datos grandes, cargar todo en memoria es lo primero que propone un generador"},
-   "controles": ["CT13", "CT27"],
-   "residual": {"probabilidad": 1, "impacto": 2, "por": "topes de tiempo y de memoria por huella física (CT13: B10, B13) y el reparador corrige hasta dos rondas (CT27)"},
-   "tratamiento": "mitigar", "dueño": "@CristianBTA"
+   "probabilidad": {
+    "valor": 3,
+    "por": "con datos grandes, cargar todo en memoria es lo primero que propone un generador"
+   },
+   "controles": [
+    "CT13",
+    "CT27"
+   ],
+   "residual": {
+    "probabilidad": 1,
+    "impacto": 2,
+    "por": "topes de tiempo y de memoria por huella física (CT13: B10, B13) y el reparador corrige hasta dos rondas (CT27)"
+   },
+   "tratamiento": "mitigar",
+   "dueño": "@CristianBTA"
   },
   {
-   "id": "R25", "propiedad": "D", "activos": ["A12"],
+   "id": "R25",
+   "propiedad": "D",
+   "activos": [
+    "A12"
+   ],
    "amenaza": "El filtro automático no corre (GitHub Actions caído o sin minutos) y los aportes quedan sin validar",
    "vulnerabilidad": "el filtro depende de un servicio del proveedor",
-   "probabilidad": {"valor": 2, "por": "caídas de Actions pasan pocas veces al año"},
-   "controles": ["CT36"],
-   "residual": {"probabilidad": 2, "impacto": 2, "por": "el mismo filtro corre en cualquier equipo con el mismo comando y el dueño lo corre antes de aprobar (CT36)"},
-   "tratamiento": "mitigar", "dueño": "@CristianBTA"
+   "probabilidad": {
+    "valor": 2,
+    "por": "caídas de Actions pasan pocas veces al año"
+   },
+   "controles": [
+    "CT36"
+   ],
+   "residual": {
+    "probabilidad": 2,
+    "impacto": 2,
+    "por": "el mismo filtro corre en cualquier equipo con el mismo comando y el dueño lo corre antes de aprobar (CT36)"
+   },
+   "tratamiento": "mitigar",
+   "dueño": "@CristianBTA"
   },
   {
-   "id": "R26", "propiedad": "C", "activos": ["A01"],
+   "id": "R26",
+   "propiedad": "C",
+   "activos": [
+    "A01"
+   ],
    "amenaza": "Filas con datos de personas llegan al proveedor del asistente de IA",
    "vulnerabilidad": "todo lo que lee un agente sale del equipo hacia un tercero",
-   "probabilidad": {"valor": 3, "por": "pedirle a la IA que «mire los datos» es lo más natural"},
-   "controles": ["CT04", "CT01", "CT34"],
-   "residual": {"probabilidad": 1, "impacto": 3, "por": "la IA solo recibe nombres, tipos y conteos (CT04), lo que no se descargó no se puede enviar (CT01) y cada proveedor tiene escrito qué recibe y qué no (CT34)"},
-   "tratamiento": "mitigar", "dueño": "@CristianBTA"
+   "probabilidad": {
+    "valor": 3,
+    "por": "pedirle a la IA que «mire los datos» es lo más natural"
+   },
+   "controles": [
+    "CT04",
+    "CT01",
+    "CT34"
+   ],
+   "residual": {
+    "probabilidad": 1,
+    "impacto": 3,
+    "por": "la IA solo recibe nombres, tipos y conteos (CT04), lo que no se descargó no se puede enviar (CT01) y cada proveedor tiene escrito qué recibe y qué no (CT34)"
+   },
+   "tratamiento": "mitigar",
+   "dueño": "@CristianBTA"
   },
   {
-   "id": "R27", "propiedad": "C", "activos": ["A01"],
+   "id": "R27",
+   "propiedad": "C",
+   "activos": [
+    "A01"
+   ],
    "amenaza": "Los datos crudos con personas se quedan en el disco más tiempo del necesario",
    "vulnerabilidad": "las carpetas datos/ de las corridas no se borran solas",
-   "probabilidad": {"valor": 3, "por": "las corridas se acumulan y nadie vuelve a ellas"},
-   "controles": ["CT38", "CT01"],
-   "residual": {"probabilidad": 2, "impacto": 3, "por": "la retención mínima está escrita y los datos se pueden borrar sin perder nada, porque se reconstruyen con el contrato (CT38); lo descargado está minimizado (CT01). No hay borrado automático: depende del dueño"},
-   "tratamiento": "mitigar", "dueño": "@CristianBTA"
+   "probabilidad": {
+    "valor": 3,
+    "por": "las corridas se acumulan y nadie vuelve a ellas"
+   },
+   "controles": [
+    "CT38",
+    "CT01"
+   ],
+   "residual": {
+    "probabilidad": 2,
+    "impacto": 3,
+    "por": "la retención mínima está escrita y los datos se pueden borrar sin perder nada, porque se reconstruyen con el contrato (CT38); lo descargado está minimizado (CT01). No hay borrado automático: depende del dueño"
+   },
+   "tratamiento": "mitigar",
+   "dueño": "@CristianBTA"
   }
  ]
 }
