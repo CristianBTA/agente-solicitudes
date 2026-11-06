@@ -2,6 +2,8 @@
 
 Un análisis de datos hecho con IA, de la pregunta al informe, en las cinco etapas del ciclo del dato. En cada etapa la IA hace el trabajo y una prueba que no es IA lo comprueba. Quien pide el análisis no lee código: lee un informe de una página con la cifra, lo que se entendió, los supuestos, las preguntas abiertas y qué pasó cada prueba.
 
+Quién analiza depende de la herramienta. En el pipeline de esta versión, la IA también propone las hipótesis de la etapa de análisis y una prueba sin IA las comprueba. En el [agente masivo](#agente-masivo-de-datos-públicos) y en su whitepaper, el análisis es de las personas: la IA deja preguntas y un resumen, sin conclusiones.
+
 Material aplicado del curso **«Big Data con IA»** (NODO · Universidad EAFIT, noviembre de 2026), con datos abiertos de Colombia (SECOP II).
 
 ## Versión para la clase y versión final
@@ -10,7 +12,8 @@ Material aplicado del curso **«Big Data con IA»** (NODO · Universidad EAFIT, 
   ```bash
   git clone --branch clase-2026-11-06 https://github.com/CristianBTA/agente-solicitudes
   ```
-- **La versión final** se prepara en paralelo, con más tiempo, en la rama `version-final`. Junta los arreglos de la revisión ciega de analista senior, el filtro de aportes que toma su juez de la rama base y el cambio por el que el análisis lo hacen las personas. Entra a `main` cuando pase todas las pruebas.
+  La etiqueta se rehízo una sola vez: el 6 de noviembre a las 15:50 pasó de `7d2fa19` a `42576ec`. Si la descargaste antes, `git pull` no la actualiza: vuelve a clonar, o corre `git fetch --tags --force` y después `git checkout clase-2026-11-06`. Otra versión para la clase llevaría una etiqueta nueva.
+- **La versión final** se prepara en paralelo, con más tiempo, en la rama `version-final`, que todavía no está publicada en GitHub. Junta los arreglos de la revisión ciega de analista senior, el filtro de aportes que toma su juez de la rama base y el cambio por el que el análisis lo hacen las personas. Entra a `main` cuando pase todas las pruebas.
 - **Los aportes de los participantes** van siempre contra `main`, como dice [`APORTAR-CON-TU-AGENTE.md`](APORTAR-CON-TU-AGENTE.md).
 
 ## Conectar la IA
