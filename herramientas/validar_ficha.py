@@ -224,7 +224,7 @@ def validar(ficha, inv, red=True, dictamen=None, autorizados=None):
         return ok
 
     if autorizados is not None:
-        fuera = sorted({ficha.get("id")} | {c.get("con") for c in ficha.get("cruces", [])} - set(autorizados))
+        fuera = sorted(({ficha.get("id")} | {c.get("con") for c in ficha.get("cruces", [])}) - set(autorizados))
         chequeo("V0 fuentes autorizadas", not fuera, "solo conjuntos autorizados por el dueño" if not fuera
                 else f"se conecta a conjuntos que no se autorizaron: {fuera}")
     conj = inv.get(ficha.get("id"))
@@ -568,14 +568,17 @@ def autoprueba():
     v0 = {r["chequeo"] for r in validar(cruce_ajeno, inv, red=False, dictamen=dic3, autorizados=["aaaa-0001"]) if not r["ok"]}
     ok0 = v0 == {"V0 fuentes autorizadas"}
     print(f"  {'✓' if ok0 else '✗'} cruce con un conjunto no autorizado: " + ("atrapada por V0 fuentes autorizadas" if ok0 else f"{sorted(v0)}"))
-    errores = 0 if ok0 else 1
+    propio = {r["chequeo"] for r in validar(cruce_ajeno, inv, red=False, dictamen=dic3, autorizados=["aaaa-0001", "bbbb-0002"]) if not r["ok"]}
+    ok0b = "V0 fuentes autorizadas" not in propio
+    print(f"  {'✓' if ok0b else '✗'} todo autorizado: V0 pasa" + ("" if ok0b else f" (falló: {sorted(propio)})"))
+    errores = (0 if ok0 else 1) + (0 if ok0b else 1)
     for nombre, f, d, esperado in casos:
         obtenido = falla(f, d)
         ok = obtenido == esperado
         errores += not ok
         print(f"  {'✓' if ok else '✗'} {nombre}: " + ("pasa" if not obtenido else "atrapada por " + ", ".join(sorted(obtenido)))
               + ("" if ok else f" (se esperaba {sorted(esperado) or 'que pasara'})"))
-    print("RESUMEN " + json.dumps({"autoprueba": len(casos) + 1, "errores": errores}))
+    print("RESUMEN " + json.dumps({"autoprueba": len(casos) + 2, "errores": errores}))
     return 1 if errores else 0
 
 
