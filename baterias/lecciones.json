@@ -444,6 +444,24 @@
       "leccion": "Con dos tablas en la misma carpeta, cada carga reescribía procedencia.json: quedaba la de la última, y el informe declaraba la ingesta aprobada aunque la otra tabla se hubiera rechazado. Además, el CSV se escribía antes de probarlo, así que la tabla rechazada quedaba donde la leen las etapas siguientes. Ahora hay una procedencia por tabla, el CSV se escribe solo si la carga se aprueba, la etapa es ✅ solo si todas lo están y verificar.py compara la huella del crudo con la de su procedencia.",
       "origen": "revisión de gobernanza con varias tablas (GOB-7), 6-nov-2026",
       "prueba": "herramientas/ingesta.py --autoprueba"
+    },
+    {
+      "id": "L75",
+      "leccion": "Un umbral relativo pensado para el caso conocido de 23 filas (completitud 0,95) dejaba perder 1.987 contratos y 755.594.668.590,87 pesos en el dato real de 49.662 filas sin que nada fallara. Los umbrales se justifican sobre el dato real: van en conteos absolutos (vacios_maximo) o en umbrales_caso aparte, que solo se aplican al caso conocido y nunca exigen más que los del dato real; el detalle de cada umbral muestra la holgura.",
+      "origen": "revisión ciega del pipeline (PIP-5, motor de la limpieza), 6-nov-2026",
+      "prueba": "herramientas/limpieza.py --autoprueba"
+    },
+    {
+      "id": "L76",
+      "leccion": "Un umbral mal escrito (completitud_minimo, o una columna o una marca que no existen) se ignoraba: el plan parecía exigir algo que nadie medía. Ahora detiene la limpieza. Además, la validez se mide antes y después con el mismo tipo, y 2025-02-30 ya no cuenta como fecha válida.",
+      "origen": "revisión ciega del pipeline (PIP-5, motor de la limpieza), 6-nov-2026",
+      "prueba": "herramientas/limpieza.py --autoprueba"
+    },
+    {
+      "id": "L77",
+      "leccion": "Al reescribir limpieza.py, los separadores U+2028 y U+2029 escritos como caracteres literales dentro de la expresión de invisibles se volvieron espacios, y la op texto pegaba los nombres. Solo lo atrapó comparar la capa limpia byte a byte con la versión anterior. Los caracteres invisibles van siempre como escapes \\uXXXX, nunca literales (los controles bidi literales son además un riesgo de Trojan Source). La limpieza lee con el mismo lector estricto que las reglas y la ingesta, y los ejemplos de un dato sensible salen enmascarados.",
+      "origen": "integración de la limpieza (PIP-4 y PIP-5) con el lector común de GOB-3, 6-nov-2026",
+      "prueba": "herramientas/limpieza.py --autoprueba"
     }
   ]
 }

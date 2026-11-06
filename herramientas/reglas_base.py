@@ -31,11 +31,12 @@ _NUMERICO = re.compile(r"^[-+]?\d[\d.]*(,\d+)?$")                  # solo cifras
 _PUNTO_DECIMAL = re.compile(r"\.(\d{1,2}|\d{4,})(?!\d)")         # 12.5 · 3.14159: en esa columna el punto es decimal
 
 
-def _lector_estricto(fh, origen):
+def _lector_estricto(fh, origen, formulas=True):
     """El encabezado y un generador de (línea, campos) con las detenciones de FAILFAST que comparten leer_tabla (y con
-    ella leer_csv y la ingesta local) y recorrer_csv: archivo vacío, separador que no es la coma, columnas repetidas en
-    el encabezado, una comilla sin cerrar, una línea vacía, una fila con más o menos campos que el encabezado o una
-    celda con una fórmula de Excel como texto («=DAY(J2)»), todas con el número de la línea física."""
+    ella leer_csv, la ingesta local y la limpieza) y recorrer_csv: archivo vacío, separador que no es la coma, columnas
+    repetidas en el encabezado, una comilla sin cerrar, una línea vacía, una fila con más o menos campos que el
+    encabezado o una celda con una fórmula de Excel como texto («=DAY(J2)»), todas con el número de la línea física.
+    Con formulas=False la fórmula no detiene la lectura: la limpieza la neutraliza y la marca (DB5)."""
     lector = csv.reader(fh, strict=True)
 
     def siguiente():
@@ -62,7 +63,7 @@ def _lector_estricto(fh, origen):
                 raise ValueError(f"la línea {n} {origen} está vacía")
             if len(f) != len(cab):
                 raise ValueError(f"la línea {n} {origen} no tiene el mismo número de campos que el encabezado ({len(f)} y {len(cab)})")
-            if "=" in "\x1f".join(f):    # la revisión celda por celda solo donde hay un «=» (escala a millones de filas, L49)
+            if formulas and "=" in "\x1f".join(f):    # celda por celda solo donde hay un «=» (escala a millones de filas, L49)
                 for col, v in zip(cab, f):
                     if v.lstrip().startswith("="):
                         raise ValueError(f"la línea {n} {origen}, columna «{col}», trae una fórmula de Excel como texto, no su valor: "
@@ -72,24 +73,29 @@ def _lector_estricto(fh, origen):
     return cab, filas()
 
 
-def leer_tabla(texto, origen="del CSV"):
+def leer_tabla(texto, origen="del CSV", miles=True, formulas=True, ver=None):
     """Encabezado, filas (listas de texto) y la línea física donde termina cada fila, sin convertir nada.
     FAILFAST: archivo vacío, separador que no es la coma, columnas repetidas en el encabezado, una comilla sin cerrar,
     una línea vacía, una fila con más o menos campos que el encabezado o una celda con una fórmula de Excel como texto
-    («=DAY(J2)») detienen la lectura con el número de línea; nunca se lee a medias ni se rellena en silencio."""
-    cab, recorrido = _lector_estricto(io.StringIO(texto), origen)
+    («=DAY(J2)») detienen la lectura con el número de línea; nunca se lee a medias ni se rellena en silencio.
+    miles=False y formulas=False dejan esas dos revisiones a quien llama (la limpieza: su operación numero declara el
+    decimal y las fórmulas se neutralizan); ver(columna, valor) decide cómo sale un valor en el mensaje (la ingesta
+    enmascara los de las columnas personales)."""
+    cab, recorrido = _lector_estricto(io.StringIO(texto), origen, formulas=formulas)
     filas, lineas = [], []
     for n, f in recorrido:
         filas.append(f)
         lineas.append(n)
-    revisar_punto_de_miles(cab, filas, lineas, origen)
+    if miles:
+        revisar_punto_de_miles(cab, filas, lineas, origen, ver=ver)
     return cab, filas, lineas
 
 
-def revisar_punto_de_miles(cab, filas, lineas, origen="del CSV"):
+def revisar_punto_de_miles(cab, filas, lineas, origen="del CSV", ver=None):
     """FAILFAST: una columna solo numérica con punto de miles inequívoco (1.250.000, 1.250,50) o mezclado con enteros
     largos (78.000 junto a 1628100) detiene la lectura: leerlos como decimales los divide por mil en silencio (L46).
-    Si el punto ya es decimal en la columna (12.5), 1.250 es un decimal y no miles (L49)."""
+    Si el punto ya es decimal en la columna (12.5), 1.250 es un decimal y no miles (L49). ver(columna, valor) decide
+    cómo sale el ejemplo en el mensaje (sin ver, tal cual)."""
     for j, col in enumerate(cab):
         crudos = [f[j] for f in filas]
         unidos = "\x1f".join(crudos)
@@ -105,9 +111,10 @@ def revisar_punto_de_miles(cab, filas, lineas, origen="del CSV"):
         mezclado = any(_ENTERO_LARGO.match(v) for v in valores)
         if inequivoco or mezclado:
             detalle = " mezclados con números sin separador" if mezclado else ""
+            ejemplo = valores[con_punto[0]]
             raise ValueError(f"la línea {lineas[con_punto[0]]} {origen}, columna «{col}», trae números con punto de miles "
-                             f"(p. ej. {valores[con_punto[0]]}){detalle}: leerlos como decimales los divide por mil en "
-                             "silencio; hay que unificar el formato antes de leer")
+                             f"(p. ej. {ver(col, ejemplo) if ver else ejemplo}){detalle}: leerlos como decimales los divide "
+                             "por mil en silencio; hay que unificar el formato antes de leer")
 
 
 def leer_csv(ruta):

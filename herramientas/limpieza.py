@@ -2,13 +2,22 @@
 """Limpieza declarada (sin IA): del dato crudo a la capa limpia, marcando y sin borrar.
 
 Uso: python limpieza.py <plan_limpieza.json>   (las rutas del plan son relativas a la carpeta del plan)
+     python limpieza.py --autoprueba            casos ficticios: lectura FAILFAST, umbrales y calidad antes y después
 
 La IA escribe el plan; este motor lo ejecuta igual cada vez y lo prueba:
   - el dato crudo no se toca (capa cruda, con su procedencia);
   - la capa limpia tiene las mismas filas: limpiar es marcar (R14). Cada problema queda en una columna
     calidad_<marca> (1/0), y calidad_ok vale 1 si la fila no tiene marcas;
   - cada operación informa cuántas filas cambió y cuántas marcó, con ejemplos (nunca de columnas privadas);
-  - completitud, validez y unicidad se miden antes y después, y los umbrales del plan bloquean.
+  - completitud, validez y unicidad se miden antes y después (con el mismo tipo, así se ve cuánto cambió la calidad
+    con la limpieza), y los umbrales del plan bloquean.
+
+Lectura FAILFAST (con el número de línea), con el mismo lector estricto que las reglas y la ingesta
+(reglas_base.leer_tabla): un archivo que no está en UTF-8, sin encabezado o con columnas repetidas, una comilla sin
+cerrar, una línea vacía, una fila con más o menos campos, otro separador o columnas crudas calidad_* detienen la
+limpieza; nunca se lee a medias. La op numero con decimal «.» se detiene ante montos con punto de miles mezclados con
+números sin separador (78.000 junto a 1628100), que leídos así se dividirían por mil (L46; si el punto ya es decimal
+en la columna, como 12.5, 1.250 es un decimal: L49).
 
 Operaciones (en orden):
   {"op": "texto", "columna", "recortar": true, "unicode": true, "invisibles": true, "espacios_internos": true}
@@ -23,7 +32,21 @@ Operaciones (en orden):
    "desempate": {"columna": "fecha_actualizacion", "conservar": "ultimo"}}   marca todas menos la que se conserva:
       sin desempate, la primera del archivo; si la llave se repite con valores distintos y no hay desempate, avisa
   {"op": "comparar", "izquierda", "operador": "<", "derecha", "marca"}             p. ej. fin antes de inicio
-Umbrales: {"completitud_minima": {col: 0.99}, "validez_minima": {col: 0.999}, "unicidad": [col], "marcadas_maximo": {marca: n}}
+La llave del plan es una columna o una lista de columnas (llave compuesta): la prueba de orden compara la combinación.
+
+Umbrales (se justifican sobre el dato real, no sobre el caso conocido):
+  {"completitud_minima": {col: 0.99}, "validez_minima": {col: 0.999}, "unicidad": [col],
+   "marcadas_maximo": {marca: n}, "vacios_maximo": {col: n}}
+  - vacios_maximo cuenta celdas vacías en conteos absolutos (también las de un nulo disfrazado que se vació): un
+    umbral relativo pensado para 23 filas deja perder miles en 49.662; uno absoluto, no.
+  - El detalle de completitud y validez dice la holgura: cuántas filas más puede perder el dato antes de que el
+    umbral bloquee.
+  - Un umbral con nombre desconocido, sobre una columna que no existe o sobre una marca que ninguna operación pone
+    detiene la limpieza: nunca se ignora en silencio.
+  - "umbrales_caso" (opcional): los del caso conocido, que trae defectos a propósito. Se aplican solo cuando quien
+    llama lo pide (limpiar(..., caso=True), con la entrada del caso), nunca desde la línea de comandos ni sobre la
+    entrada del plan. El caso no puede exigir más que el dato real: cada umbral de umbrales_caso debe estar también
+    en umbrales y ser igual o más laxo; si no, la limpieza se detiene.
 """
 import csv
 import hashlib
@@ -31,17 +54,25 @@ import io
 import json
 import math
 import re
+import shutil
 import sys
+import tempfile
 import unicodedata
 from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from gobernanza import clasificar_columna, enmascarar, parece_instruccion  # noqa: E402
+import reglas_base  # noqa: E402
+from gobernanza import clasificar_columna, enmascarar, es_sensible, parece_instruccion  # noqa: E402
+from reglas_base import leer_tabla  # noqa: E402
 
-INVISIBLES = re.compile(r"[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f​-‏  ‪-‮⁠﻿]")
+# con escapes, no con los caracteres literales: al reescribir el archivo, U+2028 y U+2029 literales se volvían espacios
+INVISIBLES = re.compile(r"[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f\u200b-\u200f\u2028\u2029\u202a-\u202e\u2060\ufeff]")
 OPS = {"<": lambda a, b: a < b, "<=": lambda a, b: a <= b, ">": lambda a, b: a > b, ">=": lambda a, b: a >= b,
        "==": lambda a, b: a == b, "!=": lambda a, b: a != b}
+UMBRALES = ("completitud_minima", "validez_minima", "unicidad", "marcadas_maximo", "vacios_maximo")
+MARCA_POR_DEFECTO = {"nulos_disfrazados": "nulo_disfrazado_{}", "mapear": "fuera_de_mapa_{}",
+                     "fecha": "fecha_invalida_{}", "numero": "numero_invalido_{}", "repetidos": "repetido"}
 
 
 def clave_norm(s):
@@ -50,7 +81,9 @@ def clave_norm(s):
 
 
 def privada(col):
-    return clasificar_columna(col) in ("personal", "texto_libre")
+    """Sus ejemplos salen enmascarados: identifica a personas, es texto libre o es un dato sensible (Ley 1581, art. 5;
+    gobernanza lo clasifica como cuasi, pero un ejemplo suyo ya es el dato sensible de alguien)."""
+    return clasificar_columna(col) in ("personal", "texto_libre") or es_sensible(col)
 
 
 def ejemplo(col, antes, despues):
@@ -75,6 +108,24 @@ def leer_fecha(v, formatos):
     return None
 
 
+def fecha_valida(v):
+    """aaaa-mm-dd y una fecha que existe en el calendario (2025-02-30 no cuenta)."""
+    if not re.match(r"^\d{4}-\d{2}-\d{2}$", v):
+        return False
+    try:
+        datetime.strptime(v, "%Y-%m-%d")
+        return True
+    except ValueError:
+        return False
+
+
+def numero_valido(v):
+    try:
+        return math.isfinite(float(v))
+    except ValueError:
+        return False
+
+
 def metricas(filas, cols, tipos):
     out = {}
     n = len(filas) or 1
@@ -83,48 +134,141 @@ def metricas(filas, cols, tipos):
         llenos = [v for v in vals if v.strip()]
         m = {"completitud": round(len(llenos) / n, 6), "distintos": len(set(llenos))}
         t = tipos.get(c)
-        if t == "fecha":
-            m["validez"] = round(sum(1 for v in llenos if re.match(r"^\d{4}-\d{2}-\d{2}$", v)) / (len(llenos) or 1), 6)
-        elif t == "numero":
-            def ok(v):
-                try:
-                    return math.isfinite(float(v))
-                except ValueError:
-                    return False
+        if t in ("fecha", "numero"):
+            ok = fecha_valida if t == "fecha" else numero_valido
             m["validez"] = round(sum(1 for v in llenos if ok(v)) / (len(llenos) or 1), 6)
         out[c] = m
     return out
 
 
-def limpiar(plan_ruta, entrada=None, salida=None, informe=True):
+def cambio(antes, despues):
+    """Lo que movió la limpieza en cada columna (después menos antes), con el mismo tipo en los dos lados."""
+    out = {}
+    for c, d in despues.items():
+        a = antes.get(c)
+        if not a:
+            continue
+        x = {k: round(d[k] - a[k], 6) for k in ("completitud", "validez") if k in d and k in a}
+        if any(x.values()):
+            out[c] = x
+    return out
+
+
+def miles(n):
+    return f"{n:,}".replace(",", ".")
+
+
+def leer_crudo(ent):
+    """(columnas, filas como diccionarios, línea donde termina cada fila, bytes) con el lector estricto de las reglas y
+    de la ingesta (reglas_base.leer_tabla): FAILFAST con el número de línea ante un archivo que no está en UTF-8, vacío
+    o sin encabezado, otro separador, columnas repetidas, una comilla sin cerrar, una línea vacía o una fila con más o
+    menos campos que el encabezado; nunca se lee a medias. Una fórmula de Excel no detiene la limpieza (se neutraliza y
+    se marca, DB5) y el punto de miles lo revisa la operación numero, que es la que declara el decimal."""
+    crudo = ent.read_bytes()
+    try:
+        texto = crudo.decode("utf-8-sig")
+    except UnicodeDecodeError as e:
+        linea = crudo[:e.start].count(b"\n") + 1
+        raise ValueError(f"FAILFAST: la línea {linea} de {ent.name} no está en UTF-8 (byte {e.start + 1})") from None
+    try:
+        cols, filas, lineas = leer_tabla(texto, f"de {ent.name}", miles=False, formulas=False)
+    except ValueError as e:
+        raise ValueError(f"FAILFAST: {e}") from None
+    return cols, [dict(zip(cols, f)) for f in filas], lineas, crudo
+
+
+def ver_valor(col, v):
+    """Cómo sale un valor en un mensaje: enmascarado si la columna está marcada (personal, cuasi, texto libre o
+    sensible), recortado si no."""
+    return enmascarar(v) if clasificar_columna(col) or es_sensible(col) else v[:20]
+
+
+def revisar_punto_de_miles(col, valores, lineas, nombre):
+    """Con decimal «.», 78.000 junto a 1628100 en la misma columna se leería como 78 en silencio (L46). La regla es la de
+    reglas_base, con su excepción: si el punto ya es decimal en la columna (12.5), 1.250 es un decimal (L49)."""
+    try:
+        reglas_base.revisar_punto_de_miles([col], [[v] for v in valores], lineas, f"de {nombre}", ver=ver_valor)
+    except ValueError as e:
+        raise ValueError(f"FAILFAST: {e}; con decimal «.» se leería dividido por mil: declare decimal «,» o unifique "
+                         "el formato") from None
+
+
+def marcas_posibles(plan):
+    nombres = {"formula_neutralizada"}
+    for o in plan.get("operaciones", []):
+        if o.get("marca"):
+            nombres.add(o["marca"])
+        elif o.get("op") in MARCA_POR_DEFECTO:
+            nombres.add(MARCA_POR_DEFECTO[o["op"]].format(o.get("columna")))
+    return nombres
+
+
+def revisar_umbrales(plan, cols):
+    """Un umbral que no se puede evaluar no se ignora: nombre desconocido, columna que no existe o marca que ninguna
+    operación pone. Y el caso conocido no exige más que el dato real."""
+    p, posibles = [], marcas_posibles(plan)
+    bloques = {"umbrales": plan.get("umbrales") or {}}
+    if "umbrales_caso" in plan:
+        bloques["umbrales_caso"] = plan.get("umbrales_caso") or {}
+    for nombre, u in bloques.items():
+        if not isinstance(u, dict):
+            p.append(f"{nombre} debe ser un objeto")
+            continue
+        desconocidos = sorted(k for k in u if k not in UMBRALES and not k.startswith("_"))
+        if desconocidos:
+            p.append(f"{nombre}: umbrales desconocidos {desconocidos} (se admiten {', '.join(UMBRALES)})")
+        for k in ("completitud_minima", "validez_minima", "vacios_maximo"):
+            faltan = sorted(c for c in (u.get(k) or {}) if c not in cols)
+            if faltan:
+                p.append(f"{nombre}.{k} usa columnas que no existen: {faltan}")
+        faltan = sorted(c for c in (u.get("unicidad") or []) if c not in cols)
+        if faltan:
+            p.append(f"{nombre}.unicidad usa columnas que no existen: {faltan}")
+        sin_op = sorted(m for m in (u.get("marcadas_maximo") or {}) if m not in posibles)
+        if sin_op:
+            p.append(f"{nombre}.marcadas_maximo usa marcas que ninguna operación pone: {sin_op}")
+    if "umbrales_caso" in bloques and isinstance(bloques["umbrales_caso"], dict) and isinstance(bloques["umbrales"], dict):
+        real, caso = bloques["umbrales"], bloques["umbrales_caso"]
+        for k, mas_estricto in (("completitud_minima", lambda r, c: r >= c), ("validez_minima", lambda r, c: r >= c),
+                                ("marcadas_maximo", lambda r, c: r <= c), ("vacios_maximo", lambda r, c: r <= c)):
+            for c, v in (caso.get(k) or {}).items():
+                r = (real.get(k) or {}).get(c)
+                if r is None or not mas_estricto(r, v):
+                    p.append(f"el caso conocido exige más que el dato real en {k}.{c} (caso {v}, dato real {r})")
+        for c in caso.get("unicidad") or []:
+            if c not in (real.get("unicidad") or []):
+                p.append(f"el caso conocido exige unicidad de {c} y el dato real no")
+    return p
+
+
+def limpiar(plan_ruta, entrada=None, salida=None, informe=True, caso=False):
     plan_ruta = Path(plan_ruta).resolve()
     base = plan_ruta.parent
     plan = json.loads(plan_ruta.read_text(encoding="utf-8"))
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from rutas import resolver
+    if caso and entrada is None:
+        raise ValueError("umbrales_caso es solo para el caso conocido: quien pide caso=True pasa la entrada del caso, "
+                         "nunca la del plan")
     e = entrada or plan["entrada"]
     ent = Path(resolver(e)) if Path(e).is_absolute() else base / e
     s_ = salida or plan["salida"]
     sal = Path(s_) if Path(s_).is_absolute() else base / s_
-    with open(ent, newline="", encoding="utf-8-sig") as fh:
-        lector = csv.DictReader(fh, strict=True)
-        cols = list(lector.fieldnames or [])
-        crudas = list(lector)
-    for i, f in enumerate(crudas, 2):
-        if None in f or any(v is None for v in f.values()):
-            raise ValueError(f"FAILFAST: la línea {i} de {ent.name} no tiene el mismo número de campos que el encabezado")
+    cols, crudas, lineas, crudo = leer_crudo(ent)    # también detiene otro separador (la línea 1 con «;», tabulador o «|»)
     reservadas = [c for c in cols if c.lower().startswith("calidad_")]
     if reservadas:
         raise ValueError(f"FAILFAST: {ent.name} ya trae columnas con el prefijo calidad_, reservado para las marcas de la capa "
                          f"limpia: {reservadas[:5]}. Una implementación las tomaría por marcas y excluiría filas; renómbralas "
                          f"en el contrato de ingesta")
-    if len(cols) == 1 and any(sep in cols[0] for sep in (";", "\t", "|")):
-        raise ValueError(f"FAILFAST: {ent.name} tiene una sola columna con «;», tabulador o «|»: el separador no es la coma")
-    huella_cruda = hashlib.sha256(ent.read_bytes()).hexdigest()
+    derivadas = [f"{o.get('columna')}__hora" for o in plan.get("operaciones", []) if o.get("op") == "fecha" and o.get("guardar_hora")]
+    problemas = revisar_umbrales(plan, cols + derivadas)
+    if problemas:
+        raise ValueError("FAILFAST: los umbrales del plan no se pueden evaluar tal como están: " + "; ".join(problemas))
+    huella_cruda = hashlib.sha256(crudo).hexdigest()
     filas = [dict(f) for f in crudas]
     marcas = [set() for _ in filas]
     tipos = {o["columna"]: o["op"] for o in plan["operaciones"] if o.get("op") in ("fecha", "numero")}
-    antes = metricas(crudas, cols, {})
+    antes = metricas(crudas, cols, tipos)
     reporte = []
 
     for o in plan["operaciones"]:
@@ -210,6 +354,8 @@ def limpiar(plan_ruta, entrada=None, salida=None, informe=True):
                 for f in filas:
                     f.setdefault(hora, "")
         elif op == "numero":
+            if o.get("decimal") != ",":
+                revisar_punto_de_miles(col, [f[col].strip() for f in filas], lineas, ent.name)
             for i, f in enumerate(filas):
                 v = f[col].strip()
                 if not v:
@@ -352,28 +498,38 @@ def limpiar(plan_ruta, entrada=None, salida=None, informe=True):
     ]
     llave = plan.get("llave")
     if llave:
-        orden_ok = [f.get(llave) for f in filas] == [f.get(llave) for f in crudas]
+        partes = [llave] if isinstance(llave, str) else list(llave)
+        orden_ok = ([tuple(f.get(k) for k in partes) for f in filas] == [tuple(f.get(k) for k in partes) for f in crudas])
         pruebas.append({"prueba": "la llave y el orden de las filas se conservan", "ok": orden_ok,
                         "detalle": "cada fila limpia corresponde a su fila cruda"})
-    u = plan.get("umbrales", {})
+    usa_caso = caso and "umbrales_caso" in plan
+    u = plan.get("umbrales_caso" if usa_caso else "umbrales") or {}
+    n = len(filas)
     for c, mn in u.get("completitud_minima", {}).items():
         v = despues.get(c, {}).get("completitud", 0)
-        pruebas.append({"prueba": f"completitud de {c} ≥ {mn}", "ok": v >= mn, "detalle": f"{v:.4%}"})
+        holgura = f" · holgura {miles(math.floor((v - mn) * n + 1e-9))} filas" if v >= mn else ""
+        pruebas.append({"prueba": f"completitud de {c} ≥ {mn}", "ok": v >= mn, "detalle": f"{v:.4%}{holgura}"})
     for c, mn in u.get("validez_minima", {}).items():
         v = despues.get(c, {}).get("validez")
+        llenos = sum(1 for f in filas if f.get(c, "").strip())
+        holgura = f" · holgura {miles(math.floor((v - mn) * llenos + 1e-9))} valores" if v is not None and v >= mn else ""
         pruebas.append({"prueba": f"validez de {c} ≥ {mn}", "ok": v is not None and v >= mn,
-                        "detalle": "sin tipo declarado" if v is None else f"{v:.4%}"})
+                        "detalle": "sin tipo declarado" if v is None else f"{v:.4%}{holgura}"})
     for c in u.get("unicidad", []):
         vals = [f[c] for f in filas if f.get(c, "").strip()]
         pruebas.append({"prueba": f"{c} única", "ok": len(vals) == len(set(vals)), "detalle": f"{len(vals) - len(set(vals))} repetidas"})
     for m, mx in u.get("marcadas_maximo", {}).items():
-        n = sum(1 for ms in marcas if m in ms)
-        pruebas.append({"prueba": f"filas marcadas «{m}» ≤ {mx}", "ok": n <= mx, "detalle": f"{n}"})
+        k = sum(1 for ms in marcas if m in ms)
+        pruebas.append({"prueba": f"filas marcadas «{m}» ≤ {mx}", "ok": k <= mx, "detalle": f"{k}"})
+    for c, mx in u.get("vacios_maximo", {}).items():
+        k = sum(1 for f in filas if not f.get(c, "").strip())
+        pruebas.append({"prueba": f"celdas vacías en {c} ≤ {mx}", "ok": k <= mx, "detalle": f"{miles(k)} de {miles(n)} filas"})
     conteo_marcas = {m: sum(1 for ms in marcas if m in ms) for m in todas}
     informe_escribir = informe
     informe = {"tabla": plan.get("tabla"), "entrada": str(ent), "salida": str(sal), "filas": len(filas),
                "filas_ok": sum(1 for ms in marcas if not ms), "marcas": conteo_marcas, "operaciones": reporte,
-               "calidad_antes": antes, "calidad_despues": despues, "pruebas": pruebas,
+               "calidad_antes": antes, "calidad_despues": despues, "calidad_cambio": cambio(antes, despues),
+               "umbrales_aplicados": "caso_conocido" if usa_caso else "dato_real", "pruebas": pruebas,
                "sha256_limpio": hashlib.sha256(contenido).hexdigest(),
                "estado": "aprobada" if all(p["ok"] for p in pruebas) else "rechazada"}
     if not informe_escribir:
@@ -385,6 +541,8 @@ def limpiar(plan_ruta, entrada=None, salida=None, informe=True):
               + (f" · {'; '.join(r['ejemplos'][:2])}" if r["ejemplos"] else ""))
         if r.get("aviso"):
             print(f"    ! {r['aviso']}")
+    for c, x in informe["calidad_cambio"].items():
+        print(f"  · calidad de {c}: " + " · ".join(f"{k} {antes[c][k]:.2%} → {despues[c][k]:.2%}" for k in x))
     for p in pruebas:
         print(f"  {'✓' if p['ok'] else '✗'} {p['prueba']}: {p['detalle']}")
     print("RESUMEN " + json.dumps({"estado": informe["estado"], "filas": len(filas), "marcas": conteo_marcas,
@@ -392,9 +550,138 @@ def limpiar(plan_ruta, entrada=None, salida=None, informe=True):
     return 0 if informe["estado"] == "aprobada" else 1
 
 
+# ---------------- autoprueba (sin datos reales) ----------------
+def autoprueba(mod=None):
+    """Casos ficticios. Con mod se prueba otro módulo de limpieza (p. ej. la versión anterior) con los mismos casos."""
+    mod = mod or sys.modules[__name__]
+    tmp = Path(tempfile.mkdtemp(prefix="limpieza-autoprueba-"))
+    resultados = []
+
+    def caso_(nombre, crudo, plan, condicion, **kw):
+        d = tmp / f"caso{len(resultados):02d}"
+        d.mkdir()
+        (d / "crudo.csv").write_bytes(crudo if isinstance(crudo, bytes) else crudo.encode("utf-8"))
+        (d / "plan.json").write_text(json.dumps({"tabla": "t", "entrada": "crudo.csv", "salida": "limpio.csv", **plan},
+                                                ensure_ascii=False), encoding="utf-8")
+        if kw.get("entrada"):
+            kw["entrada"] = str(d / "crudo.csv")
+        try:
+            r, e = mod.limpiar(d / "plan.json", informe=False, **kw), None
+        except BaseException as x:  # noqa: BLE001 (FAILFAST o la versión anterior que revienta)
+            r, e = None, x
+        try:
+            ok = bool(condicion(r, e))
+        except Exception as x:  # noqa: BLE001
+            ok, e = False, x
+        det = f"{type(e).__name__}: {str(e)[:110]}" if e else f"{r.get('estado')} · {[p['prueba'] for p in r['pruebas'] if not p['ok']]}"
+        resultados.append((nombre, ok, det))
+
+    def detiene(r, e):
+        return isinstance(e, ValueError) and "FAILFAST" in str(e) and re.search(r"l[ií]nea \d+|vacío|encabezado", str(e))
+
+    def rechaza(nombre):
+        return lambda r, e: e is None and r["estado"] == "rechazada" and any(nombre in p["prueba"] for p in r["pruebas"] if not p["ok"])
+
+    def aprueba(r, e):
+        return e is None and r["estado"] == "aprobada"
+
+    # 1. lectura FAILFAST: cada CSV de baterias/failfast detiene la limpieza o la rechaza; nunca se aprueba en silencio
+    planes = {"monto_con_punto_de_miles.csv": [{"op": "numero", "columna": "subtotal"}],
+              "formula_de_excel_como_texto.csv": [{"op": "numero", "columna": "dia"}]}
+    umbral_formula = {"marcadas_maximo": {"numero_invalido_dia": 0}}
+    for ruta in sorted((Path(__file__).resolve().parent.parent / "baterias" / "failfast").glob("*.csv")):
+        ops = planes.get(ruta.name, [])
+        caso_(f"failfast {ruta.name}", ruta.read_bytes(),
+              {"operaciones": ops, "umbrales": umbral_formula if "formula" in ruta.name else {}},
+              lambda r, e: detiene(r, e) or (e is None and r["estado"] == "rechazada"))
+    rotos = {"comilla sin cerrar: ValueError con la línea, no csv.Error": 'id,v\n1,"a\n2,b\n',
+             "no está en UTF-8": "id,ciudad\n1,Medellín\n".encode("cp1252"),
+             "encabezado con columnas repetidas": "id,v,v\n1,a,b\n",
+             "archivo vacío": ""}
+    for nombre, crudo in rotos.items():
+        caso_(f"failfast {nombre}", crudo, {"operaciones": []}, detiene)
+    # 2. calidad antes y después con el mismo tipo
+    crudo = "id,fecha,valor\n1,2025-01-05T10:00:00.000,10\n2,05/02/2025,1.5\n3,2025-02-30,x\n4,,20\n"
+    plan = {"operaciones": [{"op": "fecha", "columna": "fecha", "formatos": ["%Y-%m-%dT%H:%M:%S.%f", "%d/%m/%Y"]},
+                            {"op": "numero", "columna": "valor"}]}
+    caso_("calidad_antes trae validez y el cambio que hizo la limpieza", crudo, plan,
+          lambda r, e: e is None and "validez" in r["calidad_antes"]["fecha"] and "validez" in r["calidad_antes"]["valor"]
+          and r["calidad_cambio"]["fecha"]["validez"] > 0)
+    caso_("una fecha que no existe (2025-02-30) no cuenta como válida", crudo, plan,
+          lambda r, e: e is None and r["calidad_despues"]["fecha"]["validez"] == round(2 / 3, 6))
+    # 3. umbrales sobre el dato real: 2.000 filas ficticias con 80 NIT vacíos (4 %) frente a un caso de 21 con 1 vacío
+    grande = "id,nit\n" + "".join(f"C{i:05d},{'' if i % 25 == 0 else 900000000 + i % 7}\n" for i in range(2000))
+    chico = "id,nit\n" + "".join(f"K{i:02d},{'' if i == 5 else 900000001}\n" for i in range(21))
+    relativo = {"operaciones": [], "umbrales": {"completitud_minima": {"nit": 0.95}}}
+    absoluto = {"operaciones": [], "umbrales": {"completitud_minima": {"nit": 0.95}, "vacios_maximo": {"nit": 2}}}
+    caso_("el umbral relativo de 0,95 deja pasar 80 NIT vacíos en 2.000 filas (la holgura lo muestra)", grande, relativo,
+          lambda r, e: aprueba(r, e) and "holgura 20 filas" in r["pruebas"][-1]["detalle"])
+    caso_("vacios_maximo (conteo absoluto) rechaza los 80 vacíos del dato grande", grande, absoluto, rechaza("celdas vacías en nit"))
+    caso_("… y el mismo plan aprueba el caso chico con 1 vacío", chico, absoluto, aprueba)
+    separados = {"operaciones": [], "llave": "id",
+                 "umbrales": {"completitud_minima": {"nit": 0.999}, "unicidad": ["id"]},
+                 "umbrales_caso": {"completitud_minima": {"nit": 0.95}}}
+    caso_("umbrales del dato real: el caso chico no pasa con ellos", chico, separados, rechaza("completitud de nit"), entrada=True)
+    caso_("umbrales_caso: el caso chico pasa con los suyos (caso=True)", chico, separados,
+          lambda r, e: aprueba(r, e) and r["umbrales_aplicados"] == "caso_conocido", entrada=True, caso=True)
+    caso_("caso=True sin la entrada del caso se detiene (nunca sobre el dato del plan)", chico, separados,
+          lambda r, e: isinstance(e, ValueError), caso=True)
+    laxo = {"operaciones": [], "umbrales": {"completitud_minima": {"nit": 0.9}},
+            "umbrales_caso": {"completitud_minima": {"nit": 0.95}, "unicidad": ["id"]}}
+    caso_("el caso no puede exigir más que el dato real", chico, laxo,
+          lambda r, e: isinstance(e, ValueError) and "exige más" in str(e))
+    for nombre, u in (("nombre desconocido (completitud_minimo)", {"completitud_minimo": {"nit": 1.0}}),
+                      ("columna que no existe", {"vacios_maximo": {"nti": 0}}),
+                      ("marca que ninguna operación pone", {"marcadas_maximo": {"repetidos": 0}}),
+                      ("unicidad de una columna que no existe", {"unicidad": ["ide"]})):
+        caso_(f"umbral que no se puede evaluar: {nombre}", chico, {"operaciones": [{"op": "repetidos", "columnas": ["id"]}],
+                                                                  "umbrales": u},
+              lambda r, e: isinstance(e, ValueError) and "umbrales" in str(e))
+    # 4. la clase INVISIBLES va con escapes: quita los invisibles y nunca un espacio (al reescribir el archivo, U+2028 y
+    #    U+2029 literales se volvieron espacios y la op texto pegaba los nombres)
+    def limpio(r):
+        with open(r["salida"], newline="", encoding="utf-8") as fh:
+            return next(csv.DictReader(fh))["nombre"]
+
+    caso_("la op texto quita U+200B, U+2028 y U+202E y conserva los espacios",
+          "id,nombre\n1,\"Alcaldía\u200b de\u2028 Medellín\u202e\"\n", {"operaciones": [{"op": "texto", "columna": "nombre"}]},
+          lambda r, e: e is None and limpio(r) == "Alcaldía de Medellín")
+    # 5. llave compuesta y montos con punto de miles en la op numero
+    caso_("llave compuesta del plan: la prueba de orden compara la combinación",
+          "estacion,fecha,mm\nE1,2025-01-01,3\nE1,2025-01-02,4\n", {"llave": ["estacion", "fecha"], "operaciones": []},
+          lambda r, e: aprueba(r, e) and any(p["prueba"].startswith("la llave") and p["ok"] for p in r["pruebas"]))
+    caso_("op numero con decimal «.»: 78.000 junto a 1628100 se detiene", "id,valor\n1,78.000\n2,1628100\n",
+          {"operaciones": [{"op": "numero", "columna": "valor"}]}, detiene)
+    caso_("op numero con decimal «,»: 1.250,50 se convierte sin detenerse", "id,valor\n1,\"1.250,50\"\n2,1628100\n",
+          {"operaciones": [{"op": "numero", "columna": "valor", "decimal": ","}]}, aprueba)
+    caso_("op numero con decimal «.»: con 12.5 en la columna, 1.250 es un decimal y no se detiene (L49)",
+          "id,peso_kg\n1,12.5\n2,1.250\n3,1500\n", {"operaciones": [{"op": "numero", "columna": "peso_kg"}]}, aprueba)
+    caso_("op texto: los ejemplos de una columna sensible salen enmascarados",
+          "id,pertenencia_etnica\n1,  Indigena  Zenu\n", {"operaciones": [{"op": "texto", "columna": "pertenencia_etnica"}]},
+          lambda r, e: aprueba(r, e) and r["operaciones"][0]["ejemplos"] and "Zenu" not in str(r["operaciones"][0]["ejemplos"]))
+    caso_("op numero: el mensaje enmascara el valor de una columna personal",
+          "id,numero_documento\n1,1.035.233.887\n2,43\n", {"operaciones": [{"op": "numero", "columna": "numero_documento"}]},
+          lambda r, e: detiene(r, e) and "1.035.233.887" not in str(e) and "035" not in str(e))
+    # 6. desempate de repetidos (L50): conserva la más reciente y avisa si falta el criterio
+    rep = "id,region,fecha\nC1,Norte,2025-01-01\nC1,Sur,2025-03-01\nC2,Este,2025-02-01\n"
+    caso_("repetidos con desempate: conserva la más reciente", rep,
+          {"operaciones": [{"op": "repetidos", "columnas": ["id"], "desempate": {"columna": "fecha", "conservar": "ultimo"}}]},
+          lambda r, e: aprueba(r, e) and r["marcas"].get("repetido") == 1 and not r["operaciones"][0].get("aviso"))
+    caso_("repetidos sin desempate con valores distintos: avisa", rep, {"operaciones": [{"op": "repetidos", "columnas": ["id"]}]},
+          lambda r, e: aprueba(r, e) and "sin criterio" in (r["operaciones"][0].get("aviso") or ""))
+    shutil.rmtree(tmp, ignore_errors=True)
+    for nombre, ok, det in resultados:
+        print(f"{'✓' if ok else '✗'} {nombre}" + ("" if ok else f" · {det}"))
+    malos = [n for n, ok, _ in resultados if not ok]
+    print("RESUMEN " + json.dumps({"casos": len(resultados), "fallas": len(malos)}, ensure_ascii=False))
+    return 1 if malos else 0
+
+
 if __name__ == "__main__":
     args = sys.argv[1:]
     if not args:
         raise SystemExit(__doc__)
+    if args[0] == "--autoprueba":
+        sys.exit(autoprueba())
     g = lambda k: args[args.index(k) + 1] if k in args else None
     sys.exit(limpiar(args[0], entrada=g("--entrada"), salida=g("--salida")))
