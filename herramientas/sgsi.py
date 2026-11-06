@@ -15,7 +15,7 @@ Lee sgsi/activos.json, sgsi/controles.json, sgsi/riesgos.json y sgsi/soa.json, y
                 clasificación concuerda con su C (pública: C <= 2; interna: C = 3; restringida: C >= 4);
   restringidos  nada restringido está en el repositorio público: lo que debe quedar fuera está ignorado y sin versionar;
   secretos      ningún archivo versionado trae llaves o tokens;
-  permisos      los flujos de GitHub piden solo lectura, no usan pull_request_target, no leen secretos propios,
+  permisos      los flujos de GitHub piden solo lectura, pull_request_target nunca trae el código del aporte, sin secretos propios,
                 fijan cada acción a su commit y, si corren el banco de blindaje, lo hacen en macOS (sandbox-exec);
   controles     cada control apunta a evidencia que existe y a pruebas que existen;
   riesgos       impacto = valor del activo en la propiedad que se pierde; nivel = probabilidad × impacto;
@@ -174,26 +174,39 @@ def comprobar_secretos(versionados, res):
     return rutas_locales
 
 
+def revisar_flujo(nombre, t):
+    """Fallas de permisos de un flujo de GitHub (texto del YAML)."""
+    fallas = []
+    if not re.search(r"^permissions:", t, re.M):
+        fallas.append(f"{nombre}: no declara permissions (el token tendría los permisos por defecto)")
+    if re.search(r"^\s+[\w-]+:\s*write\b|^permissions:\s*write-all", t, re.M):
+        fallas.append(f"{nombre}: pide permiso de escritura")
+    if "pull_request_target" in t:
+        # Corre la versión de main con el token del repositorio: sirve solo si nunca trae ni ejecuta el código del aporte
+        # (L56). Nada de ref ni head del pull request, credenciales fuera del checkout y ningún dato del evento
+        # interpolado en un comando (los nombres y títulos del aporte van por variables de entorno).
+        evento_fuera_de_env = [l for l in t.splitlines() if re.search(r"\$\{\{\s*github\.(event|head_ref)", l)
+                               and not re.fullmatch(r"\s+[A-Z_]+:\s*\$\{\{\s*github\.event\.[\w.]+\s*\}\}\s*", l)]
+        if (re.search(r"pull_request\.head|^\s+ref:", t, re.M) or ("actions/checkout" in t and "persist-credentials: false" not in t)
+                or evento_fuera_de_env):
+            fallas.append(f"{nombre}: usa pull_request_target y podría traer o ejecutar el código del aporte con permisos del repositorio")
+    otros = sorted(set(re.findall(r"secrets\.([A-Za-z0-9_]+)", t)) - {"GITHUB_TOKEN"})
+    if otros:
+        fallas.append(f"{nombre}: lee secretos propios {otros} (el filtro de aportes no usa llaves)")
+    if re.search(r"blindaje\.py|validar_aporte\.py|sgsi\.py --efectividad", t) and not re.search(r"runs-on:\s*macos", t):
+        fallas.append(f"{nombre}: corre el banco de blindaje fuera de macOS, donde la caja de arena no existe (L42)")
+    for u in re.findall(r"uses:\s*([^\s#]+)", t):
+        if not re.search(r"@[0-9a-f]{40}$", u):
+            fallas.append(f"{nombre}: la acción {u} no está fijada a un commit")
+    return fallas
+
+
 def comprobar_permisos(res):
     res.ok("permisos")
     flujos = sorted((RAIZ / ".github/workflows").glob("*.y*ml"))
     for f in flujos:
-        t = f.read_text(encoding="utf-8")
-        nombre = f.name
-        if not re.search(r"^permissions:", t, re.M):
-            res.falla("permisos", f"{nombre}: no declara permissions (el token tendría los permisos por defecto)")
-        if re.search(r"^\s+[\w-]+:\s*write\b|^permissions:\s*write-all", t, re.M):
-            res.falla("permisos", f"{nombre}: pide permiso de escritura")
-        if "pull_request_target" in t:
-            res.falla("permisos", f"{nombre}: usa pull_request_target (código de un fork con permisos del repositorio)")
-        otros = sorted(set(re.findall(r"secrets\.([A-Za-z0-9_]+)", t)) - {"GITHUB_TOKEN"})
-        if otros:
-            res.falla("permisos", f"{nombre}: lee secretos propios {otros} (el filtro de aportes no usa llaves)")
-        if re.search(r"blindaje\.py|validar_aporte\.py|sgsi\.py --efectividad", t) and not re.search(r"runs-on:\s*macos", t):
-            res.falla("permisos", f"{nombre}: corre el banco de blindaje fuera de macOS, donde la caja de arena no existe (L42)")
-        for u in re.findall(r"uses:\s*([^\s#]+)", t):
-            if not re.search(r"@[0-9a-f]{40}$", u):
-                res.falla("permisos", f"{nombre}: la acción {u} no está fijada a un commit")
+        for falla in revisar_flujo(f.name, f.read_text(encoding="utf-8")):
+            res.falla("permisos", falla)
     return [f.name for f in flujos]
 
 

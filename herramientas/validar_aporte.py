@@ -54,7 +54,7 @@ ASISTENTES = re.compile(r"(^|/)(\.claude|\.cursor|\.vscode|\.idea|\.devcontainer
 # decide quién revisa. El filtro no puede protegerse a sí mismo (el pull request trae su propia copia): si un aporte toca
 # el filtro o lo que importa, su verde no prueba nada y el dueño lo revisa línea por línea (L54).
 DEL_DUENO = re.compile(r"^\.github/")
-CADENA_DEL_FILTRO = re.compile(r"^(herramientas/(validar_aporte|gobernanza|seguridad|dependencias|blindaje|sgsi|caja)\.py"
+CADENA_DEL_FILTRO = re.compile(r"^(herramientas/(validar_aporte|rutas_protegidas|gobernanza|seguridad|dependencias|blindaje|sgsi|caja|integridad)\.py"
                                r"|herramientas/permitidas\.json|requirements\.txt)$")
 CSV_PERMITIDOS = re.compile(r"^(ejemplo/datos/|baterias/|corridas/[^/]+/caso_conocido/)")
 MAX_CSV = 200_000

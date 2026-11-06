@@ -330,6 +330,12 @@
       "leccion": "validar_ficha.py (V6) dejaba pasar cualquier referencia legal: en el piloto, un modelo sin la evidencia aceptó «Ley 1581 de 2013» y multas cambiadas. Ahora toda ley o decreto citado en una ficha debe estar en baterias/normas/verificadas.json, comprobado contra su texto oficial con su cita literal; una norma inventada o con el año cambiado no pasa.",
       "origen": "riesgo R16 del SGSI (6-nov-2026), tratado en lugar de dejarlo por decidir",
       "prueba": "validar_ficha.py --autoprueba: caso «norma con el año cambiado (Ley 1581 de 2013)»"
+    },
+    {
+      "id": "L56",
+      "leccion": "El filtro de aportes corre la copia del propio pull request: un aporte que lo edita, lo renombra, cambia lo que importa o agrega un módulo con el nombre de uno estándar (herramientas/unicodedata.py) lo apaga desde adentro y sale en verde (simulado: filtro vaciado, una llave .pem y un flujo con curl | sh, en verde). Ahora un segundo chequeo, rutas-protegidas, corre la versión de main con pull_request_target: nunca trae ni ejecuta el código del aporte, solo lee por la API los nombres de los archivos que cambia, y bloquea a quien no es el dueño si toca el filtro, lo que corre, los flujos o un nombre de módulo que importan las herramientas. El SGSI ya no prohíbe pull_request_target: lo acepta solo sin ref ni head del aporte, sin credenciales en el checkout y sin datos del evento dentro de un comando.",
+      "origen": "límite documentado en L54; el dueño pidió cerrarlo con código (6-nov-2026)",
+      "prueba": "herramientas/blindaje.py B21"
     }
   ]
 }

@@ -489,11 +489,16 @@
     {
      "archivo": "herramientas/validar_aporte.py",
      "contiene": "sgsi\\.py"
+    },
+    {
+     "archivo": ".github/workflows/rutas-protegidas.yml",
+     "contiene": "rutas_protegidas\\.py"
     }
    ],
    "pruebas": [
     "B07",
-    "B20"
+    "B20",
+    "B21"
    ]
   },
   {

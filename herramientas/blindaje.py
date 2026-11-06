@@ -369,6 +369,26 @@ def b20():
                         f"sin falsas alarmas en {len(buenas)} rutas legítimas")
 
 
+@prueba("B21", "aportes → filtro", "un aporte apaga el filtro desde adentro (lo edita, lo renombra o reemplaza un módulo que importa)")
+def b21():
+    import rutas_protegidas as rp
+    import sgsi
+    T = "CONTRIBUTOR"
+    ataques = [[{"f": "herramientas/validar_aporte.py"}], [{"f": "herramientas/unicodedata.py"}], [{"f": ".github/workflows/x.yml"}],
+               [{"f": "herramientas/x.py", "p": "herramientas/gobernanza.py"}], [{"f": "herramientas/sitecustomize.py"}]]
+    pasan = [a[0]["f"] for a in ataques if not rp.decidir(a, T, len(a))[1]]
+    legitimo = [{"f": "agentes/13-x.md"}, {"f": "herramientas/color.py"}, {"f": "baterias/fechas/casos.json"}]
+    falsa = rp.decidir(legitimo, T, len(legitimo))[1]
+    flujo = (RAIZ / ".github/workflows/rutas-protegidas.yml").read_text(encoding="utf-8")
+    peligrosos = [flujo.replace("persist-credentials: false", "persist-credentials: false\n          ref: ${{ github.event.pull_request.head.sha }}"),
+                  flujo.replace("python3 -I herramientas", 'echo "${{ github.event.pull_request.title }}"\n          python3 -I herramientas')]
+    flujo_mal = sgsi.revisar_flujo("rutas-protegidas.yml", flujo) or [p for p in peligrosos if not sgsi.revisar_flujo("x", p)]
+    if pasan or falsa or flujo_mal or "pull_request_target" not in flujo:
+        return r("CEDE", f"pasan {pasan}; falsa alarma en un aporte legítimo: {falsa}; flujo: {str(flujo_mal)[:120]}")
+    return r("RESISTE", f"los {len(ataques)} intentos de apagar el filtro quedan para el dueño (chequeo desde main, pull_request_target "
+                        "sin el código del aporte); un aporte legítimo pasa; el SGSI rechaza las 2 variantes que traerían el código")
+
+
 def main(argv):
     solo = set(argv[argv.index("--solo") + 1].split(",")) if "--solo" in argv else None
     filas = []

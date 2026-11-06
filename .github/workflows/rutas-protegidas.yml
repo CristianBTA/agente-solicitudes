@@ -1,0 +1,32 @@
+name: rutas-protegidas
+# Lo que el filtro de aportes no puede cuidar de sí mismo: un aporte que cambia el filtro, lo que importa o los flujos
+# corre su propia copia y su verde no prueba nada (L54). Este chequeo corre la versión de main (pull_request_target):
+# el aporte no puede cambiarlo ni apagarlo. NUNCA descarga ni ejecuta el código del aporte: el checkout trae main
+# y del aporte solo se leen, por la API de GitHub, los nombres de los archivos que cambia (L56).
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, synchronize, reopened, edited]
+permissions:
+  contents: read
+  pull-requests: read
+jobs:
+  rutas:
+    name: rutas-protegidas
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4, fijada al commit; trae main, no el aporte
+        with:
+          persist-credentials: false
+      - name: El aporte no toca el filtro, lo que corre ni los flujos (solo nombres de archivo, por la API)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          AUTOR: ${{ github.event.pull_request.author_association }}
+          ESPERADOS: ${{ github.event.pull_request.changed_files }}
+        run: |
+          gh api --paginate "repos/$REPO/pulls/$PR/files?per_page=100" \
+            --jq '.[] | {f: .filename, p: .previous_filename} | @json' > "$RUNNER_TEMP/rutas.jsonl"
+          python3 -I herramientas/rutas_protegidas.py --autor "$AUTOR" --esperados "$ESPERADOS" < "$RUNNER_TEMP/rutas.jsonl"
