@@ -282,6 +282,12 @@
       "leccion": "Una lista de módulos prohibidos se queda corta si se cierra caso por caso: runpy ejecuta un archivo que la compuerta nunca revisó, y code, timeit, cProfile, profile, pdb, trace y doctest ejecutan texto como código; zipimport carga código, pydoc lanza comandos, y asyncio y concurrent.futures lanzan procesos con create_subprocess_* y ProcessPoolExecutor. Las 14 muestras pasaban la compuerta; ahora se bloquean, y los hilos y asyncio sin procesos siguen pasando.",
       "origen": "aporte del grupo (issue #9): runpy; el dueño cerró la familia completa, 6-nov-2026",
       "prueba": "bateria:seguridad/malos/runpy.py bateria:seguridad/malos/procesos_pool_from.py bateria:seguridad/buenos/hilos_threadpool.py"
+    },
+    {
+      "id": "L48",
+      "leccion": "rutas.resolver_datos solo llevaba a la copia del clon las rutas de «datos», no las de «datos_crudos»: en cualquier clon distinto del del dueño, verificar_hipotesis.py leía el crudo en la carpeta del dueño, la caja de arena lo negaba (bien) y las 5 hipótesis del pipeline completo quedaban «sin prueba». Ahora resolver_datos resuelve los dos.",
+      "origen": "validación completa del repositorio en un clon limpio (6-nov-2026), con los datos de SECOP descargados de nuevo",
+      "prueba": "python herramientas/rutas.py --autoprueba; verificar_hipotesis.py sobre la corrida del pipeline completo en un clon limpio"
     }
   ]
 }
