@@ -49,6 +49,8 @@ python3.13 -m venv .venv && .venv/bin/pip install --require-hashes -r requiremen
 .venv/bin/python herramientas/validar_aporte.py --base origin/main
 ```
 
+Necesita macOS o Linux con Python 3.13 (en Windows, WSL). En Linux y en WSL no existe `sandbox-exec`: si el aporte toca `herramientas/`, las pruebas B11 y B12 del blindaje ceden ahí, y lo decide el filtro de GitHub, que corre en macOS. Si no puedes correrlo, abre el pull request igual y dilo en él.
+
 ## Por qué así
 
 - **`main` está protegida.** Solo entra lo que pasa el filtro automático y el dueño aprueba.
