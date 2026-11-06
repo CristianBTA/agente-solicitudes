@@ -55,6 +55,8 @@ Cada aporte aceptado queda aquí, con el usuario de GitHub de quien lo propuso (
 ## v1.7 · 6 de noviembre de 2026 · arreglos de la revisión de la versión de clase
 
 - Lección L67: el filtro de aportes daba «✓ pasa» a un aporte que hacía caer `baterias.py` o `sgsi.py` (bastaba una coma de más en un JSON), porque solo buscaba líneas «✗». Ahora exige la línea RESUMEN de las dos herramientas, como ya la exigía al banco de blindaje; la prueba B22 lo ataca con un JSON roto en `baterias/` y en `sgsi/`.
+- Agente masivo: se detiene antes de escribir nada si la carpeta de trabajo quedaría en Git (el ejemplo del README usaba una que no está ignorada), y su documento dice que agy y Codex cargan los servidores MCP del usuario; solo Claude corre sin ellos.
+- Documentación al día con lo que el repositorio hace: la guía de 15 minutos verifica en una copia y termina con `git status` limpio; diez baterías, 21 pruebas de blindaje (B18 a B22 en su evidencia) y doce subagentes; las clases de D7; la etiqueta de clase, que se rehízo una vez (15:50), y la rama `version-final`, que aún no está publicada; quién hace el análisis en el pipeline y en el agente masivo; y en `CONTRIBUTING.md`, que el filtro local necesita macOS o Linux.
 
 ## Aportes del grupo
 
