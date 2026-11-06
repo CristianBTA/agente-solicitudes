@@ -270,6 +270,12 @@
       "leccion": "Una fecha con forma de fecha que no existe en el calendario (2026-13-04, 30 de febrero) se pierde en silencio al convertirla: el lector la deja vacía y el documento sale del período sin error. Con 5 fechas del semestre en mes 13, la cifra de R1 bajó 178.151.800 y el perfil mostraba el rango hasta 2026-13-29 sin aviso. El perfil las cuenta aparte, las deja fuera del rango y no las usa para demostrar el orden día/mes.",
       "origen": "aporte del grupo (issue #8): ingesta de un archivo con fechas en varios formatos guardadas como texto, 6-nov-2026",
       "prueba": "bateria:fechas/casos.json"
+    },
+    {
+      "id": "L46",
+      "leccion": "Una columna de montos con punto de miles (78.000) mezclada con montos sin separador (1628100) se lee sin error, y float(\"78.000\") da 78,0: el monto se divide por mil en silencio. El lector se detiene si una columna solo numérica trae punto de miles inequívoco (1.250.000, 1.250,50) o mezclado con enteros largos. Las columnas de texto o de códigos no se revisan: en SECOP, referencia_del_contrato trae 3 valores con forma de monto entre 91.072 códigos.",
+      "origen": "aporte del grupo (issue #10): una IA leyó montos con punto de miles como decimales, 6-nov-2026",
+      "prueba": "bateria:failfast/monto_con_punto_de_miles.csv"
     }
   ]
 }

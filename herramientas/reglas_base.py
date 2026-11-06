@@ -12,6 +12,7 @@ reales y para el caso con respuesta conocida.
         return aprox(a, b), f"resultado {a:,.0f} · fuente {b:,.0f}"
 """
 import csv
+import re
 
 REGLAS = []
 
@@ -21,6 +22,11 @@ def regla(id, tipo, descripcion):
         REGLAS.append({"id": id, "tipo": tipo, "descripcion": descripcion, "fn": fn})
         return fn
     return decorar
+
+
+_PUNTO_DE_MILES = re.compile(r"^[-+]?[1-9]\d{0,2}(\.\d{3})+(,\d+)?$")   # 78.000 · 1.250.000 · 1.250,50
+_ENTERO_LARGO = re.compile(r"^[-+]?\d{4,}$")                            # 1628100
+_NUMERICO = re.compile(r"^[-+]?\d[\d.]*(,\d+)?$")                  # solo cifras, puntos y una coma decimal
 
 
 def leer_csv(ruta):
@@ -40,6 +46,21 @@ def leer_csv(ruta):
             if v.lstrip().startswith("="):
                 raise ValueError(f"la línea {i}, columna «{col}», trae una fórmula de Excel como texto, no su valor: "
                                  "hay que exportar los valores (Pegado especial → Valores) antes de leer")
+    for col in cab:
+        valores = [f[col].strip() for f in filas]
+        if not any("." in v for v in valores):
+            continue
+        if not all(_NUMERICO.match(v) for v in valores if v):
+            continue    # columna de texto o de códigos (referencias, radicados): no es un monto
+        con_punto = [v for v in valores if _PUNTO_DE_MILES.match(v)]
+        if not con_punto:
+            continue
+        inequivoco = any(v.count(".") > 1 or "," in v for v in con_punto)
+        mezclado = any(_ENTERO_LARGO.match(v) for v in valores)
+        if inequivoco or mezclado:
+            detalle = " mezclados con números sin separador" if mezclado else ""
+            raise ValueError(f"la columna «{col}» trae números con punto de miles (p. ej. 1.250.000){detalle}: leerlos como decimales "
+                             "los divide por mil en silencio; hay que unificar el formato antes de leer")
     return filas
 
 
