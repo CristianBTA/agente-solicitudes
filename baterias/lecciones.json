@@ -258,6 +258,12 @@
       "leccion": "Un SystemExit dentro de una prueba cortaba el banco de blindaje en silencio: B18 cargaba la spec con verificar.cargar_spec, que exige los CSV de SECOP (no se publican); en GitHub Actions el banco se detenía en B18, B18 y B19 no corrían y el filtro de aportes pasaba porque solo buscaba líneas ✗. Ahora B18 lee la spec sin datos, el banco convierte un SystemExit en ERROR, el filtro exige que el banco termine (RESUMEN) y el SGSI no cuenta como operando un control con una prueba sin medir.",
       "origen": "efectividad del SGSI en la vigilancia diaria sobre main (6-nov-2026): CT28 salió «sin medir aquí» en Actions y pasaba en el equipo del dueño, donde los datos sí existen",
       "prueba": "blindaje.py en un clon sin datos de SECOP (GitHub Actions); validar_aporte.py falla si el banco no imprime RESUMEN"
+    },
+    {
+      "id": "L44",
+      "leccion": "El filtro rechazaba cualquier cambio a herramientas/blindaje.py porque el banco de ataques trae, a propósito, frases con forma de orden (sus cargas de prueba). Un archivo que ya las tenía solo falla si el cambio agrega una nueva; si las conserva, queda como aviso para el dueño.",
+      "origen": "pull request de la lección L43 (6-nov-2026): primer cambio al banco de ataques que pasó por el filtro",
+      "prueba": "validar_aporte.py: agregar una orden a una herramienta (o una más a blindaje.py) falla; conservar las cargas de blindaje.py es aviso"
     }
   ]
 }
