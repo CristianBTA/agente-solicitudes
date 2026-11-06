@@ -46,6 +46,24 @@ def leer_csv(ruta):
             if v.lstrip().startswith("="):
                 raise ValueError(f"la línea {i}, columna «{col}», trae una fórmula de Excel como texto, no su valor: "
                                  "hay que exportar los valores (Pegado especial → Valores) antes de leer")
+            if col and ("fecha" in col.lower() or col.lower().endswith(("_date", "date"))):
+                val = v.strip().split("T")[0]
+                if "-" in val:
+                    partes = val.split("-")
+                    if len(partes) == 3 and partes[0].isdigit() and len(partes[0]) == 4 and partes[1].isdigit() and partes[2].isdigit():
+                        mes, dia = int(partes[1]), int(partes[2])
+                        if mes < 1 or mes > 12:
+                            raise ValueError(f"la línea {i}, columna «{col}», trae una fecha con mes inválido ({mes}): «{v}»")
+                        if dia < 1 or dia > 31:
+                            raise ValueError(f"la línea {i}, columna «{col}», trae una fecha con día inválido ({dia}): «{v}»")
+                elif "/" in val:
+                    partes = val.split("/")
+                    if len(partes) == 3 and partes[2].isdigit() and len(partes[2]) == 4 and partes[0].isdigit() and partes[1].isdigit():
+                        p0, p1 = int(partes[0]), int(partes[1])
+                        if p0 > 12 and p1 > 12:
+                            raise ValueError(f"la línea {i}, columna «{col}», trae una fecha con mes imposible (ambos valores > 12): «{v}»")
+                        if p0 < 1 or p1 < 1 or p0 > 31 or p1 > 31:
+                            raise ValueError(f"la línea {i}, columna «{col}», trae una fecha con día o mes fuera de rango: «{v}»")
     for col in cab:
         valores = [f[col].strip() for f in filas]
         if not any("." in v for v in valores):
