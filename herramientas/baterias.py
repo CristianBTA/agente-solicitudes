@@ -80,21 +80,24 @@ def bateria_privacidad():
 
 def bateria_failfast():
     """Un CSV mal formado detiene la lectura: nunca se lee a medias en silencio (FAILFAST)."""
-    from reglas_base import leer_csv
+    from reglas_base import leer_csv, recorrer_csv
     fallas, casos = [], sorted((BAT / "failfast").glob("*.csv"))
+    lectores = (("leer_csv", leer_csv), ("recorrer_csv", lambda p: sum(1 for _ in recorrer_csv(p))))   # los dos, igual
     for p in casos:
-        try:
-            leer_csv(p)
-            fallas.append(f"{p.name} se leyó sin error")
-        except Exception:
-            pass
+        for nombre, leer in lectores:
+            try:
+                leer(p)
+                fallas.append(f"{p.name} se leyó sin error con {nombre}")
+            except Exception:
+                pass
     buenos = sorted((BAT / "failfast" / "se_leen").glob("*.csv"))   # y lo legítimo de cualquier fuente se lee (sin falsas alarmas)
     for p in buenos:
-        try:
-            leer_csv(p)
-        except Exception as e:
-            fallas.append(f"falsa alarma: {p.name} se detuvo ({str(e)[:80]})")
-    return {"bateria": "failfast", "casos": len(casos) + len(buenos), "fallas": fallas}
+        for nombre, leer in lectores:
+            try:
+                leer(p)
+            except Exception as e:
+                fallas.append(f"falsa alarma con {nombre}: {p.name} se detuvo ({str(e)[:80]})")
+    return {"bateria": "failfast", "casos": 2 * (len(casos) + len(buenos)), "fallas": fallas}
 
 
 def bateria_inyeccion():

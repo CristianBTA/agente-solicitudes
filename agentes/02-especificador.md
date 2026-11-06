@@ -22,6 +22,7 @@ Convierte la petición de una frase en una **solicitud precisa y comprobable**. 
 - Solo se pregunta lo que ni el glosario ni los datos resuelven y que cambia la cifra.
 - Las reglas son más simples que el análisis y no comparten su lógica: la conservación se calcula sin unir tablas (D9).
 - Las reglas y el caso conocido van sobre el dato **crudo**, para que un error de limpieza también se atrape.
+- Las reglas recorren la fuente con `recorrer_csv` (fila por fila, memoria constante) y la recorren completa: `leer_csv` carga todo en memoria (de 1,3 a 3,6 KB por fila) y la caja corta a los 1.536 MB, unas 400.000 a 1.100.000 filas. Nunca se cortan los datos en lotes para deduplicar o validar por partes: un repetido entre dos lotes no se vería.
 
 ## Nunca
 - Escribir `impl_a.py` o `impl_b.py`.
