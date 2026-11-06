@@ -65,7 +65,7 @@
    "id": "CT11", "nombre": "FAILFAST, perfil y limpieza declarada: lo que no cumple el contrato se detiene, se explica o se marca (D3, D5, DL3–DL6)", "tipo": "preventivo", "protege": ["I"],
    "anexo_a": ["A.8.26", "A.8.27"],
    "evidencia": [{"archivo": "herramientas/limpieza.py", "contiene": "FAILFAST"}, {"archivo": "baterias/failfast"}],
-   "pruebas": ["bateria:failfast", "bateria:cruces", "bateria:fechas", "bateria:repetidos", "B09", "B19"]
+   "pruebas": ["bateria:failfast", "bateria:cruces", "bateria:fechas", "bateria:repetidos", "bateria:factor", "B09", "B19"]
   },
   {
    "id": "CT12", "nombre": "Compuerta estática (reglas propias y Bandit) y lista cerrada de librerías (D21, D22)", "tipo": "preventivo", "protege": ["C", "I", "D"],
@@ -107,7 +107,7 @@
    "id": "CT18", "nombre": "Lista de comprobación del gráfico: eje desde cero, período, fuente y cuenta de control (D17)", "tipo": "detectivo", "protege": ["I"],
    "anexo_a": ["A.8.29"],
    "evidencia": [{"archivo": "herramientas/verificar_grafico.py", "contiene": "desde cero"}],
-   "pruebas": ["B17"]
+   "pruebas": ["B17", "bateria:grafico"]
   },
   {
    "id": "CT19", "nombre": "Filtro automático de aportes, sin IA ni llaves (validar-aporte)", "tipo": "preventivo", "protege": ["C", "I"],
