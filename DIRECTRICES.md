@@ -14,23 +14,25 @@ Se necesita macOS o Linux con Python 3.13. La caja de arena usa `sandbox-exec`, 
 
 ```bash
 python3.13 -m venv .venv && .venv/bin/pip install --require-hashes -r requirements.txt
+T=$(mktemp -d)   # verificar una corrida reescribe sus informes: los pasos 2, 3, 5 y 6 trabajan en una copia y el clon no cambia
 
 # 1. Las baterías: seguridad (código malo bloqueado y bueno aceptado), privacidad y lecciones
 .venv/bin/python herramientas/baterias.py
 
-# 2. La corrida sellada del ejemplo sintético se vuelve a verificar desde cero (sin IA)
-.venv/bin/python herramientas/verificar.py corridas/2026-11-06-ventas-semestre
+# 2. La corrida sellada del ejemplo sintético se vuelve a verificar desde cero (sin IA), en la copia
+cp -R corridas/2026-11-06-ventas-semestre "$T"/
+.venv/bin/python herramientas/verificar.py "$T"/2026-11-06-ventas-semestre
 
 # 3. Probar al probador: cada mutante comete un error típico y el criterio debe atraparlo
 ls evidencia/sintetico/mutantes/*.py | sed 's#.*/\(.*\)\.py#\1=&#' | \
-  xargs .venv/bin/python herramientas/verificar.py corridas/2026-11-06-ventas-semestre --impl
+  xargs .venv/bin/python herramientas/verificar.py "$T"/2026-11-06-ventas-semestre --impl
 
 # 4. El oráculo del ejemplo sintético se rehace igual (semilla fija; los dos caminos deben coincidir)
 .venv/bin/python evidencia/sintetico/generar_datos.py /tmp/datos-prueba /tmp/verdad-prueba.json
 cmp /tmp/datos-prueba/ventas.csv ejemplo/datos/ventas.csv && echo "datos idénticos"
 
-# 5. Gobernanza de una corrida: datos personales, salidas limpias, k-anonimato
-.venv/bin/python herramientas/gobernanza.py corridas/2026-11-06-ventas-semestre
+# 5. Gobernanza de una corrida (la copia del paso 2): datos personales, salidas limpias, k-anonimato
+.venv/bin/python herramientas/gobernanza.py "$T"/2026-11-06-ventas-semestre
 
 # 5b. Blindaje: se ataca cada capa a propósito (caja de arena, compuerta, perfil, salidas, integridad, dependencias)
 .venv/bin/python herramientas/blindaje.py
@@ -44,12 +46,18 @@ cmp /tmp/datos-prueba/ventas.csv ejemplo/datos/ventas.csv && echo "datos idénti
 
 # 6. (Opcional, con red) SECOP II: los datos no vienen en el repositorio; se descargan con su contrato y se prueban al cargar
 .venv/bin/python herramientas/ingesta.py ejemplo-secop/contrato_recorte_2024-2026.json --salida ejemplo-secop/datos --repetir
-.venv/bin/python herramientas/verificar.py corridas/2026-11-06-secop-medellin-2025
+cp -R corridas/2026-11-06-secop-medellin-2025 "$T"/
+.venv/bin/python herramientas/verificar.py "$T"/2026-11-06-secop-medellin-2025
+
+# 7. El clon quedó igual: no debe salir nada
+git status --short
 ```
 
-SECOP II se actualiza a diario. Si el recorte de hoy no es idéntico al del 6-nov-2026, el paso 6 puede dar otras cifras: es lo esperado, y la procedencia de la carga dice qué cambió (filas, huella).
+SECOP II se actualiza a diario. Si el recorte de hoy no es idéntico al del 6-nov-2026, el paso 6 puede dar otras cifras: es lo esperado, y la procedencia de la carga dice qué cambió (filas, huella). Esas cifras quedan en la copia: el informe publicado de la corrida no cambia.
 
-Lo que debe salir: las cinco baterías en ✓, el blindaje con todas sus pruebas en «RESISTE» (en Linux no hay sandbox-exec: B01 sale «NO APLICA» y B11 y B12 ceden, por eso el filtro de aportes corre en macOS), la corrida en «aprobado», la referencia `m00` sin fallas y las mutantes `m01` a `m12` con al menos una falla cada una, los datos idénticos, la gobernanza aprobada y el SGSI sin fallas, con sus 21 mutantes atrapados. Si algo no sale así, el repositorio no cumple lo que dice.
+Si corriste los pasos sobre `corridas/` directamente (como decía una versión anterior de esta guía), `git status` muestra `informe.json`, `informe.md` y `gobernanza.json` modificados, con el tiempo medido y la ruta de tu carpeta; `git restore corridas/` los deja como estaban. Nunca entran en un aporte.
+
+Lo que debe salir: las cinco baterías en ✓, el blindaje con todas sus pruebas en «RESISTE» (en Linux no hay sandbox-exec: B01 sale «NO APLICA» y B11 y B12 ceden, por eso el filtro de aportes corre en macOS), la corrida en «aprobado», la referencia `m00` sin fallas y las mutantes `m01` a `m12` con al menos una falla cada una, los datos idénticos, la gobernanza aprobada, el SGSI sin fallas, con sus 21 mutantes atrapados, y `git status` sin ningún archivo. Si algo no sale así, el repositorio no cumple lo que dice.
 
 ---
 
