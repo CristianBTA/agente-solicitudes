@@ -396,6 +396,12 @@
       "leccion": "El 40 % de código vulnerable no se reprodujo con un modelo actual: el jurado vio 8 de 55 sin compuerta. Una cifra de otro modelo y otra época no es línea base: se mide la propia.",
       "origen": "medida real, 6-nov-2026",
       "prueba": "evidencia/compuerta/README.md"
+    },
+    {
+      "id": "L67",
+      "leccion": "El filtro de aportes daba «✓ pasa» a un aporte que hacía caer baterias.py o sgsi.py: solo buscaba líneas «✗», y una herramienta que se cae no escribe ninguna. Bastaba una coma de más en baterias/fechas/casos.json o en sgsi/controles.json; fusionado, baterias.py (el segundo comando de «Instalar») dejaba de funcionar en main para todos. Ahora el filtro exige la línea RESUMEN de las baterías y del SGSI, como ya la exigía al banco de blindaje (L43), y una salida con error sin ninguna «✗» también es falla. La falla de un caso nuevo del aporte sigue contando como aviso.",
+      "origen": "revisión de la versión de clase (etiqueta clase-2026-11-06 y main 935486d), 6-nov-2026: un JSON con una coma de más salía en verde en el filtro",
+      "prueba": "herramientas/blindaje.py B22"
     }
   ]
 }

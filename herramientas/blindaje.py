@@ -389,6 +389,50 @@ def b21():
                         "sin el código del aporte); un aporte legítimo pasa; el SGSI rechaza las 2 variantes que traerían el código")
 
 
+@prueba("B22", "aportes → filtro", "un aporte deja un JSON roto en baterias/ y en sgsi/: la herramienta se cae sin escribir «✗» (L67)")
+def b22():
+    import validar_aporte as va
+    if not (hasattr(va, "revisar_baterias") and hasattr(va, "revisar_sgsi")):
+        return r("CEDE", "el filtro solo busca líneas «✗»: unas baterías o un SGSI que se caen antes de su RESUMEN pasan en verde")
+    marcas = {"baterias": "✗", "sgsi": "    ✗ "}
+
+    def revisar(n, rc, out):
+        return va.revisar_baterias(rc, out, set())[0] if n == "baterias" else va.revisar_sgsi(rc, out)
+
+    # control: con los archivos de hoy las dos terminan, y el filtro no agrega nada a lo que ellas marcan (sin falsas alarmas)
+    falsas = []
+    for n in marcas:
+        p = subprocess.run([PY, str(AQUI / f"{n}.py")], cwd=RAIZ, capture_output=True, text=True, timeout=600)
+        out = p.stdout + p.stderr
+        if va.resumen(out) is None or len(revisar(n, p.returncode, out)) != sum(l.startswith(marcas[n]) for l in out.splitlines()):
+            falsas.append(f"{n} (código {p.returncode}): {va.ultima(out)[:100]}")
+    if falsas:
+        return r("CEDE", f"prueba inválida: con los archivos de hoy el filtro marca una herramienta que terminó, o no terminó: {falsas}")
+    # ataque: una copia con una coma de más al final de baterias/fechas/casos.json y de sgsi/controles.json
+    d = Path(tempfile.mkdtemp(prefix="blindaje-json-"))
+    try:
+        shutil.copytree(AQUI, d / "herramientas", ignore=shutil.ignore_patterns("*.pyc"))
+        for carpeta in ("baterias", "sgsi"):
+            shutil.copytree(RAIZ / carpeta, d / carpeta)
+        for f in ("baterias/fechas/casos.json", "sgsi/controles.json"):
+            t = (d / f).read_text(encoding="utf-8").rstrip()
+            (d / f).write_text(t[:-1].rstrip() + ",\n" + t[-1] + "\n", encoding="utf-8")
+        pasan, caidas = [], []
+        for n in marcas:
+            p = subprocess.run([PY, str(d / "herramientas" / f"{n}.py")], cwd=d, capture_output=True, text=True, timeout=600)
+            out = p.stdout + p.stderr
+            if va.resumen(out) is None:
+                caidas.append(f"{n} (código {p.returncode})")
+            if not revisar(n, p.returncode, out):
+                pasan.append(f"{n} (código {p.returncode}, {'sin' if va.resumen(out) is None else 'con'} RESUMEN): {va.ultima(out)[:80]}")
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+    if pasan:
+        return r("CEDE", f"el filtro da por buena una herramienta rota por el aporte: {pasan}")
+    return r("RESISTE", f"con una coma de más se caen sin escribir «✗» ({', '.join(caidas) or 'ninguna'}) y el filtro lo marca como falla; "
+                        "con los archivos de hoy no marca nada de más")
+
+
 def main(argv):
     solo = set(argv[argv.index("--solo") + 1].split(",")) if "--solo" in argv else None
     filas = []

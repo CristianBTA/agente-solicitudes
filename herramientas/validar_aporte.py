@@ -9,7 +9,8 @@ Lo corre GitHub Actions en cada pull request, y también se puede correr a mano.
   2. Datos personales en todo lo que el aporte agrega (barrido de gobernanza).
   3. Seguridad de todo código Python agregado o cambiado (compuertas: librerías permitidas, reglas propias y
      Bandit). La excepción son las muestras de baterias/seguridad/malos/, que justamente deben bloquearse.
-  4. Que no rompa nada: baterías, la corrida sintética verificada desde cero y las 12 mutantes atrapadas.
+  4. Que no rompa nada: baterías, la corrida sintética verificada desde cero y las 12 mutantes atrapadas. Una
+     herramienta que se cae antes de su línea RESUMEN no aprueba nada: es falla, aunque no haya escrito ninguna «✗».
   5. Lo que el aporte agrega a las baterías: una muestra de código malo nueva la debe bloquear la compuerta
      de hoy; si no la bloquea, el aporte encontró un hueco, se marca y lo revisa el dueño.
   6. El SGSI (sgsi/README.md): nada restringido versionado, sin llaves, flujos de solo lectura y cada control con evidencia.
@@ -87,6 +88,52 @@ def git(*a):
 def correr(*a):
     p = subprocess.run([sys.executable, *a], cwd=RAIZ, capture_output=True, text=True)
     return p.returncode, p.stdout + p.stderr
+
+
+def resumen(texto):
+    """La línea RESUMEN de una herramienta como diccionario; None si falta o no es JSON."""
+    for linea in reversed(texto.splitlines()):
+        if linea.startswith("RESUMEN "):
+            try:
+                d = json.loads(linea[len("RESUMEN "):])
+            except ValueError:
+                return None
+            return d if isinstance(d, dict) else None
+    return None
+
+
+def ultima(texto):
+    return (texto.strip().splitlines() or ["(sin salida)"])[-1][:200]
+
+
+def revisar_baterias(rc, out, nuevos_bateria):
+    """Fallas y avisos de baterias.py. Una falla causada por un caso NUEVO del aporte es un hueco encontrado (aviso,
+    valioso). Unas baterías que se caen antes de su RESUMEN (por ejemplo, por un JSON roto) no escriben ninguna «✗» y
+    no prueban nada: es falla, venga de donde venga el archivo (L67)."""
+    fallas, avisos = [], []
+    marcadas = [l for l in out.splitlines() if l.startswith("✗")]
+    for linea in marcadas:
+        del_aporte = any(Path(n).name in linea for n in nuevos_bateria)
+        (avisos if del_aporte else fallas).append(
+            (f"hueco encontrado por el aporte (valioso; el dueño decide cómo cerrarlo): {linea[2:]}" if del_aporte
+             else f"baterías: {linea[2:]}")[:300])
+    if resumen(out) is None:
+        fallas.append(f"las baterías no terminaron (código {rc}): {ultima(out)}")
+    elif rc != 0 and not marcadas:
+        fallas.append(f"las baterías salieron con código {rc} sin decir qué falló: {ultima(out)}")
+    return fallas, avisos
+
+
+def revisar_sgsi(rc, out):
+    """Fallas de sgsi.py: cada «✗» de un chequeo, y un SGSI que se cae antes de su RESUMEN o que sale con error sin
+    decir por qué (L67)."""
+    marcadas = [l for l in out.splitlines() if l.startswith("    ✗ ")]
+    fallas = [f"SGSI: {l.strip()[2:][:200]}" for l in marcadas]
+    if resumen(out) is None:
+        fallas.append(f"el SGSI no terminó (código {rc}): {ultima(out)}")
+    elif rc != 0 and not marcadas:
+        fallas.append(f"el SGSI salió con código {rc} sin decir qué falló: {ultima(out)}")
+    return fallas
 
 
 def main(argv):
@@ -187,24 +234,20 @@ def main(argv):
     # si el aporte toca una herramienta, el banco de blindaje debe seguir resistiendo: nadie debilita una defensa sin que se note
     if any(r.startswith("herramientas/") for e, r in archivos if e != "D"):
         rc, out = correr("herramientas/blindaje.py")
-        for linea in out.splitlines():
-            if linea.startswith(("✗", "!")):
-                fallas.append(f"el cambio debilita el blindaje: {linea[2:][:160]}")
-        if "RESUMEN " not in out:  # un banco que no termina no prueba nada (L27, L43)
-            fallas.append(f"el banco de blindaje no terminó (código {rc}): {' | '.join(out.strip().splitlines()[-2:])[:200]}")
-    # baterías: una falla causada por un caso NUEVO de este aporte es un hueco encontrado (valioso), no un error
-    rc, out = correr("herramientas/baterias.py")
-    for linea in out.splitlines():
-        if linea.startswith("✗"):
-            del_aporte = any(Path(n).name in linea for n in nuevos_bateria)
-            (avisos if del_aporte else fallas).append(
-                (f"hueco encontrado por el aporte (valioso; el dueño decide cómo cerrarlo): {linea[2:]}" if del_aporte
-                 else f"baterías: {linea[2:]}")[:300])
+        cedidas = [l for l in out.splitlines() if l.startswith(("✗", "!"))]
+        for linea in cedidas:
+            fallas.append(f"el cambio debilita el blindaje: {linea[2:][:160]}")
+        if resumen(out) is None:  # un banco que no termina no prueba nada (L27, L43)
+            fallas.append(f"el banco de blindaje no terminó (código {rc}): {ultima(out)}")
+        elif rc != 0 and not cedidas:
+            fallas.append(f"el banco de blindaje salió con código {rc} sin decir qué cedió: {ultima(out)}")
+    # baterías: una falla causada por un caso NUEVO de este aporte es un hueco encontrado (valioso), no un error;
+    # unas baterías que no terminan sí son un error (L67)
+    f, a = revisar_baterias(*correr("herramientas/baterias.py"), nuevos_bateria)
+    fallas += f
+    avisos += a
     # el SGSI (sgsi/README.md): lo restringido sigue fuera, sin llaves, flujos de solo lectura y cada control con su evidencia
-    rc, out = correr("herramientas/sgsi.py")
-    for linea in out.splitlines():
-        if linea.startswith("    ✗ "):
-            fallas.append(f"SGSI: {linea.strip()[2:][:200]}")
+    fallas += revisar_sgsi(*correr("herramientas/sgsi.py"))
     # la corrida sintética se verifica en una copia temporal: no se reescribe ningún archivo del repositorio
     tmp = Path(tempfile.mkdtemp(prefix="validar-")) / "corrida"
     shutil.copytree(RAIZ / "corridas/2026-11-06-ventas-semestre", tmp)

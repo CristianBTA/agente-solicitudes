@@ -52,6 +52,10 @@ Cada aporte aceptado queda aquí, con el usuario de GitHub de quien lo propuso (
 - Medida con lotes sellados (`medir_compuerta.py`) y con código generado de verdad y jurado a ciegas (`medir_real.py`). Resultados en `evidencia/compuerta/README.md`.
 - Un ataque de 16 revisores con acceso a las reglas: sus hallazgos confirmados y los lotes revelados pasaron a las baterías.
 
+## v1.7 · 6 de noviembre de 2026 · arreglos de la revisión de la versión de clase
+
+- Lección L67: el filtro de aportes daba «✓ pasa» a un aporte que hacía caer `baterias.py` o `sgsi.py` (bastaba una coma de más en un JSON), porque solo buscaba líneas «✗». Ahora exige la línea RESUMEN de las dos herramientas, como ya la exigía al banco de blindaje; la prueba B22 lo ataca con un JSON roto en `baterias/` y en `sgsi/`.
+
 ## Aportes del grupo
 
 Cada aporte entra sin nombre hasta que quien lo propuso acepta aparecer (la casilla del pull request o del formulario).
