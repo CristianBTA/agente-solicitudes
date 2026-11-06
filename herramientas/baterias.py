@@ -7,7 +7,8 @@ Uso:
   python baterias.py --leccion "texto" --origen "..." --prueba "..."   agrega una lección
 
 1. Seguridad: todo lo de baterias/seguridad/malos debe quedar bloqueado y todo lo de buenos debe pasar
-   (así también se prueba al probador: un falso positivo es una falla de la compuerta).
+   (así también se prueba al probador: un falso positivo es una falla de la compuerta). Lo mismo con el perfil de
+   usuario: malos_usuario se bloquea; buenos_usuario y buenos pasan.
 2. Privacidad: el perfil de un CSV con datos personales no puede mostrar ninguno de los valores de
    no_deben_salir.txt, y el barrido de gobernanza tiene que encontrarlos.
 3. Lecciones: cada lección apunta a una prueba; si apunta a un archivo de la batería, el archivo existe.
@@ -49,7 +50,18 @@ def bateria_seguridad():
     for p in buenos:
         if bloquea(p):
             fallas.append(f"falso positivo: se bloqueó {p.name}")
-    return {"bateria": "seguridad", "casos": len(malos) + len(buenos), "fallas": fallas}
+    # Perfil de usuario: el código que sí usa red y archivos. Lo bueno del pipeline también tiene que pasar aquí.
+    malos_u = sorted((BAT / "seguridad" / "malos_usuario").glob("*.py"))
+    buenos_u = sorted((BAT / "seguridad" / "buenos_usuario").glob("*.py"))
+    if malos_u or buenos_u:
+        res, _ = seguridad.revisar(malos_u + buenos_u + buenos, "usuario")
+        for r in res:
+            nombre, bloqueado = Path(r["archivo"]), bool(r["bloquean"])
+            if nombre.parent.name == "malos_usuario" and not bloqueado:
+                fallas.append(f"perfil usuario: no se bloqueó {nombre.name}")
+            elif nombre.parent.name != "malos_usuario" and bloqueado:
+                fallas.append(f"perfil usuario: falso positivo en {nombre.name}: {r['bloquean'][0]['regla']}")
+    return {"bateria": "seguridad", "casos": len(malos) + len(buenos) + len(malos_u) + len(buenos_u), "fallas": fallas}
 
 
 def bateria_privacidad():

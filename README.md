@@ -117,6 +117,8 @@ node orquestar.mjs --motor agy --comprobar                        # dos llamadas
 | `herramientas/verificar_presentacion.py` | Calcula y escribe cada cifra de la presentación desde los datos aprobados (la IA solo pone marcadores), comprueba su estructura y escribe las láminas si todo aprueba; `--autoprueba` con mutantes |
 | `herramientas/gobernanza.py` | Datos personales en los datos y en las salidas, k-anonimato y comparación con la clasificación de la IA |
 | `herramientas/seguridad.py`, `dependencias.py`, `caja.py` | Análisis estático (reglas propias y Bandit), librerías permitidas y caja de arena |
+| `herramientas/seguridad_cwe.py`, `medir_compuerta.py` | Reglas por debilidad (11 CWE) y dos perfiles: función pura y código de usuario; medida de la compuerta con un lote sellado |
+| `herramientas/comprobar.py`, `gancho_compuerta.py`, `medir_real.py` | La compuerta como un solo comando (`.py` y `.ipynb`), su conexión con Claude Code y la medida con código generado de verdad y jurado a ciegas |
 | `herramientas/baterias.py` | Baterías de seguridad, privacidad y lecciones; `--agregar-malo` y `--leccion` para que lo que falló no se repita |
 | `herramientas/validar_aporte.py` | Filtro automático de aportes, sin IA: archivos prohibidos, datos personales, seguridad y que no rompa nada |
 | `herramientas/blindaje.py` | Banco de ataques al pipeline: caja de arena, compuerta, perfil, salidas, integridad, dependencias y generalización (15 pruebas, con control positivo) |

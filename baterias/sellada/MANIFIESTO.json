@@ -1,0 +1,38 @@
+{
+  "_nota": "Huellas de los lotes sellados. Los fragmentos no se publican mientras el lote sirve de examen; revelado, pasa a las baterías.",
+  "lotes": {
+    "lote-b": {
+      "huella": "7f44b58824276c37cb5f2655f6ea58b2667f8d4d04706f7d9c246e2a5e59d19a",
+      "fragmentos": 88,
+      "vulnerables": 66,
+      "seguros": 22,
+      "escribio": "otro modelo, sin ver la compuerta",
+      "reviso_etiquetas": "panel de tres enfoques y arbitraje a ciegas (6-nov-2026): 11 fragmentos reemplazados",
+      "sellado": "2026-11-06 12:35"
+    },
+    "lote-c": {
+      "huella": "b1fd8a2d7c863495189406eef603979b39ee1648ca917dca6a5d826954548488",
+      "fragmentos": 88,
+      "vulnerables": 66,
+      "seguros": 22,
+      "escribio": "otro modelo, sin ver la compuerta",
+      "reviso_etiquetas": "panel de tres enfoques y arbitraje a ciegas (6-nov-2026): 1 fragmento reemplazado",
+      "sellado": "2026-11-06 12:47"
+    },
+    "lote-d": {
+      "huella": "1d134449776cea856477eb35aee4a69d36c3eafeb78bde578078b9e1342e4f7a",
+      "fragmentos": 86,
+      "vulnerables": 64,
+      "seguros": 22,
+      "escribio": "otro modelo, sin ver la compuerta",
+      "reviso_etiquetas": "panel de tres enfoques y arbitraje a ciegas (6-nov-2026): 2 fragmentos retirados, sin reemplazo por falta de tiempo",
+      "sellado": "2026-11-06 14:36"
+    }
+  },
+  "tareas": {
+    "huella": "e39ad8c5fd8316d8c8619588c73a41af9314922e88ec46e77b789b6ab722d4fb",
+    "pedidos": 55,
+    "escribio": "otro modelo, sin ver la compuerta",
+    "reviso": "dos enfoques y arbitraje a ciegas (6-nov-2026): 7 pedidos reemplazados"
+  }
+}

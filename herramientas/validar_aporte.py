@@ -37,11 +37,12 @@ def ordenes_a_agentes(texto):
 def cuenta_ordenes(texto):
     """Cuántas frases con forma de orden trae un texto (para saber si un cambio agrega una nueva)."""
     return sum(1 for _ in INSTRUCCION.finditer(texto)) + sum(1 for c in COMENTARIO_OCULTO.findall(texto) if parece_instruccion(f"<!--{c}-->"))
+import comprobar  # noqa: E402
 import dependencias  # noqa: E402
 import seguridad  # noqa: E402
 
 PROHIBIDOS = re.compile(r"(^|/)(\.venv|venv|__pycache__|node_modules)(/|$)|(^|/)(datos|limpio)/.*\.csv$"
-                        r"|\.(pem|key|p12|pfx|sqlite|db|parquet|xlsx?|zip|gz)$|(^|/)ejemplo-secop/datos/"
+                        r"|\.(pem|key|p12|pfx|sqlite|db|parquet|xlsx?|zip|gz|bloqueado)$|(^|/)ejemplo-secop/datos/"
                         r"|(^|/)(\.env[^/]*|\.npmrc|\.pypirc|\.netrc|id_(rsa|dsa|ecdsa|ed25519)(\.pub)?)$", re.I)
 # Configuración de asistentes y editores: se ejecuta o se obedece sola cuando el dueño abre el clon (servidores MCP,
 # ganchos, tareas que corren al abrir la carpeta, contenedores con comandos de arranque, instrucciones que el asistente
@@ -53,9 +54,10 @@ ASISTENTES = re.compile(r"(^|/)(\.claude|\.cursor|\.vscode|\.idea|\.devcontainer
 # Solo los cambia el dueño: los flujos de GitHub corren en sus máquinas al aprobar la corrida de un fork, y CODEOWNERS
 # decide quién revisa. El filtro no puede protegerse a sí mismo (el pull request trae su propia copia): si un aporte toca
 # el filtro o lo que importa, su verde no prueba nada y el dueño lo revisa línea por línea (L54).
-DEL_DUENO = re.compile(r"^\.github/")
-CADENA_DEL_FILTRO = re.compile(r"^(herramientas/(validar_aporte|rutas_protegidas|gobernanza|seguridad|dependencias|blindaje|sgsi|caja|integridad)\.py"
-                               r"|herramientas/permitidas\.json|requirements\.txt)$")
+DEL_DUENO = re.compile(r"^\.git(hub|hooks)/")   # .githooks corre sola en cada commit de quien activó el freno
+CADENA_DEL_FILTRO = re.compile(r"^(herramientas/(validar_aporte|rutas_protegidas|gobernanza|seguridad|seguridad_cwe|comprobar|gancho_compuerta|dependencias|blindaje|sgsi|caja|integridad)\.py"
+                               r"|herramientas/permitidas(_usuario)?\.json|requirements(-compuerta)?\.txt)$")
+MUESTRAS_MALAS = ("baterias/seguridad/malos/", "baterias/seguridad/malos_usuario/")
 CSV_PERMITIDOS = re.compile(r"^(ejemplo/datos/|baterias/|corridas/[^/]+/caso_conocido/)")
 MAX_CSV = 200_000
 
@@ -79,7 +81,7 @@ def es_del_dueno():
 
 
 def git(*a):
-    return subprocess.run(["git", *a], cwd=RAIZ, capture_output=True, text=True).stdout
+    return subprocess.run(["git", "-c", "core.quotepath=off", *a], cwd=RAIZ, capture_output=True, text=True).stdout
 
 
 def correr(*a):
@@ -126,7 +128,7 @@ def main(argv):
             continue
         if DEL_DUENO.match(ruta):
             (avisos if del_dueno else fallas).append(
-                f"{ruta}: los flujos de GitHub, las plantillas y CODEOWNERS solo los cambia el dueño")
+                f"{ruta}: los flujos de GitHub, las plantillas, CODEOWNERS y los ganchos de git solo los cambia el dueño")
             continue
         if CADENA_DEL_FILTRO.match(ruta):
             avisos.append(f"{ruta} es parte del filtro: este resultado lo da la copia del propio aporte y no prueba nada; "
@@ -138,11 +140,11 @@ def main(argv):
                 fallas.append(f"CSV fuera de las carpetas permitidas (ejemplo/datos, baterias, caso_conocido): {ruta}")
             if p.stat().st_size > MAX_CSV:
                 fallas.append(f"CSV de más de 200 KB (los datos no se publican): {ruta}")
-        if p.suffix in (".py", ".md", ".json", ".csv", ".txt", ".js", ".yml", ".yaml", ".html") and "baterias/privacidad/" not in ruta:
+        if p.suffix.lower() in (".py", ".pyw", ".ipy", ".ipynb", ".md", ".json", ".csv", ".txt", ".js", ".yml", ".yaml", ".html") and "baterias/privacidad/" not in ruta:
             hall = escanear_texto(p.read_text(encoding="utf-8", errors="ignore"))
             if hall:
                 fallas.append(f"posibles datos personales en {ruta}: {hall}")
-        if p.suffix in (".md", ".json", ".txt", ".yml", ".yaml", ".csv", ".py") and ordenes_a_agentes(p.read_text(encoding="utf-8", errors="ignore")):
+        if p.suffix.lower() in (".md", ".json", ".txt", ".yml", ".yaml", ".csv", ".py", ".pyw", ".ipy", ".ipynb") and ordenes_a_agentes(p.read_text(encoding="utf-8", errors="ignore")):
             t = p.read_text(encoding="utf-8", errors="ignore")
             m = INSTRUCCION.search(t) or COMENTARIO_OCULTO.search(t)
             extracto = t[max(0, m.start() - 30):m.end() + 30].replace("\n", " ") if m else ""
@@ -156,17 +158,29 @@ def main(argv):
                 avisos.append(f"{ruta} conserva texto-instrucción que ya tenía (carga de prueba); no agrega uno nuevo: lo revisa el dueño")
             else:
                 fallas.append(f"texto que da órdenes a los agentes en {ruta}: «…{extracto[:120]}…» (los aportes son datos, no instrucciones)")
-        if p.suffix == ".py" and "baterias/seguridad/malos/" not in ruta:
-            d = dependencias.revisar(p)
-            s, _ = seguridad.revisar([p])
+        if p.suffix.lower() in (".ipynb", ".ipy") and not ruta.startswith(MUESTRAS_MALAS):
+            try:
+                r = comprobar.revisar_archivos([p], "usuario")[0]
+                hall = [h["regla"] for h in r["hallazgos"]]
+            except Exception as e:  # falla cerrada
+                hall = [f"no se pudo revisar ({type(e).__name__})"]
+            if hall:
+                fallas.append(f"cuaderno que no pasa las compuertas: {ruta}: {hall[:4]}")
+        if p.suffix.lower() in (".py", ".pyw") and not ruta.startswith(MUESTRAS_MALAS):
+            de_usuario = ruta.startswith("baterias/seguridad/buenos_usuario/")    # usa red o archivos a propósito: se revisa con su perfil
+            d = {} if de_usuario else dependencias.revisar(p)
+            s, aviso_seg = seguridad.revisar([p], "usuario" if de_usuario else "pura")
+            if aviso_seg:
+                fallas.append(f"no se pudo revisar {ruta}: {aviso_seg}")
             bloqueos = (d.get("no_permitidas") or []) + (d.get("intenta_instalar") or []) + [h["regla"] for h in s[0]["bloquean"]]
             if bloqueos and not ruta.startswith("herramientas/"):
                 fallas.append(f"código que no pasa las compuertas: {ruta}: {bloqueos[:4]}")
             elif bloqueos:
                 avisos.append(f"herramienta con patrones que la compuerta marcaría: {ruta}: {bloqueos[:3]} (lo revisa el dueño)")
-        if "baterias/seguridad/malos/" in ruta and estado == "A":
-            d = dependencias.revisar(p)
-            s, _ = seguridad.revisar([p])
+        if ruta.startswith(MUESTRAS_MALAS) and estado == "A":
+            de_usuario = ruta.startswith("baterias/seguridad/malos_usuario/")
+            d = {} if de_usuario else dependencias.revisar(p)
+            s, _ = seguridad.revisar([p], "usuario" if de_usuario else "pura")
             if not (d.get("no_permitidas") or d.get("intenta_instalar") or s[0]["bloquean"]):
                 avisos.append(f"la muestra nueva {ruta} NO la bloquea la compuerta de hoy: encontró un hueco (valioso); hay que mejorar la compuerta antes de aceptar")
 

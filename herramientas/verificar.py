@@ -268,7 +268,9 @@ def compuertas(ruta):
         fallas.append(f"librerías no permitidas (posible paquete inventado): {dep['no_permitidas']}")
     if dep.get("intenta_instalar"):
         fallas.append(f"intenta instalar paquetes desde el código: {dep['intenta_instalar']}")
-    seg, _ = seguridad.revisar([ruta])
+    seg, aviso = seguridad.revisar([ruta])
+    if aviso:
+        fallas.append(f"no se pudo revisar la seguridad: {aviso}")      # falla cerrada: sin Bandit o con una caída no se da por bueno
     for h in seg[0]["bloquean"][:5]:
         fallas.append(f"seguridad, línea {h['linea']}: {h['regla']} ({h['detalle']})")
     return fallas
