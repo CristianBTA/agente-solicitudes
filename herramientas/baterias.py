@@ -11,6 +11,7 @@ Uso:
 2. Privacidad: el perfil de un CSV con datos personales no puede mostrar ninguno de los valores de
    no_deben_salir.txt, y el barrido de gobernanza tiene que encontrarlos.
 3. Lecciones: cada lección apunta a una prueba; si apunta a un archivo de la batería, el archivo existe.
+4. Cruces: el perfil explica por qué no cruza cada valor (baterias/cruces/esperado.json) y no explica un ausente.
 """
 import json
 import shutil
@@ -98,6 +99,28 @@ def bateria_inyeccion():
     return {"bateria": "inyeccion", "casos": len(malos) + len(buenos), "fallas": fallas}
 
 
+def bateria_cruces():
+    """Por qué no cruza un valor entre tablas: espacios internos o invisibles; tildes, puntuación o ceros a la izquierda."""
+    from perfilar import perfilar
+    d = BAT / "cruces"
+    esperado = json.loads((d / "esperado.json").read_text(encoding="utf-8"))
+    p = perfilar({"origen": str(d / "origen.csv"), "destino": str(d / "destino.csv")})
+    fallas, casos = [], 0
+    for col, claves in esperado.items():
+        if col.startswith("_"):
+            continue
+        x = next((c for c in p["cruces"] if c["desde"] == "origen" and c["columna"] == col), None)
+        if x is None:
+            fallas.append(f"{col}: el perfil no reporta el cruce")
+            continue
+        obtenido = {**x, **x.get("de_los_que_no_cruzan", {})}
+        for k, v in claves.items():
+            casos += 1
+            if obtenido.get(k) != v:
+                fallas.append(f"{col}.{k}: {obtenido.get(k)} (se esperaba {v})")
+    return {"bateria": "cruces", "casos": casos, "fallas": fallas}
+
+
 def bateria_lecciones():
     d = json.loads((BAT / "lecciones.json").read_text(encoding="utf-8"))
     fallas = []
@@ -129,7 +152,8 @@ def main(argv):
         (BAT / "lecciones.json").write_text(json.dumps(d, ensure_ascii=False, indent=2), encoding="utf-8")
         print(f"Lección {d['lecciones'][-1]['id']} agregada.")
         return 0
-    res = [bateria_seguridad(), bateria_privacidad(), bateria_failfast(), bateria_inyeccion(), bateria_lecciones()]
+    res = [bateria_seguridad(), bateria_privacidad(), bateria_failfast(), bateria_inyeccion(), bateria_cruces(),
+           bateria_lecciones()]
     for r in res:
         print(f"{'✓' if not r['fallas'] else '✗'} {r['bateria']}: {r['casos']} casos" + ("" if not r["fallas"] else " · " + "; ".join(r["fallas"])))
     malos = sum(len(r["fallas"]) for r in res)

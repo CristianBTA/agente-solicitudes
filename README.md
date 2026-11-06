@@ -84,7 +84,7 @@ Con archivos locales, `datos` reemplaza a `fuente`: `{"ventas": "<ruta>/ventas.c
 ```
 flujo.js                 orquestación de las cinco etapas (historial/ guarda la versión 1)
 herramientas/            pruebas y utilidades sin IA
-baterias/                seguridad, privacidad, FAILFAST y lecciones: lo que falló una vez, probado siempre
+baterias/                seguridad, privacidad, FAILFAST, cruces y lecciones: lo que falló una vez, probado siempre
 ejemplo/                 ventas sintéticas con trampas conocidas y su glosario
 agentes/                 parámetros de los once subagentes, reglas comunes y quién puede ver qué
 ejemplo-secop/           glosario de SECOP II (los datos no se publican: se descargan con ingesta.py)
