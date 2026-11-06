@@ -13,12 +13,27 @@ python3.13 -m venv .venv && .venv/bin/pip install --require-hashes -r requiremen
 
 **La primera vez cuenta las filas de todo el catálogo**, y eso tarda horas: unos 8.470 conjuntos, de 1 a 4 segundos cada uno. Queda en `fuentes/catalogo/.cache.json`; las veces siguientes usa esa caché, y `--actualizar` retoma el conteo. Nada de eso entra a Git.
 
+## Fuentes autorizadas: el agente no se conecta a nada que no declares
+
+El agente **no elige solo a qué datos conectarse.** Trabaja únicamente con los conjuntos que declara el dueño; por ejemplo, SECOP II Contratos por su API:
+
+```bash
+--conjuntos jbjy-vk9h,p6dx-8zbt          # o un archivo:  --fuentes fuentes.json
+```
+
+`fuentes.json` tiene esta forma: `{"dominio": "www.datos.gov.co", "conjuntos": ["jbjy-vk9h"], "nota": "por qué se autoriza"}`.
+
+- **Sin fuentes declaradas no se conecta a ningún conjunto:** explica cómo declararlas y termina.
+- **`--descubrir`** recorre el catálogo del portal, con tu permiso explícito, **solo para sugerir** candidatos y el comando para autorizarlos. No trabaja con ninguno hasta que lo autorices.
+- La lista queda en `fuentes_autorizadas.json`, en la carpeta de trabajo, y el whitepaper la muestra.
+- El encargo le prohíbe a la IA consultar o cruzar otros conjuntos, y el validador lo comprueba sin IA (V0): una ficha o un cruce con un conjunto no autorizado no pasa.
+
 ## Tres formas de invocarlo
 
 ### 1. Desde la terminal: el agente lanza la IA que escribe las fichas (Claude, agy o Codex)
 
 ```bash
-.venv/bin/python herramientas/agente_masivo.py www.datos.gov.co --trabajo fuentes/fichas/mi-corrida --top 8 --motor claude   # o agy, o codex
+.venv/bin/python herramientas/agente_masivo.py www.datos.gov.co --trabajo fuentes/fichas/mi-corrida --conjuntos jbjy-vk9h,p6dx-8zbt --motor claude   # o agy, o codex
 ```
 
 Las tres herramientas se invocan sin interacción, igual que en `orquestar.mjs`, y sin servidores MCP. Se puede cambiar el binario con `CLAUDE_BIN`, `AGY_BIN` o `CODEX_BIN`. Claude usa el perfil de `CLAUDE_CONFIG_DIR`, si está definido.
@@ -30,7 +45,7 @@ Las tres herramientas se invocan sin interacción, igual que en `orquestar.mjs`,
 Pégale este texto:
 
 ```text
-En la carpeta del repositorio agente-solicitudes corre: .venv/bin/python herramientas/agente_masivo.py www.datos.gov.co --trabajo fuentes/fichas/mi-corrida --top 8 --motor ninguno. Después escribe las fichas siguiendo el ENCARGO.md que genera en esa carpeta, cada una con su bucle de validación, sin tocar los archivos *.dictamen.json. Al final corre el mismo comando con --solo-validar y muéstrame RESULTADO.md.
+En la carpeta del repositorio agente-solicitudes corre: .venv/bin/python herramientas/agente_masivo.py www.datos.gov.co --trabajo fuentes/fichas/mi-corrida --conjuntos <los conjuntos que autorizo> --motor ninguno. Después escribe las fichas siguiendo el ENCARGO.md que genera en esa carpeta, cada una con su bucle de validación, sin tocar los archivos *.dictamen.json. Al final corre el mismo comando con --solo-validar y muéstrame RESULTADO.md.
 ```
 
 ### 3. Paso a paso, sin ninguna IA conectada
@@ -51,7 +66,9 @@ Si tu IA de terminal permite comandos propios, crea uno con el texto de la forma
 |---|---|
 | `<dominio>` | El portal Socrata, por ejemplo `www.datos.gov.co` |
 | `--trabajo <carpeta>` | Dónde quedan `ENCARGO.md`, `fichas/` y `RESULTADO.md` |
-| `--top 8` | Cuántos candidatos, de mayor a menor relevancia |
+| `--conjuntos <id,…>` o `--fuentes <archivo>` | **Las únicas fuentes a las que se conecta** (obligatorio para trabajar) |
+| `--descubrir` | Con tu permiso: recorre el catálogo y sugiere candidatos, sin trabajar con ninguno |
+| `--top 8` | Cuántos candidatos sugiere `--descubrir` |
 | `--min-filas 1000000` | Tamaño mínimo para ser candidato |
 | `--motor claude`, `agy`, `codex` o `ninguno` | Esa IA escribe las fichas, o se imprime el texto para pegarlo en otra |
 | `--actualizar` | Retoma el conteo del catálogo completo |

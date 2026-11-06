@@ -17,10 +17,17 @@ Escribir una ficha por conjunto. Cada ficha muestra:
 |---|---|---|
 {{CANDIDATOS}}
 
+## Fuentes autorizadas (no se negocia)
+
+Solo puedes conectarte a estos conjuntos, que autorizó el dueño: **{{AUTORIZADOS}}**.
+- No consultes, cruces ni explores ningún otro conjunto del portal, aunque lo conozcas o aparezca en otra parte.
+- Un cruce con un conjunto no autorizado no pasa el validador (V0).
+- Si una pregunta necesitaría otro conjunto, anótalo en `riesgos_de_lectura` para que el dueño decida si lo autoriza.
+
 ## Insumos
 
 Solo lees estos. Junto a cada ficha está `<id>.dictamen.json`, el tamaño medido sin IA. **No lo modifiques**; copia su `nivel` en `nivel_big_data`.
-- Columnas de cada conjunto: `{{INVENTARIO}}`.
+- Columnas de cada conjunto autorizado: `{{INVENTARIO}}`.
 - Consultas de exploración: solo agregadas, como máximo 12 por conjunto. Por ejemplo: `curl -sG "https://{{DOMINIO}}/resource/<id>.json" --data-urlencode '$query=SELECT estado, count(*) AS n GROUP BY estado ORDER BY n DESC LIMIT 20'`. Nunca filas sueltas ni columnas personales.
 
 ## Formato: `fichas/<id>.json`
@@ -60,7 +67,7 @@ Solo lees estos. Junto a cada ficha está `<id>.dictamen.json`, el tamaño medid
 ## Bucle por ficha
 
 1. Escribe la ficha.
-2. Valídala: `{{PYTHON}} {{VALIDADOR}} fichas/<id>.json --inventario {{INVENTARIO}} --cache .cache_soql.json`.
+2. Valídala: `{{PYTHON}} {{VALIDADOR}} fichas/<id>.json --inventario {{INVENTARIO}} --autorizados {{AUTORIZADOS_CSV}} --cache .cache_soql.json`.
 3. Corrige **la ficha**, nunca el validador. Tienes como máximo 4 intentos.
 
 La verificación final la hace el dueño, sin caché.

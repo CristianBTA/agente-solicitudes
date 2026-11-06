@@ -199,6 +199,10 @@ def main(argv):
     if not fichas:
         raise SystemExit(f"No hay fichas en {trabajo / 'fichas'}")
     fuente = fichas[0]["f"].get("dominio", "datos abiertos")
+    fa = trabajo / "fuentes_autorizadas.json"
+    if fa.exists():
+        aut = json.loads(fa.read_text(encoding="utf-8"))
+        fuente += f" · fuentes autorizadas por el dueño: {', '.join(aut.get('conjuntos', []))}"
     h, pdf = trabajo / "WHITEPAPER.html", trabajo / "WHITEPAPER.pdf"
     resumen_html = ""
     ria = trabajo / "RESUMEN_IA.md"

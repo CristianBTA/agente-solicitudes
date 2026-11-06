@@ -2,9 +2,16 @@
 """Agente masivo de datos públicos: de un catálogo completo a fichas de oportunidad validadas.
 
 Uso:
-  python herramientas/agente_masivo.py <dominio> --trabajo <carpeta> [--top 8] [--min-filas 1000000]
-                                       [--catalogo fuentes/catalogo] [--motor claude|agy|codex|ninguno] [--actualizar] [--validar]
-                                       [--solo-validar]
+  python herramientas/agente_masivo.py <dominio> --trabajo <carpeta> --conjuntos <id,id,…> [--motor claude|agy|codex|ninguno]
+  python herramientas/agente_masivo.py <dominio> --trabajo <carpeta> --fuentes <fuentes.json> [--motor …]
+  python herramientas/agente_masivo.py <dominio> --trabajo <carpeta> --descubrir [--top 8] [--min-filas 1000000] [--actualizar]
+  python herramientas/agente_masivo.py <dominio> --trabajo <carpeta> --solo-validar
+
+FUENTES AUTORIZADAS: el agente solo se conecta a los conjuntos que el dueño declara (--conjuntos, o --fuentes con
+{"dominio": "…", "conjuntos": ["…"], "nota": "por qué"}); por ejemplo, SECOP II Contratos por su API: --conjuntos jbjy-vk9h.
+Sin fuentes declaradas no se conecta a ningún conjunto. --descubrir recorre el catálogo del portal (con permiso explícito)
+solo para SUGERIR candidatos y el comando para autorizarlos; no trabaja con ninguno hasta que se autorice. La lista queda
+en <trabajo>/fuentes_autorizadas.json, el encargo le prohíbe a la IA consultar otros y validar_ficha.py lo comprueba (V0).
 
 La IA propone y una prueba sin IA comprueba. Los pasos sin IA corren solos; el de IA lo hace el motor que se tenga:
   1. catálogo: explorador_catalogo.py mide todos los conjuntos (reanudable con la caché de --catalogo);
@@ -30,6 +37,7 @@ Autoprueba sin red: python herramientas/agente_masivo.py --autoprueba
 """
 import hashlib
 import json
+import re
 import os
 import shutil
 import tempfile
@@ -41,6 +49,50 @@ from pathlib import Path
 AQUI = Path(__file__).resolve().parent
 RAIZ = AQUI.parent
 PY = sys.executable
+sys.path.insert(0, str(AQUI))
+
+SIN_FUENTES = ("No hay fuentes autorizadas: el agente no se conecta a ningún conjunto que no declares.\n"
+               "  Declara las fuentes, por ejemplo SECOP II Contratos por su API:  --conjuntos jbjy-vk9h\n"
+               "  o un archivo:  --fuentes fuentes.json   ({\"dominio\": \"www.datos.gov.co\", \"conjuntos\": [\"jbjy-vk9h\"], \"nota\": \"…\"})\n"
+               "  Para que el agente sugiera candidatos recorriendo el catálogo (con tu permiso):  --descubrir")
+
+
+def fuentes_autorizadas(argv, dominio, trabajo):
+    """Los conjuntos que el dueño autoriza; se guardan en la carpeta de trabajo. None si no hay ninguno declarado."""
+    g = lambda k: argv[argv.index(k) + 1] if k in argv else None
+    ids, nota = None, ""
+    if g("--conjuntos"):
+        ids = [x.strip() for x in g("--conjuntos").split(",") if x.strip()]
+    elif g("--fuentes"):
+        f = json.loads(Path(g("--fuentes")).read_text(encoding="utf-8"))
+        if f.get("dominio") and f["dominio"] != dominio:
+            raise SystemExit(f"El archivo de fuentes autoriza {f['dominio']}, no {dominio}.")
+        ids, nota = [str(x) for x in f.get("conjuntos", [])], f.get("nota", "")
+    archivo = trabajo / "fuentes_autorizadas.json"
+    if ids:
+        if not all(re.fullmatch(r"[a-z0-9]{4}-[a-z0-9]{4}", x) for x in ids):
+            raise SystemExit("Cada conjunto autorizado es un id de Socrata como jbjy-vk9h.")
+        archivo.write_text(json.dumps({"dominio": dominio, "conjuntos": ids, "nota": nota,
+                                       "autorizado_el": datetime.now().isoformat(timespec="seconds")}, ensure_ascii=False, indent=1),
+                           encoding="utf-8")
+        return ids
+    if archivo.exists():
+        return json.loads(archivo.read_text(encoding="utf-8")).get("conjuntos") or None
+    return None
+
+
+def inventario_autorizado(dominio, ids, destino):
+    """Metadatos (columnas y tipos) SOLO de los conjuntos autorizados; nada del resto del portal."""
+    from explorador_catalogo import pedir
+    inv = []
+    for i in ids:
+        m = json.loads(pedir(f"https://{dominio}/api/views/{i}.json"))
+        cols = [c for c in m.get("columns", []) if not str(c.get("fieldName", "")).startswith(":")]
+        inv.append({"id": i, "nombre": m.get("name"), "categoria": m.get("category"),
+                    "campos": [c.get("fieldName") for c in cols], "visibles": [c.get("name") for c in cols],
+                    "tipos": [str(c.get("dataTypeName", "")).lower() for c in cols]})
+    destino.write_text(json.dumps(inv, ensure_ascii=False), encoding="utf-8")
+    return inv
 
 
 def correr(*args, salida=None):
@@ -104,6 +156,10 @@ def autoprueba():
     return 1 if errores else 0
 
 
+def num_txt(x):
+    return f"{x:,}".replace(",", ".") if isinstance(x, int) else (str(x) if x is not None else "—")
+
+
 def resumen(texto):
     for linea in reversed(texto.splitlines()):
         if linea.startswith("RESUMEN "):
@@ -127,19 +183,27 @@ def main(argv):
     fichas = trabajo / "fichas"
     fichas.mkdir(parents=True, exist_ok=True)
     nombre = dominio.replace("www.", "").replace(".", "_")
-    inventario = catalogo / f"inventario_{nombre}.json"
+    autorizados = fuentes_autorizadas(argv, dominio, trabajo)
+    inventario = trabajo / "inventario_autorizado.json"
 
     if "--solo-validar" not in argv:
-        print("1-2. catálogo y relevancia (sin IA)…", flush=True)
-        if "--actualizar" in argv or not (catalogo / ".cache.json").exists():
-            # el conteo de todo el catálogo tarda horas la primera vez; después basta la caché (--actualizar lo retoma)
-            correr(AQUI / "explorador_catalogo.py", dominio, "--salida", catalogo, "--hilos", 4, "--min-filas", min_filas)
-        rc, out = correr(AQUI / "relevancia_catalogo.py", dominio, "--catalogo", catalogo, "--top", 0)
-        rel = json.loads((catalogo / f"relevancia_{nombre}.json").read_text(encoding="utf-8"))
-        cand = [r for r in rel if (r.get("filas") or 0) >= min_filas and r["dice_estado"] and r["dice_lugar"] and r["dice_impacto"]][:top]
-        if not cand:
-            raise SystemExit("No hay candidatos: baje --min-filas o espere a que termine el conteo del catálogo.")
-        print(f"3. candidatos: {', '.join(c['id'] for c in cand)}", flush=True)
+        if not autorizados:
+            if "--descubrir" not in argv:
+                print(SIN_FUENTES)
+                return 2
+            print("Descubrir (con tu permiso): recorre el catálogo para SUGERIR; no trabaja con ningún conjunto…", flush=True)
+            if "--actualizar" in argv or not (catalogo / ".cache.json").exists():
+                correr(AQUI / "explorador_catalogo.py", dominio, "--salida", catalogo, "--hilos", 4, "--min-filas", min_filas)
+            correr(AQUI / "relevancia_catalogo.py", dominio, "--catalogo", catalogo, "--top", 0)
+            rel = json.loads((catalogo / f"relevancia_{nombre}.json").read_text(encoding="utf-8"))
+            sug = [r for r in rel if (r.get("filas") or 0) >= min_filas and r["dice_estado"] and r["dice_lugar"] and r["dice_impacto"]][:top]
+            for r in sug:
+                print(f"   {r['id']}  {num_txt(r.get('filas'))} filas  {r['nombre'][:70]}")
+            print("Para trabajar con los que elijas, autorízalos:  --conjuntos " + ",".join(r["id"] for r in sug))
+            return 0
+        print(f"1. fuentes autorizadas: {', '.join(autorizados)} (solo con estas se conecta el agente)", flush=True)
+        inv = inventario_autorizado(dominio, autorizados, inventario)
+        cand = [{"id": x["id"], "nombre": x["nombre"]} for x in inv]
         for c in cand:
             d = fichas / f"{c['id']}.dictamen.json"
             previos = [RAIZ / "fuentes" / "fichas" / d.name] + sorted((RAIZ / "fuentes" / "fichas").glob(f"*/fichas/{d.name}"))
@@ -147,22 +211,26 @@ def main(argv):
             if not d.exists() and previo:
                 shutil.copy(previo, d)
             if not d.exists():
-                print(f"4. dictamen medido de {c['id']}…", flush=True)
+                print(f"2. dictamen medido de {c['id']}…", flush=True)
                 rc, out = correr(AQUI / "dictamen_bigdata.py", "socrata", dominio, c["id"], "--salida", d)
                 if not d.exists():
                     print(f"   ✗ no se pudo medir {c['id']} ({out.strip().splitlines()[-1][:120] if out.strip() else 'sin salida'}): "
                           "queda fuera del encargo, sin nivel medido no hay ficha", flush=True)
         cand = [c for c in cand if (fichas / f"{c['id']}.dictamen.json").exists()]
         if not cand:
-            raise SystemExit("Ningún candidato tiene dictamen medido: revise la conexión con el portal y repita.")
-        lista = "\n".join(f"| {c['id']} | {c['nombre']} | {c['filas']:,} |".replace(",", ".") for c in cand)
+            raise SystemExit("Ninguna fuente autorizada tiene dictamen medido: revise la conexión con el portal y repita.")
+        filas_de = {c["id"]: json.loads((fichas / f"{c['id']}.dictamen.json").read_text(encoding="utf-8")).get("medidas", {}).get("filas")
+                    for c in cand}
+        lista = "\n".join(f"| {c['id']} | {c['nombre']} | {num_txt(filas_de.get(c['id']))} |" for c in cand)
         plantilla = (RAIZ / "plantillas" / "encargo_fichas.md").read_text(encoding="utf-8")
         (trabajo / "ENCARGO.md").write_text(
             plantilla.replace("{{DOMINIO}}", dominio).replace("{{CANDIDATOS}}", lista)
+            .replace("{{AUTORIZADOS}}", ", ".join(autorizados)).replace("{{AUTORIZADOS_CSV}}", ",".join(autorizados))
             .replace("{{INVENTARIO}}", str(inventario)).replace("{{VALIDADOR}}", str(AQUI / "validar_ficha.py"))
             .replace("{{PYTHON}}", PY), encoding="utf-8")
         print(f"5. encargo: {trabajo / 'ENCARGO.md'}", flush=True)
         pedido = (f"Lee {trabajo / 'ENCARGO.md'} y hazlo completo: una ficha por candidato en {fichas}, cada una validada. "
+                  f"Solo puedes conectarte a los conjuntos autorizados ({', '.join(autorizados)}); a ningún otro. "
                   "No modifiques nada fuera de esa carpeta ni los *.dictamen.json. Responde en español con cifras.")
         motores = {   # las mismas invocaciones no interactivas que usa orquestar.mjs; sin servidores MCP del usuario
             "claude": [os.environ.get("CLAUDE_BIN", "claude"), "-p", pedido, "--dangerously-skip-permissions",
@@ -201,7 +269,10 @@ def main(argv):
     for f in sorted(fichas.glob("*.json")):
         if f.name.endswith((".dictamen.json", ".verificacion.json")):
             continue
-        rc, out = correr(h_git / "validar_ficha.py", f, "--inventario", inventario, salida=f.with_suffix(".log"))
+        if not autorizados:
+            raise SystemExit(SIN_FUENTES)
+        rc, out = correr(h_git / "validar_ficha.py", f, "--inventario", inventario, "--autorizados", ",".join(autorizados),
+                         salida=f.with_suffix(".log"))
         r = resumen(out) or {}
         fallas = [l.strip()[2:] for l in out.splitlines() if l.strip().startswith("✗")]
         filas.append((f.stem, r.get("chequeos", "?"), r.get("fallas", "?"), "; ".join(fallas)[:300]))

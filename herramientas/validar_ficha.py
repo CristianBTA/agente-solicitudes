@@ -6,6 +6,7 @@ Uso: python herramientas/validar_ficha.py <ficha.json> --inventario <inventario_
 La ficha dice qué se puede afirmar de cada unidad («el contrato {id_contrato} está {estado_contrato} en {ciudad}»),
 qué preguntas de costo, calidad o impacto pueden analizar las PERSONAS (la IA no concluye), con qué otros conjuntos se
 cruza, cómo se gobierna y cómo se procesa. Cada afirmación de la ficha se comprueba contra la fuente real:
+  V0 con --autorizados, la ficha y sus cruces solo usan conjuntos que el dueño autorizó;
   V1 estructura completa y tipos válidos;
   V2 toda columna citada existe en su conjunto (y el conjunto del cruce existe en el inventario);
   V3 privacidad: ninguna columna personal o cuasi-identificadora se usa en plantillas, preguntas, consultas ni cruces,
@@ -215,13 +216,17 @@ def medir_cruce(dominio, aqui, cruce):
                        + (": muchos a muchos, el cruce explota (V13); use una llave de negocio" if explota else "")}
 
 
-def validar(ficha, inv, red=True, dictamen=None):
+def validar(ficha, inv, red=True, dictamen=None, autorizados=None):
     res = []
 
     def chequeo(clave, ok, detalle):
         res.append({"chequeo": clave, "ok": bool(ok), "detalle": detalle})
         return ok
 
+    if autorizados is not None:
+        fuera = sorted({ficha.get("id")} | {c.get("con") for c in ficha.get("cruces", [])} - set(autorizados))
+        chequeo("V0 fuentes autorizadas", not fuera, "solo conjuntos autorizados por el dueño" if not fuera
+                else f"se conecta a conjuntos que no se autorizaron: {fuera}")
     conj = inv.get(ficha.get("id"))
     if not chequeo("V1 conjunto", conj is not None, f"{ficha.get('id')} {'existe' if conj else 'no está'} en el inventario"):
         return res
@@ -557,14 +562,20 @@ def autoprueba():
     variante("salud: afirmaciones por caso y k bajo", sensible, {"V3 sensible: solo agregados", "V3 k mínimo"})
     variante("norma con el año cambiado (Ley 1581 de 2013)",
              lambda f: f.update(base_legal="Ley 1581 de 2013"), {"V6 normas verificadas"})
-    errores = 0
+    cruce_ajeno = copy.deepcopy(buena)
+    cruce_ajeno["cruces"] = [{"con": "bbbb-0002", "llave_aqui": "municipio", "llave_alla": "municipio", "normalizacion": "tal cual",
+                              "para_que": "Comparar por municipio."}]
+    v0 = {r["chequeo"] for r in validar(cruce_ajeno, inv, red=False, dictamen=dic3, autorizados=["aaaa-0001"]) if not r["ok"]}
+    ok0 = v0 == {"V0 fuentes autorizadas"}
+    print(f"  {'✓' if ok0 else '✗'} cruce con un conjunto no autorizado: " + ("atrapada por V0 fuentes autorizadas" if ok0 else f"{sorted(v0)}"))
+    errores = 0 if ok0 else 1
     for nombre, f, d, esperado in casos:
         obtenido = falla(f, d)
         ok = obtenido == esperado
         errores += not ok
         print(f"  {'✓' if ok else '✗'} {nombre}: " + ("pasa" if not obtenido else "atrapada por " + ", ".join(sorted(obtenido)))
               + ("" if ok else f" (se esperaba {sorted(esperado) or 'que pasara'})"))
-    print("RESUMEN " + json.dumps({"autoprueba": len(casos), "errores": errores}))
+    print("RESUMEN " + json.dumps({"autoprueba": len(casos) + 1, "errores": errores}))
     return 1 if errores else 0
 
 
@@ -581,7 +592,8 @@ def main(argv):
     CACHE["ruta"] = Path(argv[argv.index("--cache") + 1]) if "--cache" in argv else None
     if CACHE["ruta"] and CACHE["ruta"].exists():
         CACHE["datos"] = json.loads(CACHE["ruta"].read_text(encoding="utf-8"))
-    res = validar(ficha, inv, red="--sin-red" not in argv, dictamen=dictamen)
+    autorizados = argv[argv.index("--autorizados") + 1].split(",") if "--autorizados" in argv else None
+    res = validar(ficha, inv, red="--sin-red" not in argv, dictamen=dictamen, autorizados=autorizados)
     fallas = [r for r in res if not r["ok"]]
     salida = ruta.with_suffix(".verificacion.json")
     salida.write_text(json.dumps({"ficha": ruta.name, "chequeos": res, "fallas": len(fallas),
