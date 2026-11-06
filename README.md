@@ -4,6 +4,15 @@ Un análisis de datos hecho con IA, de la pregunta al informe, en las cinco etap
 
 Material aplicado del curso **«Big Data con IA»** (NODO · Universidad EAFIT, noviembre de 2026), con datos abiertos de Colombia (SECOP II).
 
+## Versión para la clase y versión final
+
+- **Para la clase** (6 y 7 de noviembre de 2026) se usa la etiqueta fija **`clase-2026-11-06`**: una versión probada que no cambia aunque `main` siga avanzando.
+  ```bash
+  git clone --branch clase-2026-11-06 https://github.com/CristianBTA/agente-solicitudes
+  ```
+- **La versión final** se prepara en paralelo, con más tiempo, en la rama `version-final`. Junta los arreglos de la revisión ciega de analista senior, el filtro de aportes que toma su juez de la rama base y el cambio por el que el análisis lo hacen las personas. Entra a `main` cuando pase todas las pruebas.
+- **Los aportes de los participantes** van siempre contra `main`, como dice [`APORTAR-CON-TU-AGENTE.md`](APORTAR-CON-TU-AGENTE.md).
+
 ## Conectar la IA
 
 Para aportar con la IA que ya usas (ChatGPT, Gemini, Claude, Copilot u otra), cópiale este texto:
@@ -49,6 +58,8 @@ Recorre un catálogo completo de datos abiertos (datos.gov.co tiene 8.470 conjun
 ```
 
 Cómo invocarlo desde la terminal, con agy o con cualquier IA de terminal, y el texto listo para pegar: [`AGENTE-MASIVO.md`](AGENTE-MASIVO.md).
+
+Al final arma, sin IA, un **whitepaper de tres hojas tamaño carta** con el resumen para que el estudiante haga el análisis (`WHITEPAPER.pdf`).
 
 El validador (`herramientas/validar_ficha.py`, V1 a V16) mide la forma: columnas, consultas reales, cruces medidos, grano, sumas creíbles, lugar, k-anonimato y normas verificadas. **Que una ficha pase no la hace publicable:** el juicio de valor lo hacen un juez ciego y las personas.
 

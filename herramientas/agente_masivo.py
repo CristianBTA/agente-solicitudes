@@ -14,7 +14,9 @@ La IA propone y una prueba sin IA comprueba. Los pasos sin IA corren solos; el d
   5. encargo: <trabajo>/ENCARGO.md, desde plantillas/encargo_fichas.md, con los candidatos;
   6. IA: con --motor claude, agy o codex se lanza esa CLI sin interacción con el encargo (binarios: CLAUDE_BIN, AGY_BIN y
      CODEX_BIN; Claude usa el perfil de CLAUDE_CONFIG_DIR); con --motor ninguno se imprime el texto para pegarlo en otra IA;
-  7. validación sin IA: validar_ficha.py por ficha, SIN caché y contra la fuente real → <trabajo>/RESULTADO.md.
+  7. validación sin IA: validar_ficha.py por ficha, SIN caché y contra la fuente real → <trabajo>/RESULTADO.md;
+  8. whitepaper para el estudiante, en TRES hojas tamaño carta (<trabajo>/WHITEPAPER.pdf y .html): la IA puede escribir
+     el resumen (RESUMEN_IA.md), que entra solo si pasa una comprobación sin IA; el ANÁLISIS lo hace el estudiante.
 Después de esto, el juicio de valor lo hacen un juez ciego y las personas: el validador mide la forma, no el valor.
 
 Uso local: el agente se USA, no se modifica. La IA solo escribe en la carpeta de trabajo; aunque haga una investigación,
@@ -211,6 +213,27 @@ def main(argv):
     md += [f"| {a} | {b} | {c} | {d or '—'} |" for a, b, c, d in filas]
     (trabajo / "RESULTADO.md").write_text("\n".join(md) + "\n", encoding="utf-8")
     ok = sum(1 for x in filas if x[2] == 0)
+    if filas and motor in ("claude", "agy", "codex") and "--solo-validar" not in argv and not (trabajo / "RESUMEN_IA.md").exists():
+        ped = (f"Lee las fichas validadas de {fichas} y su RESULTADO.md, y escribe en {trabajo / 'RESUMEN_IA.md'} un resumen de lo que "
+               "se desarrolló para que el estudiante haga el análisis: qué conjuntos se encontraron, por qué son relevantes y qué "
+               "preguntas quedan abiertas. Máximo 220 palabras, en español. Sin conclusiones ni recomendaciones (el análisis lo hace el "
+               "estudiante), sin cifras salvo años y normas, sin datos personales. No modifiques nada más.")
+        cmd = {"claude": [os.environ.get("CLAUDE_BIN", "claude"), "-p", ped, "--dangerously-skip-permissions", "--strict-mcp-config"],
+               "agy": [os.environ.get("AGY_BIN", "agy"), "--dangerously-skip-permissions", "-p", ped],
+               "codex": [os.environ.get("CODEX_BIN", "codex"), "exec", "--skip-git-repo-check", "--color", "never", "-C", str(trabajo),
+                         "--dangerously-bypass-approvals-and-sandbox", ped]}[motor]
+        if shutil.which(cmd[0]):
+            sello = sellar()
+            print(f"8. resumen: {motor} lo escribe (el análisis queda para el estudiante)…", flush=True)
+            subprocess.run(cmd, cwd=trabajo)  # nosec B603
+            tocados = comparar(sello, sellar())
+            if tocados:
+                print("✗ LA CORRIDA NO VALE: la IA cambió archivos del agente al escribir el resumen: " + ", ".join(tocados[:20]), flush=True)
+                return 1
+    if filas:
+        print("8. whitepaper de tres hojas carta para el estudiante (resumen de la IA comprobado sin IA)…", flush=True)
+        rc_w, out_w = correr(AQUI / "whitepaper_fichas.py", trabajo)
+        print("   " + (out_w.strip().splitlines() or ["(sin salida)"])[0], flush=True)
     print(f"RESUMEN {json.dumps({'fichas': len(filas), 'pasan': ok})}")
     return 0 if filas and ok == len(filas) else 1
 
