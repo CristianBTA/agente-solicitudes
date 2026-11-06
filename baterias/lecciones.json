@@ -300,6 +300,12 @@
       "leccion": "Una llave repetida con valores distintos (el maestro de clientes con dos regiones) se resolvía por el orden del archivo: la operación repetidos marcaba desde la segunda aparición y el plan no podía pedir «la más reciente». Con los datos de ejemplo, 2 clientes quedaban en una región vieja (94.793.600 en ventas) y solo lo atrapaba el caso conocido; la corrida sellada de SECOP resolvió así 3 llaves de su caso conocido. Ahora el plan declara desempate (columna y conservar) y la limpieza avisa cuando falta o cuando hay empates.",
       "origen": "aporte del grupo (PR #11): integración de fuentes con maestros de registros; el dueño lo volvió verificable en limpieza.py, 6-nov-2026",
       "prueba": "bateria:limpieza/repetidos_esperado.json"
+    },
+    {
+      "id": "L-aporte-ponderacion-encuestas",
+      "leccion": "En una encuesta por muestreo, contar filas da cifras de la muestra, no de la población: en la GEIH 2025 (módulo de vivienda, nov-2025, 24.724 hogares) Bogotá pesa 3,5 % de las filas y 17,1 % de los hogares ponderados con FEX_C18; lo rural, 12,6 % frente a 21,4 %; cocinar con leña, 5,5 % frente a 9,4 %. Toda cifra poblacional se pondera con el factor de expansión y el conteo de filas se informa aparte como tamaño de muestra.",
+      "origen": "análisis en clase de la GEIH 2025 del DANE (datos del hogar y la vivienda), 6-nov-2026",
+      "prueba": "regla del especificador (agentes/02) sobre encuestas con factor de expansión; requiere prueba de efecto"
     }
   ]
 }
