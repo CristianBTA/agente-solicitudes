@@ -40,10 +40,42 @@ def cuenta_ordenes(texto):
 import dependencias  # noqa: E402
 import seguridad  # noqa: E402
 
-PROHIBIDOS = re.compile(r"(^|/)(\.venv|venv|__pycache__|\.claude|\.cursor|\.env|node_modules)(/|$)|(^|/)(datos|limpio)/.*\.csv$"
-                        r"|\.(pem|key|p12|pfx|sqlite|db|parquet|xlsx?|zip|gz)$|(^|/)ejemplo-secop/datos/", re.I)
+PROHIBIDOS = re.compile(r"(^|/)(\.venv|venv|__pycache__|node_modules)(/|$)|(^|/)(datos|limpio)/.*\.csv$"
+                        r"|\.(pem|key|p12|pfx|sqlite|db|parquet|xlsx?|zip|gz)$|(^|/)ejemplo-secop/datos/"
+                        r"|(^|/)(\.env[^/]*|\.npmrc|\.pypirc|\.netrc|id_(rsa|dsa|ecdsa|ed25519)(\.pub)?)$", re.I)
+# Configuración de asistentes y editores: se ejecuta o se obedece sola cuando el dueño abre el clon (servidores MCP,
+# ganchos, tareas que corren al abrir la carpeta, contenedores con comandos de arranque, instrucciones que el asistente
+# carga sin que nadie las lea). Un aporte de datos o de reglas nunca la necesita (L54).
+ASISTENTES = re.compile(r"(^|/)(\.claude|\.cursor|\.vscode|\.idea|\.devcontainer|\.gemini|\.codex|\.continue|\.windsurf"
+                        r"|\.roo|\.kiro|\.amazonq|\.agents?)(/|$)"
+                        r"|(^|/)(\.mcp\.json|CLAUDE(\.local)?\.md|GEMINI\.md|\.cursorrules|\.windsurfrules|\.clinerules"
+                        r"|\.aider[^/]*|\.pre-commit-config\.ya?ml|\.gitmodules|\.envrc)$", re.I)
+# Solo los cambia el dueño: los flujos de GitHub corren en sus máquinas al aprobar la corrida de un fork, y CODEOWNERS
+# decide quién revisa. El filtro no puede protegerse a sí mismo (el pull request trae su propia copia): si un aporte toca
+# el filtro o lo que importa, su verde no prueba nada y el dueño lo revisa línea por línea (L54).
+DEL_DUENO = re.compile(r"^\.github/")
+CADENA_DEL_FILTRO = re.compile(r"^(herramientas/(validar_aporte|gobernanza|seguridad|dependencias|blindaje|sgsi|caja)\.py"
+                               r"|herramientas/permitidas\.json|requirements\.txt)$")
 CSV_PERMITIDOS = re.compile(r"^(ejemplo/datos/|baterias/|corridas/[^/]+/caso_conocido/)")
 MAX_CSV = 200_000
+
+
+def motivo_prohibido(ruta):
+    """Por qué una ruta no puede entrar en un aporte (None si puede)."""
+    if ASISTENTES.search(ruta):
+        return f"configuración de asistente o editor que se ejecuta o se obedece al abrir el clon: {ruta}"
+    if PROHIBIDOS.search(ruta):
+        return f"archivo que no puede entrar: {ruta}"
+    return None
+
+
+def es_del_dueno():
+    """El pull request lo abrió el dueño (GitHub lo dice en el evento; a mano se asume que no)."""
+    evento = os.environ.get("GITHUB_EVENT_PATH")
+    try:
+        return json.loads(Path(evento).read_text(encoding="utf-8"))["pull_request"]["author_association"] == "OWNER"
+    except Exception:
+        return False
 
 
 def git(*a):
@@ -77,16 +109,28 @@ def main(argv):
     archivos = sorted((e, r) for r, e in vistos.items())
     nuevos_bateria = {r for e, r in archivos if e == "A" and r.startswith("baterias/")}
     fallas, avisos = [], []
+    del_dueno = es_del_dueno()
 
     for estado, ruta in archivos:
         if estado == "D":
             if ruta.startswith(("herramientas/", "baterias/", "agentes/", "DIRECTRICES", "flujo.js")):
                 avisos.append(f"borra {ruta}: lo revisa el dueño")
             continue
-        if PROHIBIDOS.search(ruta):
-            fallas.append(f"archivo que no puede entrar: {ruta}")
+        motivo = motivo_prohibido(ruta)
+        if motivo:
+            fallas.append(motivo)
             continue
         p = RAIZ / ruta
+        if p.is_symlink():  # un enlace hace que las herramientas lean archivos de quien abre el clon (L54)
+            fallas.append(f"enlace simbólico (apunta a {os.readlink(p)}): {ruta}")
+            continue
+        if DEL_DUENO.match(ruta):
+            (avisos if del_dueno else fallas).append(
+                f"{ruta}: los flujos de GitHub, las plantillas y CODEOWNERS solo los cambia el dueño")
+            continue
+        if CADENA_DEL_FILTRO.match(ruta):
+            avisos.append(f"{ruta} es parte del filtro: este resultado lo da la copia del propio aporte y no prueba nada; "
+                          "el dueño revisa el cambio línea por línea")
         if not p.exists():
             continue
         if ruta.endswith(".csv"):

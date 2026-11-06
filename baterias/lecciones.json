@@ -318,6 +318,12 @@
       "leccion": "En una encuesta por muestreo, contar filas da cifras de la muestra, no de la población: en la GEIH 2025 (módulo de vivienda, nov-2025, 24.724 hogares) Bogotá pesa 3,5 % de las filas y 17,1 % de los hogares ponderados con FEX_C18; lo rural, 12,6 % frente a 21,4 %; cocinar con leña, 5,5 % frente a 9,4 %. El perfil reconoce el factor de expansión por su nombre y por ser positivo, y el especificador pondera toda cifra de población con él; el conteo de filas se informa aparte como tamaño de la muestra.",
       "origen": "aporte del grupo (PR #17): análisis en clase de la GEIH 2025 del DANE, 6-nov-2026",
       "prueba": "bateria:perfil/factor_de_expansion.json"
+    },
+    {
+      "id": "L54",
+      "leccion": "El filtro de aportes solo rechazaba .claude, .cursor y .env: pasaban sin aviso .mcp.json con un comando, .vscode/tasks.json que corre al abrir la carpeta, .devcontainer, .gemini, CLAUDE.md, .cursorrules, .env.local, un flujo nuevo de GitHub con permisos declarados y los enlaces simbólicos. Todo eso corre por sí solo en el equipo del dueño cuando trabaja el clon con un asistente o autoriza la corrida de un fork. Línea base: rechazaba 3 de 31; ahora 31 de 31, sin falsas alarmas en 12 rutas legítimas. Límite: el pull request trae su propia copia del filtro; si toca el filtro o lo que importa, su verde no prueba nada y el dueño lo revisa línea por línea.",
+      "origen": "revisión del pendiente «el filtro bloquea la configuración de asistentes» (6-nov-2026): prueba con un aporte simulado que traía nueve archivos así y otro que desactivaba el filtro",
+      "prueba": "herramientas/blindaje.py B20"
     }
   ]
 }
