@@ -20,6 +20,14 @@ cruza, cómo se gobierna y cómo se procesa. Cada afirmación de la ficha se com
   V3 además: en conjuntos sensibles (salud, víctimas, delitos, menores, etnia…) no hay afirmaciones fila por fila,
      solo agregadas, y k_minimo es 10 o más; los identificadores de predios (matrícula inmobiliaria, folio, cédula
      catastral, número predial, CHIP) cuentan como cuasi-identificadores: llevan al propietario;
+  V10 la ficha declara qué es una fila (grano) y, si el conjunto trae una columna de conteo, la suma en vez de contar
+     filas; con red, mide que la llave de la unidad sea única;
+  V11 con red, cada suma de dinero es creíble: ningún registro pesa más de la mitad del total y la suma no es imposible;
+  V12 con red, las columnas de lugar sirven para comparar: no son mayoría de «No disponible» ni un solo valor;
+  V13 con red, el cruce no explota: se mide cuántas filas trae cada llave en los dos lados (muchos a muchos falla);
+  V14 si hay columnas de personas, toda consulta agrupada aplica el k-anonimato (HAVING count(*) >= k);
+  V15 la base legal cita la Ley 1712 de 2014 (los hace públicos y fija sus límites) y, si hay personas, la Ley 1581;
+  V16 toda pregunta de costo contrasta contra una referencia (dos columnas de dinero o una operación entre columnas);
   V8 el nivel de big data es el MEDIDO (<id>.dictamen.json junto a la ficha, de dictamen_bigdata.py), no el que la
      ficha declara, y la estrategia de procesamiento es coherente con él.
 Con --cache <archivo>, las consultas y cruces ya medidos se guardan ahí (solo conteos, nunca filas) para iterar rápido.
@@ -74,6 +82,12 @@ def normas_sin_verificar(texto):
             malas.append(f"«{m.group(0)}» no está comprobada contra su texto oficial")
     return malas
 
+
+CONTEO_COL = re.compile(r"^(cantidad|total|conteo|frecuencia|casos|numero_de_|n_mero_de_|num_)", re.I)
+NULO_DISFRAZADO = {"no disponible", "no definido", "no definida", "n/a", "na", "sin dato", "sin datos", "sin informacion",
+                   "sin información", "no aplica", "", "null", "none", "-", "0", "no registra", "por definir", "co", "colombia"}
+LUGAR_COL = re.compile(r"municipio|mpio|departamento|depto|ciudad|divipola|dane|region|zona|localizaci|ubicaci", re.I)
+ARITMETICA = re.compile(r"[a-z_][a-z0-9_]*\s*\)?\s*[-/]\s*\(?\s*(sum|avg|min|max)?\s*\(?\s*[a-z_][a-z0-9_]*", re.I)
 
 CAMPOS_TEXTO = ("pregunta", "por_que_importa", "para_que", "nota", "base_legal", "estrategia", "normalizacion")
 
@@ -146,12 +160,12 @@ def llaves_distintas(dominio, conjunto, col, tope=50000):
 
 def buscar_en_otro(dominio, otro, col, valores, lote=40):
     """Cuántos de estos valores exactos aparecen en la columna del otro conjunto (para llaves con millones de valores)."""
-    hallados = set()
+    hallados = {}
     for i in range(0, len(valores), lote):
         trozo = [v.replace("'", "''") for v in valores[i:i + lote]]
         lista = ", ".join(f"'{v}'" for v in trozo)
         filas, _ = soql(dominio, otro, f"SELECT {col}, count(*) AS n WHERE {col} IN ({lista}) GROUP BY {col} LIMIT {lote * 2}")
-        hallados |= {r.get(col) for r in filas}
+        hallados.update({r.get(col): int(r.get("n", 0)) for r in filas})
     return hallados
 
 
@@ -164,9 +178,15 @@ def medir_cruce(dominio, aqui, cruce):
         t = time.time()
         hallados = buscar_en_otro(dominio, cruce["con"], cruce["llave_alla"], muestra)
         frac = len([k for k in muestra if k in hallados]) / max(1, len(muestra))
-        return {"ok": frac >= 0.5, "llaves_aqui": "más de 50.000", "muestra": len(muestra), "coinciden_llaves": round(frac, 3),
+        comunes = [k for k in muestra if k in hallados]
+        mult = (sum(a[k] * hallados[k] for k in comunes) / max(1, sum(a[k] for k in comunes))) if comunes else 0
+        explota = mult > 10
+        return {"ok": frac >= 0.5 and not explota, "llaves_aqui": "más de 50.000", "muestra": len(muestra),
+                "coinciden_llaves": round(frac, 3), "filas_alla_por_fila_aqui": round(mult, 2),
                 "segundos": round(s1 + time.time() - t, 1),
-                "detalle": f"{frac:.1%} de una muestra de {len(muestra)} llaves de aquí aparece allá (búsqueda exacta)"}
+                "detalle": f"{frac:.1%} de una muestra de {len(muestra)} llaves de aquí aparece allá (búsqueda exacta); "
+                           f"cada fila de aquí trae en promedio {mult:.1f} de allá"
+                           + (": muchos a muchos, el cruce explota (V13); use una llave de negocio" if explota else "")}
     b, b_lleno, s2 = llaves_distintas(dominio, cruce["con"], cruce["llave_alla"])
     metodo = cruce.get("normalizacion", "")
     bn = {normalizar(k, metodo) for k in b}
@@ -176,13 +196,23 @@ def medir_cruce(dominio, aqui, cruce):
         an[nk] = an.get(nk, 0) + n
     if not an:
         return {"ok": False, "detalle": "la llave de este conjunto no tiene valores"}
+    bnc = {}
+    for k, n in b.items():
+        nk = normalizar(k, metodo)
+        bnc[nk] = bnc.get(nk, 0) + n
     comunes = [k for k in an if k in bn]
     por_llaves = len(comunes) / len(an)
     por_filas = sum(an[k] for k in comunes) / max(1, sum(an.values()))
+    filas_union = sum(an[k] * bnc.get(k, 0) for k in comunes)
+    mult = filas_union / max(1, sum(an[k] for k in comunes))
+    explota = mult > 10
     nota = " (medido sobre los primeros 50.000 valores distintos)" if a_lleno or b_lleno else ""
-    return {"ok": por_filas >= 0.5, "llaves_aqui": len(an), "llaves_alla": len(bn), "coinciden_llaves": round(por_llaves, 3),
-            "coinciden_filas": round(por_filas, 3), "segundos": s1 + s2,
-            "detalle": f"{por_filas:.1%} de las filas y {por_llaves:.1%} de las llaves de aquí aparecen allá{nota}"}
+    return {"ok": por_filas >= 0.5 and not explota, "llaves_aqui": len(an), "llaves_alla": len(bn), "coinciden_llaves": round(por_llaves, 3),
+            "coinciden_filas": round(por_filas, 3), "filas_de_la_union": filas_union, "filas_alla_por_fila_aqui": round(mult, 2),
+            "segundos": s1 + s2,
+            "detalle": f"{por_filas:.1%} de las filas y {por_llaves:.1%} de las llaves de aquí aparecen allá{nota}; la unión daría "
+                       f"{filas_union:,} filas ({mult:.1f} de allá por cada fila de aquí)".replace(",", ".")
+                       + (": muchos a muchos, el cruce explota (V13); use una llave de negocio" if explota else "")}
 
 
 def validar(ficha, inv, red=True, dictamen=None):
@@ -259,6 +289,50 @@ def validar(ficha, inv, red=True, dictamen=None):
             exige = "agrupar por lugar, sector, población o programa"
         chequeo(f"V9 pregunta {i} ({tipo})", ok, "usa el ingrediente de su tipo" if ok else f"una pregunta de {tipo} debe {exige}")
 
+    # V10: qué es una fila y con qué se cuenta
+    grano = ficha.get("grano") or {}
+    chequeo("V10 grano declarado", bool(grano.get("una_fila_es")),
+            f"una fila = {grano.get('una_fila_es')}" if grano.get("una_fila_es")
+            else "falta grano.una_fila_es: sin saber qué es una fila, cualquier conteo engaña")
+    tipos = dict(zip(conj.get("campos", []), [str(x).lower() for x in conj.get("tipos", [])]))
+    conteo = sorted(c for c in campos if CONTEO_COL.search(c) and tipos.get(c, "number") in ("number", "numeric", "double", "integer"))
+    col_conteo = grano.get("columna_de_conteo")
+    if col_conteo:
+        cuentan_filas = [i for i, p in enumerate(ficha["preguntas"], 1)
+                         if re.search(r"count\s*\(\s*\*\s*\)", p.get("consulta_soql", ""), re.I)
+                         and not re.search(rf"sum\s*\(\s*{re.escape(col_conteo)}\s*\)", p.get("consulta_soql", ""), re.I)]
+        chequeo("V10 columna de conteo", col_conteo in campos and not cuentan_filas,
+                f"cada fila es un grupo: se suma {col_conteo}" if col_conteo in campos and not cuentan_filas
+                else f"las preguntas {cuentan_filas} cuentan filas con count(*) en vez de sumar {col_conteo}")
+    elif conteo and not grano.get("por_que_no_hay_conteo"):
+        chequeo("V10 columna de conteo", False, f"el conjunto trae {conteo[:3]}: declare grano.columna_de_conteo si cada fila "
+                                                 f"es un grupo, o grano.por_que_no_hay_conteo")
+    hay_personas = any(es_personal(c) for c in campos)
+    # V14: el k-anonimato se aplica, no solo se declara
+    if hay_personas:
+        sin_having = [i for i, p in enumerate(ficha["preguntas"], 1)
+                      if re.search(r"group\s+by", p.get("consulta_soql", ""), re.I) and not re.search(r"\bhaving\b", p.get("consulta_soql", ""), re.I)]
+        chequeo("V14 k-anonimato aplicado", not sin_having,
+                "toda consulta agrupada deja fuera los grupos pequeños (HAVING)" if not sin_having
+                else f"las preguntas {sin_having} agrupan sin HAVING count(*) >= {k}")
+    # V15: base legal de datos públicos
+    bl = str(gob.get("base_legal", ""))
+    ok15 = "1712" in bl and ("1581" in bl or not hay_personas)
+    chequeo("V15 base legal", ok15, "cita la Ley 1712 de 2014" + (" y la Ley 1581 de 2012" if hay_personas else "") if ok15
+            else "falta la Ley 1712 de 2014 (hace públicos estos datos y fija sus límites)" + (" o la Ley 1581 de 2012" if hay_personas else ""))
+    # V16: una pregunta de costo compara contra una referencia
+    sin_contraste = []
+    for i, p in enumerate(ficha["preguntas"], 1):
+        if p.get("tipo") != "costo":
+            continue
+        q = p.get("consulta_soql", "")
+        din = [c for c in campos if DINERO.search(c) and re.search(rf"\b{re.escape(c)}\b", q)]
+        if len(din) < 2 and not ARITMETICA.search(q):
+            sin_contraste.append(i)
+    chequeo("V16 contraste en costo", not sin_contraste,
+            "cada pregunta de costo compara contra una referencia" if not sin_contraste
+            else f"las preguntas {sin_contraste} solo suman: compare con una referencia (precio base, valor pagado, otro período…)")
+
     # V6 y V7: textos
     cifras, conclusiones, instrucciones, personales, normas = [], [], [], [], []
     for ruta, t in textos(ficha):
@@ -332,6 +406,53 @@ def validar(ficha, inv, red=True, dictamen=None):
                 return {"ok": len(filas) > 0, "detalle": det}
             r = en_cache(f"q|{dominio}|{ficha['id']}|{q2}|k={k}", correr_consulta) if CACHE["ruta"] else correr_consulta()
             chequeo(f"V4 consulta {i}", r["ok"], r["detalle"])
+        llave = [c for c in (grano.get("llave") or []) if c in campos]
+        if llave:
+            expr = llave[0] if len(llave) == 1 else " || '|' || ".join(llave)
+            donde = f" WHERE {grano['muestra_where']}" if grano.get("muestra_where") else ""
+            try:
+                f1, _ = soql(dominio, ficha["id"], f"SELECT count(*) AS n, count(distinct {expr}) AS d{donde}")
+                n, d = int(f1[0]["n"]), int(f1[0]["d"])
+                chequeo("V10 llave única", n == d, (f"{n:,} filas y {d:,} valores de la llave" + ("" if n == d else
+                        ": la llave no identifica una fila (las afirmaciones por unidad se repiten)")).replace(",", "."))
+            except Exception as e:
+                chequeo("V10 llave única", False, f"no se pudo medir ({type(e).__name__}); acote con grano.muestra_where")
+        for i, p in enumerate(ficha["preguntas"], 1):
+            q = p.get("consulta_soql", "")
+            for col in dict.fromkeys(re.findall(r"sum\s*\(\s*([a-z_][a-z0-9_]*)\s*\)", q, re.I)):
+                if col not in campos or not DINERO.search(col):
+                    continue
+                w = re.search(r"\bwhere\b(.*?)(\bgroup\s+by\b|\border\s+by\b|\bhaving\b|\blimit\b|$)", q, re.I | re.S)
+                donde = f" WHERE {w.group(1).strip()}" if w else ""
+                try:
+                    f1, _ = soql(dominio, ficha["id"], f"SELECT max({col}) AS mx, sum({col}) AS s{donde}")
+                    mx, s = float(f1[0].get("mx") or 0), float(f1[0].get("s") or 0)
+                    ok = 0 < s < 1e16 and mx <= 0.5 * s
+                    det = f"suma {s:.3g}, máximo {mx:.3g}" + (f" ({mx / s:.1%} del total)" if s else "")
+                    if s >= 1e16:
+                        det += ": suma imposible en pesos; falta un tope o depurar"
+                    elif s and mx > 0.5 * s:
+                        det += ": un solo registro pesa más de la mitad del total; falta un tope o depurar"
+                    chequeo(f"V11 plausibilidad {i} ({col})", ok, det)
+                except Exception as e:
+                    chequeo(f"V11 plausibilidad {i} ({col})", False, f"no se pudo medir ({type(e).__name__})")
+        en_consultas = {tok for p in ficha["preguntas"] for tok in re.findall(r"[A-Za-z_][A-Za-z0-9_]*", p.get("consulta_soql", ""))}
+        lugares = sorted({c for c in set(citadas) | en_consultas if c in campos and LUGAR_COL.search(c) and not es_personal(c)})
+        total_filas = None
+        for col in lugares[:4]:
+            try:
+                if total_filas is None:
+                    total_filas = int(soql(dominio, ficha["id"], "SELECT count(*) AS n")[0][0]["n"])
+                f1, _ = soql(dominio, ficha["id"], f"SELECT {col}, count(*) AS n GROUP BY {col} ORDER BY n DESC LIMIT 3")
+                top = str(f1[0].get(col) or "").strip().lower() if f1 else ""
+                cuota = int(f1[0]["n"]) / max(1, total_filas) if f1 else 0
+                vacio = top in NULO_DISFRAZADO and cuota > 0.5
+                unico = len(f1) == 1
+                chequeo(f"V12 lugar {col}", not vacio and not unico,
+                        f"el valor más común es «{top}» ({cuota:.1%})" + (": la mayoría no dice el lugar" if vacio else
+                        ": un solo lugar, no sirve para comparar territorios" if unico else ""))
+            except Exception as e:
+                chequeo(f"V12 lugar {col}", False, f"no se pudo medir ({type(e).__name__})")
         for c in ficha["cruces"]:
             clave = f"c|{dominio}|{ficha['id']}|{c.get('llave_aqui')}|{c.get('con')}|{c.get('llave_alla')}|{c.get('normalizacion', '')}"
 
@@ -353,22 +474,25 @@ def autoprueba():
         "aaaa-0001": {"campos": ["id_contrato", "estado_contrato", "municipio", "valor_del_contrato", "valor_pagado", "fecha_de_firma",
                                  "sector", "nombre_supervisor", "documento_proveedor", "matricula"]},
         "bbbb-0002": {"campos": ["id_de_caso", "municipio", "estado", "recuperado", "fecha_diagnostico", "edad", "sexo"]},
+        "cccc-0003": {"campos": ["tramite", "estado_tramite", "municipio", "cantidad"], "tipos": ["text", "text", "text", "number"]},
     }
     buena = {
         "id": "aaaa-0001", "dominio": "datos.ejemplo.invalid", "nivel_big_data": 3,
+        "grano": {"una_fila_es": "un contrato", "llave": ["id_contrato"], "columna_de_conteo": None},
         "que_se_puede_decir": [{"tipo": "estado", "plantilla": "El contrato {id_contrato} está {estado_contrato} en {municipio}.",
                                 "columnas": ["id_contrato", "estado_contrato", "municipio"]}],
         "preguntas": [
             {"tipo": "costo", "pregunta": "¿Dónde se concentra lo pendiente de pagar?", "por_que_importa": "Ubica compromisos sin pagar.",
              "columnas": ["municipio", "valor_del_contrato", "valor_pagado"],
-             "consulta_soql": "SELECT municipio, sum(valor_del_contrato) AS v, count(*) AS n GROUP BY municipio LIMIT 20"},
+             "consulta_soql": "SELECT municipio, sum(valor_del_contrato) - sum(valor_pagado) AS pendiente, count(*) AS n "
+                              "GROUP BY municipio HAVING count(*) >= 5 LIMIT 20"},
             {"tipo": "calidad", "pregunta": "¿Qué contratos no tienen fecha de firma?", "por_que_importa": "Sin fecha no hay trazabilidad.",
              "columnas": ["fecha_de_firma"], "consulta_soql": "SELECT count(*) AS n WHERE fecha_de_firma IS NULL"},
             {"tipo": "impacto", "pregunta": "¿A qué sectores llega la contratación en cada municipio?", "por_que_importa": "Muestra a quién toca.",
-             "columnas": ["municipio", "sector"], "consulta_soql": "SELECT municipio, sector, count(*) AS n GROUP BY municipio, sector LIMIT 30"}],
+             "columnas": ["municipio", "sector"], "consulta_soql": "SELECT municipio, sector, count(*) AS n GROUP BY municipio, sector HAVING count(*) >= 5 LIMIT 30"}],
         "cruces": [],
         "gobernanza": {"excluir": ["nombre_supervisor", "documento_proveedor", "matricula"], "seudonimizar": [], "k_minimo": 5,
-                       "base_legal": "Ley 1581 de 2012", "nota": "Sin nombres ni documentos."},
+                       "base_legal": "Ley 1712 de 2014 y Ley 1581 de 2012", "nota": "Sin nombres ni documentos."},
         "procesamiento": {"estrategia": "agregar en la fuente", "pasos": ["Agregados en el servidor."]},
         "riesgos_de_lectura": ["Los nombres de municipio pueden venir con y sin tildes."],
     }
@@ -388,8 +512,30 @@ def autoprueba():
                                                        "columnas": ["nombre_supervisor"]}), {"V3 sin columnas personales en uso"})
     variante("identificador de predio sin decisión", lambda f: f["gobernanza"]["excluir"].remove("matricula"), {"V3 gobernanza completa"})
     variante("pregunta de costo que solo cuenta",
-             lambda f: f["preguntas"][0].update(consulta_soql="SELECT municipio, count(*) AS n GROUP BY municipio LIMIT 20"),
-             {"V9 pregunta 1"})
+             lambda f: f["preguntas"][0].update(consulta_soql="SELECT municipio, count(*) AS n GROUP BY municipio HAVING count(*) >= 5 LIMIT 20"),
+             {"V9 pregunta 1", "V16 contraste en costo"})
+    variante("sin grano", lambda f: f.pop("grano"), {"V10 grano declarado"})
+    variante("agrupa sin aplicar k",
+             lambda f: f["preguntas"][2].update(consulta_soql="SELECT municipio, sector, count(*) AS n GROUP BY municipio, sector LIMIT 30"),
+             {"V14 k-anonimato aplicado"})
+    variante("sin la Ley 1712", lambda f: f["gobernanza"].update(base_legal="Ley 1581 de 2012"), {"V15 base legal"})
+    variante("costo sin contraste",
+             lambda f: f["preguntas"][0].update(consulta_soql="SELECT municipio, sum(valor_del_contrato) AS v, count(*) AS n "
+                                                              "GROUP BY municipio HAVING count(*) >= 5 LIMIT 20"),
+             {"V16 contraste en costo"})
+
+    def agregado(f):
+        f.update(id="cccc-0003", nivel_big_data=3)
+        f["grano"] = {"una_fila_es": "un grupo de trámites", "llave": []}
+        f["que_se_puede_decir"] = [{"tipo": "lugar", "plantilla": "En {municipio} se radicaron trámites de {tramite}.",
+                                    "columnas": ["municipio", "tramite"]}]
+        f["preguntas"] = [
+            {"tipo": "calidad", "pregunta": "¿Qué parte de los trámites queda rechazada?", "por_que_importa": "Mide reprocesos.",
+             "columnas": ["estado_tramite"], "consulta_soql": "SELECT estado_tramite, count(*) AS n GROUP BY estado_tramite LIMIT 20"},
+            {"tipo": "impacto", "pregunta": "¿Dónde se concentran los trámites?", "por_que_importa": "Muestra la demanda.",
+             "columnas": ["municipio"], "consulta_soql": "SELECT municipio, count(*) AS n GROUP BY municipio LIMIT 20"}]
+        f["gobernanza"] = {"excluir": [], "seudonimizar": [], "k_minimo": 5, "base_legal": "Ley 1712 de 2014", "nota": "Agregado."}
+    variante("filas que son grupos contadas con count(*)", agregado, {"V10 columna de conteo"})
     variante("cifra inventada", lambda f: f["preguntas"][0].update(por_que_importa="Hay 3.500 millones sin pagar."),
              {"V6 sin cifras inventadas"})
     variante("conclusión de la IA", lambda f: f["preguntas"][2].update(por_que_importa="Esto demuestra que se ahorra dinero."),
@@ -404,9 +550,9 @@ def autoprueba():
         f["que_se_puede_decir"] = [{"tipo": "estado", "plantilla": "El caso {id_de_caso} está {estado} en {municipio}.",
                                     "columnas": ["id_de_caso", "estado", "municipio"]}]
         f["preguntas"] = [buena["preguntas"][2] | {"columnas": ["municipio"],
-                                                   "consulta_soql": "SELECT municipio, count(*) AS n GROUP BY municipio LIMIT 20"},
+                                                   "consulta_soql": "SELECT municipio, count(*) AS n GROUP BY municipio HAVING count(*) >= 10 LIMIT 20"},
                           buena["preguntas"][2] | {"columnas": ["municipio"],
-                                                   "consulta_soql": "SELECT municipio, count(*) AS n GROUP BY municipio LIMIT 30"}]
+                                                   "consulta_soql": "SELECT municipio, count(*) AS n GROUP BY municipio HAVING count(*) >= 10 LIMIT 30"}]
         f["gobernanza"]["excluir"] = ["edad", "sexo"]
     variante("salud: afirmaciones por caso y k bajo", sensible, {"V3 sensible: solo agregados", "V3 k mínimo"})
     variante("norma con el año cambiado (Ley 1581 de 2013)",

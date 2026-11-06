@@ -39,6 +39,17 @@ Cualquiera con cuenta de GitHub puede hacer [fork](https://github.com/CristianBT
 
 `main` está protegida. **La forma más fácil:** el texto de [«Conectar la IA»](#conectar-la-ia), en la IA que ya usas. Ella lee [`APORTAR-CON-TU-AGENTE.md`](APORTAR-CON-TU-AGENTE.md), te pregunta tu idea, arma el aporte y deja listo el pull request o el texto del formulario. Detalles en [`CONTRIBUTING.md`](CONTRIBUTING.md) y aportes aceptados en [`CHANGELOG.md`](CHANGELOG.md).
 
+
+## Agente masivo de datos públicos
+
+Recorre un catálogo completo de datos abiertos (datos.gov.co tiene 8.470 conjuntos), mide sin IA qué conjuntos son big data de verdad y cuáles permiten decir «este contrato está así, aquí, y tiene tal impacto». A los mejores les pide a la IA una **ficha de oportunidad** (preguntas de costo, calidad e impacto para que las personas analicen) y la valida sin IA contra la fuente real:
+
+```bash
+.venv/bin/python herramientas/agente_masivo.py www.datos.gov.co --trabajo fichas-hoy --top 8 --motor agy   # o --motor ninguno para usar otra IA
+```
+
+El validador (`herramientas/validar_ficha.py`, V1 a V16) mide la forma: columnas, consultas reales, cruces medidos, grano, sumas creíbles, lugar, k-anonimato y normas verificadas. **Que una ficha pase no la hace publicable:** el juicio de valor lo hacen un juez ciego y las personas.
+
 ## Instalar
 
 ```bash

@@ -3,10 +3,22 @@
  "normas": [
   {
    "norma": "Ley 1581 de 2012",
-   "tipo": "ley", "numero": "1581", "anio": 2012,
+   "tipo": "ley",
+   "numero": "1581",
+   "anio": 2012,
    "tema": "protección de datos personales (régimen general de habeas data)",
    "fuente": "http://www.secretariasenado.gov.co/senado/basedoc/ley_1581_2012.html",
    "cita": "Artículo 4, literal g) Principio de seguridad: La información sujeta a Tratamiento por el Responsable del Tratamiento o Encargado del Tratamiento a que se refiere la presente ley, se deberá manejar con las medidas técnicas, humanas y administrativas que sean necesarias para otorgar seguridad a los registros evitando su adulteración, pérdida, consulta, uso o acceso no autorizado o fraudulento",
+   "verificada": "2026-11-06"
+  },
+  {
+   "norma": "Ley 1712 de 2014",
+   "tipo": "ley",
+   "numero": "1712",
+   "anio": 2014,
+   "tema": "transparencia y derecho de acceso a la información pública nacional (hace públicos los datos abiertos y fija sus límites)",
+   "fuente": "http://www.secretariasenado.gov.co/senado/basedoc/ley_1712_2014.html",
+   "cita": "Artículo 2o. Principio de máxima publicidad para titular universal. Toda información en posesión, bajo control o custodia de un sujeto obligado es pública y no podrá ser reservada o limitada sino por disposición constitucional o legal, de conformidad con la presente ley.",
    "verificada": "2026-11-06"
   }
  ]
