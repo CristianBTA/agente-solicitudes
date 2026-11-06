@@ -426,6 +426,12 @@
       "leccion": "La protección de datos personales dependía de nombres de columna ajustados a SECOP: contratista, nit, nombre, razon_social o mail no se marcaban; etnia y discapacidad entraban sin justificación aunque el código decía que todas la piden, y una corrida que publicaba nombres y NIT de personas salía «aprobado». Ahora se clasifican nombres genéricos y la descripción de los metadatos, lo cuasi pide justificación, lo sensible base legal, y una clave que identifica a personas da «revisar».",
       "origen": "revisión de gobernanza de datos personales (GOB-5), 6-nov-2026",
       "prueba": "bateria:privacidad/columnas_secop.json"
+    },
+    {
+      "id": "L72",
+      "leccion": "El filtro de aportes solo miraba los .csv dentro de una carpeta datos/: el extracto completo de SECOP entraba como .tsv (5,5 MB) o .json (11,8 MB), un caso conocido con 1.500 filas reales pasaba, y una tabla de personas sin «señor» ni «C.C.» delante no se veía. El filtro detecta tablas por su contenido, pone topes de bytes, filas y ids de SECOP, y en toda tabla las columnas de personas solo aceptan valores con la forma ficticia de la guía.",
+      "origen": "revisión de gobernanza del filtro de aportes (GOB-6), 6-nov-2026",
+      "prueba": "herramientas/validar_aporte.py --autoprueba"
     }
   ]
 }

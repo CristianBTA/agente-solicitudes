@@ -96,6 +96,7 @@ Cada tipo tiene una pregunta: **¿lo atrapa hoy el repositorio?**
 - Una columna con su clase esperada (`personal`, `cuasi_o_personal`, `texto_libre` o `sin_marca`) va en `baterias/privacidad/columnas_secop.json`.
 - Un texto que **no** es personal y se marca por error va en `no_son_personales.txt`.
 - Un dato personal que no se detecta va como fila ficticia en `con_datos_personales.csv`, con sus valores en `no_deben_salir.txt`.
+- El filtro acepta en `baterias/privacidad/`, y en toda columna de personas de cualquier tabla, solo valores con la forma ficticia de los ejemplos de arriba (`Persona Ficticia…`, `000.000.00x`, `@ejemplo.invalid`, `399 000 000x`). Un documento o un celular con forma real no entra, aunque sea inventado.
 - Se prueba con `.venv/bin/python herramientas/baterias.py`. Si la batería de privacidad falla por tu caso, es un hueco.
 
 **FAILFAST.** Un CSV de pocas líneas que hoy se lee sin error y no debería:

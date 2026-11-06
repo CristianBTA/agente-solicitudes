@@ -13,11 +13,16 @@ aporte y, encima, las herramientas, el flujo, las dependencias y la configuraci�
 cambia algo de eso no pasa solo: queda como falla «requiere decisión del dueño», nunca como ✓.
 
 Revisa:
-  1. Archivos que no pueden entrar: datos (CSV de más de 200 KB, carpetas datos/ o limpio/, datos de SECOP),
-     entornos, cachés, llaves, la configuración de asistentes y editores que se ejecuta o se obedece sola al abrir
-     el clon (L54) y enlaces simbólicos. Los flujos, las plantillas y CODEOWNERS de .github/ solo los cambia el dueño:
-     de otra persona son falla, y del dueño, «requiere decisión del dueño».
-  2. Datos personales en todo lo que el aporte agrega (barrido de gobernanza).
+  1. Archivos que no pueden entrar: datos, por su contenido y no por su extensión (una tabla .tsv, .txt o JSONL fuera
+     de ejemplo/datos, baterias y caso_conocido; un CSV de más de 200 KB; cualquier archivo de más de 1 MB; un caso
+     conocido de más de 200 filas; un JSON con más de 1.000 objetos; 100 o más ids de SECOP II en un archivo),
+     carpetas datos/ o limpio/, entornos, cachés, llaves, la configuración de asistentes y editores que se ejecuta o
+     se obedece sola al abrir el clon (L54) y enlaces simbólicos. Los flujos, las plantillas y CODEOWNERS de .github/
+     y los ganchos de .githooks/ solo los cambia el dueño: de otra persona son falla, y del dueño, «requiere decisión
+     del dueño».
+  2. Datos personales en todo lo que el aporte agrega (barrido de gobernanza) y, en toda tabla, que las columnas que
+     identifican a personas solo traigan valores con la forma ficticia de la guía; en baterias/privacidad/, también
+     lo que encuentre el barrido.
   3. Seguridad de todo código Python agregado o cambiado (compuertas: librerías permitidas, reglas propias y
      Bandit; los cuadernos .ipynb, con el comando de la compuerta). La excepción son las muestras de
      baterias/seguridad/malos/ y malos_usuario/, que justamente deben bloquearse.
@@ -33,6 +38,7 @@ base no existe): nunca cambia de base ni revisa otra cosa en silencio. FAILFAST 
 herramientas no termina, sale con un código distinto de 0 o no deja su línea RESUMEN, el aporte no pasa.
 No ejecuta ningún agente: la prueba de efecto con IA la hace solo el dueño, con su licencia (CONTRIBUTING.md).
 """
+import csv
 import hashlib
 import io
 import json
@@ -49,7 +55,8 @@ from pathlib import Path
 JUEZ = Path(__file__).resolve()
 RAIZ = JUEZ.parent.parent
 sys.path.insert(0, str(RAIZ / "herramientas"))
-from gobernanza import escanear_texto, parece_instruccion, INSTRUCCION, COMENTARIO_OCULTO  # noqa: E402
+from gobernanza import (parece_instruccion, INSTRUCCION, COMENTARIO_OCULTO, PATRONES,  # noqa: E402
+                        clasificar_columna, es_sensible)
 
 
 def ordenes_a_agentes(texto):
@@ -83,6 +90,17 @@ CADENA_DEL_FILTRO = re.compile(r"^(herramientas/(validar_aporte|rutas_protegidas
 MUESTRAS_MALAS = ("baterias/seguridad/malos/", "baterias/seguridad/malos_usuario/")
 CSV_PERMITIDOS = re.compile(r"^(ejemplo/datos/|baterias/|corridas/[^/]+/caso_conocido/)")
 MAX_CSV = 200_000
+# Datos por su contenido, no por su extensión (un .tsv, un .json o un .txt también pueden traer el extracto)
+MAX_BYTES = 1_000_000            # cualquier archivo; hoy el más grande, fuera del gráfico, pesa 124 KB
+MAX_BYTES_GRAFICO = 6_000_000    # corridas/*/grafico.html trae el paquete de Plotly (4,8 MB); sin él, rige MAX_BYTES
+MAX_FILAS_CASO = 200             # un caso conocido es pequeño: el flujo pide de 8 a 25 filas (hoy, 23 como mucho)
+MAX_FILAS_EJEMPLO = 5_000        # ejemplo/datos (sintético): ventas.csv tiene 1.520
+MAX_OBJETOS_JSON = 1_000         # listas de objetos en JSON de configuración o de informes (hoy, 95 como mucho)
+MAX_IDS_SECOP = 100              # ids de SECOP II en un archivo (hoy, 23 como mucho, en un caso conocido sintético)
+ID_SECOP = re.compile(r"\bCO1\.(?:PCCNTR|BDOS|PPI|REQ|NTFCC)\.\d{4,}\b")
+BINARIOS = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico", ".pdf")
+NO_TABULARES = (".py", ".js", ".mjs", ".md", ".html", ".htm", ".yml", ".yaml", ".svg") + BINARIOS
+FICTICIO = re.compile(r"ficticia|ficticio|inventad", re.I)
 CORRIDA_REFERENCIA = "corridas/2026-11-06-ventas-semestre"
 MUTANTES = "evidencia/sintetico/mutantes"
 # Lo que juzga a los aportes. Si un aporte lo cambia, no se juzga con su propia versión: lo decide el dueño.
@@ -250,6 +268,154 @@ def casos_nuevos(arbol, punto, archivos):
     return {n for n in nuevos if n}
 
 
+# ---------------- datos por su contenido: tablas, extractos de SECOP y valores ficticios
+
+def lista_de_objetos(x):
+    """La lista de objetos (diccionarios) más larga dentro de un JSON, o None."""
+    mejor = None
+    pila = [x]
+    while pila:
+        y = pila.pop()
+        if isinstance(y, list):
+            if len(y) >= 2 and all(isinstance(e, dict) for e in y) and (mejor is None or len(y) > len(mejor)):
+                mejor = y
+            pila += [e for e in y if isinstance(e, (list, dict))]
+        elif isinstance(y, dict):
+            pila += [v for v in y.values() if isinstance(v, (list, dict))]
+    return mejor
+
+
+def tabla_por_contenido(p, texto):
+    """(tipo, columnas, filas) si el archivo es una tabla por lo que trae, sin importar la extensión: texto delimitado
+    con un número de campos constante (coma, punto y coma, tabulador o «|»), JSON con una lista de objetos o JSONL.
+    None si no lo es."""
+    s = p.suffix.lower()
+    if s in NO_TABULARES:
+        return None
+    if s in (".json", ".jsonl", ".ndjson") or texto.lstrip()[:1] in ("[", "{"):
+        try:
+            lista = lista_de_objetos(json.loads(texto))
+            tipo = "json"
+        except ValueError:
+            lista, tipo = [], "jsonl"
+            for linea in texto.splitlines():
+                if not linea.strip():
+                    continue
+                try:
+                    o = json.loads(linea)
+                except ValueError:
+                    return None
+                if not isinstance(o, dict):
+                    return None
+                lista.append(o)
+        if not lista or len(lista) < 2:
+            return None
+        cols = sorted({str(k) for o in lista for k in o})
+        return tipo, cols, [[str(o.get(c, "")) for c in cols] for o in lista]
+    muestra = "\n".join(texto.splitlines()[:200])
+    try:
+        dialecto = csv.Sniffer().sniff(muestra, delimiters=",;\t|")
+        filas = [f for f in csv.reader(io.StringIO(texto), dialecto) if f]
+    except csv.Error:
+        return None
+    if len(filas) < 3 or len(filas[0]) < 2:
+        return None
+    if sum(1 for f in filas[1:] if len(f) == len(filas[0])) < 0.8 * (len(filas) - 1):
+        return None
+    return "delimitado", filas[0], filas[1:]
+
+
+def es_ficticio(valor):
+    """La forma ficticia que pide APORTAR-CON-TU-AGENTE.md: «Persona Ficticia Uno», 000.000.001, un correo en
+    ejemplo.invalid (o en otro dominio reservado), 399 000 000x. En un texto con letras, también un número de
+    relleno con cero adelante («Distribuidora 010 S.A.S.», «FV-001022»): ningún nombre de persona trae cifras. Un valor
+    solo de cifras debe tener la forma de la guía (ceros y hasta tres cifras al final): una cuenta real puede empezar por 0."""
+    t = str(valor).strip()
+    if not t or FICTICIO.search(t):
+        return True
+    m = re.fullmatch(r"[\w.+-]+@([\w-]+(?:\.[\w-]+)+)", t)
+    if m:
+        d = m.group(1).lower()
+        return d.endswith((".invalid", ".test", ".example")) or d in ("example.com", "example.org", "example.net")
+    digitos = re.sub(r"[\s.\-+()]", "", t)
+    if digitos.isdigit():
+        return bool(re.fullmatch(r"0+\d{1,3}|(57)?3990000\d{3}", digitos))
+    return any(re.fullmatch(r"0\d+", x) for x in re.findall(r"\d+", t))
+
+
+def ficticio_en_texto(patron, m):
+    if patron == "cédula con contexto":
+        return bool(re.fullmatch(r"0+\d{1,3}", re.sub(r"\D", "", m.group(1))))
+    if patron == "celular":
+        return bool(re.fullmatch(r"(57)?3990000\d{3}", re.sub(r"\D", "", m.group(0))))
+    if patron == "correo":
+        return es_ficticio(m.group(0))
+    return bool(FICTICIO.search(m.group(0)))
+
+
+def revisar_datos(ruta, p):
+    """Lo que no puede entrar por su contenido. Devuelve las fallas (una lista de textos)."""
+    fallas = []
+    tam = p.stat().st_size
+    es_grafico = re.fullmatch(r"corridas/[^/]+/grafico\.html", ruta) is not None
+    if tam > (MAX_BYTES_GRAFICO if es_grafico else MAX_BYTES):
+        fallas.append(f"archivo de {tam:,} bytes (el tope es {MAX_BYTES_GRAFICO if es_grafico else MAX_BYTES:,}; los datos no se publican): {ruta}".replace(",", "."))
+    if p.suffix.lower() in BINARIOS:
+        return fallas
+    texto = p.read_text(encoding="utf-8", errors="ignore")
+    if es_grafico:
+        sin_plotly = re.sub(r"<script[^>]*>.*?</script>", " ", texto, flags=re.S)
+        if len(sin_plotly.encode("utf-8")) > MAX_BYTES:
+            fallas.append(f"grafico.html con más de {MAX_BYTES:,} bytes fuera de sus scripts: {ruta}".replace(",", "."))
+    ids = set(ID_SECOP.findall(texto))
+    if len(ids) >= MAX_IDS_SECOP:
+        fallas.append(f"parece un extracto de SECOP II: {len(ids):,} ids de contrato o de proceso distintos (los datos de SECOP no se publican): {ruta}".replace(",", "."))
+    tabla = tabla_por_contenido(p, texto)
+    privacidad = ruta.startswith("baterias/privacidad/")
+    if tabla:
+        tipo, cols, filas = tabla
+        en_caso = re.match(r"corridas/[^/]+/caso_conocido/", ruta) is not None
+        if tipo != "json" and not CSV_PERMITIDOS.match(ruta) and p.suffix.lower() != ".csv":   # el CSV ya tiene su regla
+            fallas.append(f"tabla ({tipo}, {len(filas):,} filas) fuera de las carpetas permitidas (ejemplo/datos, baterias, caso_conocido): {ruta}".replace(",", "."))
+        if en_caso:
+            tope = MAX_FILAS_CASO
+        elif ruta.startswith("ejemplo/datos/"):
+            tope = MAX_FILAS_EJEMPLO
+        elif ruta.startswith("baterias/"):
+            tope = None
+        else:
+            tope = MAX_OBJETOS_JSON if tipo == "json" else None   # una tabla delimitada aquí ya es falla
+        if tope is not None and len(filas) > tope:
+            fallas.append(f"tabla de {len(filas):,} filas (el tope aquí es {tope:,}; los datos no se publican): {ruta}".replace(",", "."))
+        # el encabezado de toda tabla, también en baterias/privacidad/: una columna que identifica a personas o es un dato
+        # sensible solo puede traer valores evidentemente ficticios
+        personales = [c for c in cols if clasificar_columna(c) == "personal" or es_sensible(c)]
+        if tipo == "json" and all(re.fullmatch(r"nombres?", c) for c in personales):
+            personales = []   # en un JSON de configuración (sgsi/controles.json), «nombre» solo es la etiqueta de un objeto
+        idx = [cols.index(c) for c in personales]
+        malos = sorted({cols[i] for f in filas for i in idx if i < len(f) and not es_ficticio(f[i])})
+        if malos:
+            fallas.append(f"tabla con columnas que identifican a personas o son datos sensibles y valores sin la forma ficticia de "
+                          f"la guía (Persona Ficticia, 000.000.00x, @ejemplo.invalid, 399 000 000x): columnas {malos[:5]}: {ruta}")
+    if privacidad:
+        raros = datos_no_ficticios(texto)
+        if raros:
+            fallas.append(f"baterias/privacidad/ acepta solo datos con la forma ficticia de la guía; hay {raros} que no la tienen: {ruta}")
+    return fallas
+
+
+def datos_no_ficticios(texto):
+    """Lo que encuentra el barrido de gobernanza (cédula con contexto, correo, celular, nombre con tratamiento) y no tiene
+    la forma ficticia de la guía: un correo real nunca está en un dominio reservado, ninguna cédula es 000.000.00x y el
+    prefijo 399 no está asignado. Devuelve {patrón: cuántos}."""
+    out = {}
+    for n, rx in PATRONES.items():
+        k = sum(1 for m in rx.finditer(texto or "") if not ficticio_en_texto(n, m))
+        if k:
+            out[n] = k
+    return out
+
+
 # ---------------- copias temporales: el aporte con el juez de la base, y la base con las herramientas del aporte
 
 def copiar(arbol, archivos, destino):
@@ -368,13 +534,14 @@ def revisar(arbol, base):
                           "(en GitHub juzga el de la base); el dueño revisa el cambio línea por línea")
         if not p.is_file():
             continue
+        fallas += revisar_datos(ruta, p)
         if ruta.endswith(".csv"):
             if not CSV_PERMITIDOS.match(ruta):
                 fallas.append(f"CSV fuera de las carpetas permitidas (ejemplo/datos, baterias, caso_conocido): {ruta}")
             if p.stat().st_size > MAX_CSV:
                 fallas.append(f"CSV de más de 200 KB (los datos no se publican): {ruta}")
         if p.suffix.lower() in (".py", ".pyw", ".ipy", ".ipynb", ".md", ".json", ".csv", ".txt", ".js", ".yml", ".yaml", ".html") and "baterias/privacidad/" not in ruta:
-            hall = escanear_texto(p.read_text(encoding="utf-8", errors="ignore"))
+            hall = datos_no_ficticios(p.read_text(encoding="utf-8", errors="ignore"))
             if hall:
                 fallas.append(f"posibles datos personales en {ruta}: {hall}")
         if p.suffix.lower() in (".md", ".json", ".txt", ".yml", ".yaml", ".csv", ".py", ".pyw", ".ipy", ".ipynb") and ordenes_a_agentes(p.read_text(encoding="utf-8", errors="ignore")):
@@ -567,6 +734,48 @@ def _flujo_del_dueno(d):
     p.write_text(p.read_text(encoding="utf-8") + "# comentario de prueba: no cambia nada\n", encoding="utf-8")
 
 
+def _filas_tipo_secop(n):
+    # ficticias, con la forma del extracto: así se prueba el filtro sin publicar ni un dato de SECOP
+    return [{"id_contrato": f"CO1.PCCNTR.{3000000 + i}", "nit_entidad": "900000001", "codigo_entidad": "700000001",
+             "nombre_entidad": "ENTIDAD PRUEBA ALFA", "fecha_de_firma": "2025-01-01T00:00:00.000", "valor_del_contrato": str(1000 + i)}
+            for i in range(n)]
+
+
+def _tabla_de_personas(ruta):
+    # 50 personas con nombre de la guía, pero documento y celular sin la forma ficticia (10…, 300…)
+    with open(ruta, "w", encoding="utf-8", newline="") as fh:
+        w = csv.writer(fh)
+        w.writerow(["nombre_contratista", "documento_identidad", "celular", "valor"])
+        for i in range(1, 51):
+            w.writerow([f"Persona Ficticia {i:02d}", f"10{i:08d}", f"300{i:07d}", 1000000 * i])
+
+
+def _aporte_con_datos(d):
+    """El aporte de prueba del hallazgo GOB-6: el extracto en .tsv y en .json, un caso conocido de 1.500 filas y dos
+    tablas de personas, una en baterias/privacidad/ y otra en un caso_conocido/."""
+    filas = _filas_tipo_secop(50_000)
+    cab = list(filas[0])
+    (d / "ejemplo/secop_completo.tsv").write_text("\t".join(cab) + "\n" + "".join("\t".join(f.values()) + "\n" for f in filas), encoding="utf-8")
+    (d / "ejemplo/secop_completo.json").write_text(json.dumps(filas, ensure_ascii=False), encoding="utf-8")
+    nueva = d / "corridas/2026-11-07-nueva/caso_conocido"
+    nueva.mkdir(parents=True)
+    (nueva / "contratos.csv").write_text(",".join(cab) + "\n" + "".join(",".join(f.values()) + "\n" for f in filas[:1500]), encoding="utf-8")
+    _tabla_de_personas(d / "baterias/privacidad/contratistas.csv")
+    _tabla_de_personas(nueva / "contratistas.csv")
+
+
+def _privacidad_con_la_guia(d):
+    arroba, cel = "@", "399 000 "   # por partes: este archivo no debe parecer que trae datos personales
+    (d / "baterias/privacidad/caso_ficticio_nuevo.csv").write_text(
+        "id,proveedor_adjudicado,documento_proveedor,correo,celular\n"
+        f"P4,Persona Ficticia Cuatro,000.000.004,persona.cuatro{arroba}ejemplo.invalid,{cel}0004\n"
+        f"P5,Persona Ficticia Cinco,000000005,persona.cinco{arroba}ejemplo.invalid,{cel}0005\n", encoding="utf-8")
+
+
+ARCHIVOS_GOB6 = ["ejemplo/secop_completo.tsv", "ejemplo/secop_completo.json", "corridas/2026-11-07-nueva/caso_conocido/contratos.csv",
+                 "baterias/privacidad/contratistas.csv", "corridas/2026-11-07-nueva/caso_conocido/contratistas.csv"]
+
+
 # nombre: (preparar el clon, código esperado, textos que deben estar en las fallas, textos que no, especial)
 CASOS = {
     "intacto": (None, 0, [], [], None),
@@ -578,6 +787,8 @@ CASOS = {
     "asistentes_flujo_y_enlace": (_asistentes_flujo_y_enlace, 1, [".mcp.json", ".vscode/tasks.json", "CLAUDE.md", ".env.local",
                                   "solo los cambia el dueño", "enlace simbólico", "requiere decisión del dueño"], [], None),
     "flujo_del_dueno": (_flujo_del_dueno, 1, ["requiere decisión del dueño"], ["solo los cambia el dueño"], "del_dueno"),
+    "extracto_y_personas_en_otros_formatos": (_aporte_con_datos, 1, ARCHIVOS_GOB6, [], None),
+    "privacidad_con_valores_de_la_guia": (_privacidad_con_la_guia, 0, [], [], None),
 }
 
 
