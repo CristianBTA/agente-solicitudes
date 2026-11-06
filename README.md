@@ -119,9 +119,9 @@ node orquestar.mjs --motor agy --comprobar                        # dos llamadas
 | `herramientas/seguridad.py`, `dependencias.py`, `caja.py` | Análisis estático (reglas propias y Bandit), librerías permitidas y caja de arena |
 | `herramientas/seguridad_cwe.py`, `medir_compuerta.py` | Reglas por debilidad (11 CWE) y dos perfiles: función pura y código de usuario; medida de la compuerta con un lote sellado |
 | `herramientas/comprobar.py`, `gancho_compuerta.py`, `medir_real.py` | La compuerta como un solo comando (`.py` y `.ipynb`), su conexión con Claude Code y la medida con código generado de verdad y jurado a ciegas |
-| `herramientas/baterias.py` | Baterías de seguridad, privacidad y lecciones; `--agregar-malo` y `--leccion` para que lo que falló no se repita |
+| `herramientas/baterias.py` | Baterías de seguridad, privacidad, FAILFAST, inyección, cruces, fechas, repetidos, factor de expansión, gráfico y lecciones; `--agregar-malo` y `--leccion` para que lo que falló no se repita |
 | `herramientas/validar_aporte.py` | Filtro automático de aportes, sin IA: archivos prohibidos, datos personales, seguridad y que no rompa nada |
-| `herramientas/blindaje.py` | Banco de ataques al pipeline: caja de arena, compuerta, perfil, salidas, integridad, dependencias y generalización (15 pruebas, con control positivo) |
+| `herramientas/blindaje.py` | Banco de ataques al pipeline: caja de arena, compuerta, perfil, salidas, integridad, dependencias, generalización y filtro de aportes (con control positivo, B00) |
 | `herramientas/integridad.py` | Manifiesto de integridad: sella herramientas, fichas y baterías al inicio y lo comprueba al final |
 | `herramientas/informe_final.py` | Informe de las cinco etapas en Markdown y HTML, con todo el texto escapado |
 | `herramientas/sgsi.py` | SGSI sin IA: inventario C·I·D, riesgos con la regla de la tríada, Declaración de Aplicabilidad, etiqueta C·I·D de cada corrida; `--efectividad` y `--autoprueba` |
@@ -133,9 +133,9 @@ node orquestar.mjs --motor agy --comprobar                        # dos llamadas
 flujo.js                 orquestación de las cinco etapas (historial/ guarda la versión 1)
 orquestar.mjs            corre flujo.js con agy o con Codex (un subagente = una llamada de la CLI)
 herramientas/            pruebas y utilidades sin IA
-baterias/                seguridad, privacidad, FAILFAST, cruces, fechas y lecciones: lo que falló una vez, probado siempre
+baterias/                seguridad, privacidad, FAILFAST, inyección, cruces, fechas, repetidos, factor, gráfico y lecciones: lo que falló una vez, probado siempre
 ejemplo/                 ventas sintéticas con trampas conocidas y su glosario
-agentes/                 parámetros de los once subagentes, reglas comunes y quién puede ver qué
+agentes/                 parámetros de los doce subagentes, reglas comunes y quién puede ver qué
 ejemplo-secop/           glosario de SECOP II (los datos no se publican: se descargan con ingesta.py)
 corridas/<fecha-nombre>/ spec, reglas, caso conocido, implementaciones, bitácora e informes de cada corrida
 evidencia/               experimentos: oráculos, mutantes, código y advertencias de los generadores de un solo disparo

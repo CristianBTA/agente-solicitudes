@@ -16,7 +16,8 @@ Se necesita macOS o Linux con Python 3.13. La caja de arena usa `sandbox-exec`, 
 python3.13 -m venv .venv && .venv/bin/pip install --require-hashes -r requirements.txt
 T=$(mktemp -d)   # verificar una corrida reescribe sus informes: los pasos 2, 3, 5 y 6 trabajan en una copia y el clon no cambia
 
-# 1. Las baterías: seguridad (código malo bloqueado y bueno aceptado), privacidad y lecciones
+# 1. Las baterías (hoy 10): seguridad (código malo bloqueado y bueno aceptado), privacidad, FAILFAST, inyección,
+#    cruces, fechas, repetidos, factor de expansión, gráfico y lecciones
 .venv/bin/python herramientas/baterias.py
 
 # 2. La corrida sellada del ejemplo sintético se vuelve a verificar desde cero (sin IA), en la copia
@@ -57,7 +58,7 @@ SECOP II se actualiza a diario. Si el recorte de hoy no es idéntico al del 6-no
 
 Si corriste los pasos sobre `corridas/` directamente (como decía una versión anterior de esta guía), `git status` muestra `informe.json`, `informe.md` y `gobernanza.json` modificados, con el tiempo medido y la ruta de tu carpeta; `git restore corridas/` los deja como estaban. Nunca entran en un aporte.
 
-Lo que debe salir: las cinco baterías en ✓, el blindaje con todas sus pruebas en «RESISTE» (en Linux no hay sandbox-exec: B01 sale «NO APLICA» y B11 y B12 ceden, por eso el filtro de aportes corre en macOS), la corrida en «aprobado», la referencia `m00` sin fallas y las mutantes `m01` a `m12` con al menos una falla cada una, los datos idénticos, la gobernanza aprobada, el SGSI sin fallas, con sus 21 mutantes atrapados, y `git status` sin ningún archivo. Si algo no sale así, el repositorio no cumple lo que dice.
+Lo que debe salir: todas las baterías en ✓ (hoy son 10), el blindaje con todas sus pruebas en «RESISTE» (hoy son 21, con el control B00; en Linux no hay sandbox-exec: B01 sale «NO APLICA» y B11 y B12 ceden, por eso el filtro de aportes corre en macOS), la corrida en «aprobado», la referencia `m00` sin fallas y las mutantes `m01` a `m12` con al menos una falla cada una, los datos idénticos, la gobernanza aprobada, el SGSI sin fallas, con sus 21 mutantes atrapados, y `git status` sin ningún archivo. Si algo no sale así, el repositorio no cumple lo que dice.
 
 ---
 
@@ -100,9 +101,9 @@ Conteo contra la fuente, llave única, llave sin nulos, rangos y dominios. Leer 
 Solo se descargan las columnas que la pregunta necesita. Sin una justificación escrita en el contrato de datos no entra ninguna columna:
 - personal: nombres de personas, documentos, datos bancarios o domicilios;
 - cuasi-identificadora: tipo de documento, género o nacionalidad;
-- de texto libre: objeto, descripción o justificación.
+- de texto libre: el objeto, la descripción del proceso, las observaciones o los comentarios.
 *Por qué:* SECOP II publica la cédula de los contratistas, sus cuentas bancarias y los nombres de supervisores y ordenadores del gasto para la transparencia de la contratación. Eso no autoriza cualquier otro uso: todo tratamiento sigue sujeto a los principios de la Ley 1581 de 2012 (finalidad, circulación restringida, seguridad). Además, el texto libre trae nombres o cédulas escritos a mano en cerca de 1 de cada 1.000 filas. Lo que no se descarga no se filtra.
-*Cómo se comprueba:* `baterias/privacidad/columnas_secop.json` fija la clase esperada de 41 columnas de SECOP II (16 personales, 7 cuasi-identificadoras, 4 de texto libre y 14 sin marca); si el clasificador cambia, la batería falla. Ningún CSV de este repositorio trae columnas personales ni patrones de datos personales en su contenido.
+*Cómo se comprueba:* `baterias/privacidad/columnas_secop.json` fija la clase esperada de 41 columnas de SECOP II (16 personales, 7 cuasi-identificadoras, 2 de texto libre y 16 sin marca); si el clasificador cambia, la batería falla. Ningún CSV de este repositorio trae columnas personales ni patrones de datos personales en su contenido.
 
 ## C · Procesamiento
 
