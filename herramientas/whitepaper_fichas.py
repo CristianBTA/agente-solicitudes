@@ -85,7 +85,7 @@ def num(x):
     return f"{x:,}".replace(",", ".") if isinstance(x, int) else str(x)
 
 
-def armar(fichas, titulo, fuente, base_pt, max_preg, max_decir, ficha_tope, salto_guia, resumen_html=""):
+def armar(fichas, titulo, fuente, base_pt, max_preg, max_decir, ficha_tope, salto_guia, resumen_html="", autorizadas=None):
     nivel_txt = {1: "No es big data", 2: "Frontera", 3: "Big data"}
     filas_tabla = []
     for x in fichas:
@@ -145,10 +145,10 @@ conclusiones. Las fichas las propuso una IA y una prueba sin IA las comprobó co
 gobernanza). <b>El análisis lo haces tú:</b> elige una pregunta, plantea tu hipótesis antes de mirar, compruébala con una
 consulta y concluye con evidencia.</div>
 {resumen_html}<h2>Panorama</h2>
-<p>El agente recorrió el catálogo completo del portal, midió sin IA el tamaño real de cada conjunto y eligió los que permiten
-decir de cada unidad en qué estado está, dónde está y a qué toca. Para cada uno se midió si es big data: nivel 1, cabe en
-pandas en una máquina; nivel 2, frontera, cabe solo con la herramienta adecuada; nivel 3, una sola máquina no alcanza y hay que
-agregar en la fuente o distribuir. La referencia es la RAM de Colab, 12,7 GB.</p>
+<p>{"El agente trabajó solo con las fuentes que autorizó el dueño (" + E(", ".join(autorizadas)) + "): no se conectó a ningún otro conjunto." if autorizadas else "El agente recorrió el catálogo del portal con permiso del dueño y eligió los conjuntos que permiten decir de cada unidad en qué estado está, dónde está y a qué toca."}
+Para cada conjunto midió sin IA si es big data: nivel 1, cabe en pandas en una máquina; nivel 2, frontera, cabe solo con la
+herramienta adecuada; nivel 3, una sola máquina no alcanza y hay que agregar en la fuente o distribuir. La referencia es la RAM
+de Colab, 12,7 GB.</p>
 <table><tr><th>Conjunto</th><th>Filas</th><th>En pandas</th><th>Tamaño</th><th>Validación sin IA</th></tr>{''.join(filas_tabla)}</table>
 <div class="caja"><b>Reglas para tu análisis.</b> Ninguna cifra sin su consulta. Ningún dato personal, aunque el dato sea
 público (Ley 1712 de 2014 y Ley 1581 de 2012): trabaja con agregados y no publiques grupos pequeños. Di qué es una fila antes de
@@ -200,9 +200,10 @@ def main(argv):
         raise SystemExit(f"No hay fichas en {trabajo / 'fichas'}")
     fuente = fichas[0]["f"].get("dominio", "datos abiertos")
     fa = trabajo / "fuentes_autorizadas.json"
+    autorizadas = None
     if fa.exists():
-        aut = json.loads(fa.read_text(encoding="utf-8"))
-        fuente += f" · fuentes autorizadas por el dueño: {', '.join(aut.get('conjuntos', []))}"
+        autorizadas = json.loads(fa.read_text(encoding="utf-8")).get("conjuntos", [])
+        fuente += f" · fuentes autorizadas por el dueño: {', '.join(autorizadas)}"
     h, pdf = trabajo / "WHITEPAPER.html", trabajo / "WHITEPAPER.pdf"
     resumen_html = ""
     ria = trabajo / "RESUMEN_IA.md"
@@ -222,7 +223,7 @@ def main(argv):
     while True:
         for base, mp, md in intentos:
             for salto in (False, True):
-                h.write_text(armar(fichas, titulo, fuente, base, mp, md, tope, salto, resumen_html), encoding="utf-8")
+                h.write_text(armar(fichas, titulo, fuente, base, mp, md, tope, salto, resumen_html, autorizadas), encoding="utf-8")
                 if not imprimir(h, pdf):
                     print("Sin Chrome: quedó WHITEPAPER.html; imprímelo en tamaño carta.")
                     print("RESUMEN " + json.dumps({"html": str(h), "pdf": None}))
