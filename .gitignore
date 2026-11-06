@@ -14,3 +14,5 @@ evidencia/secop/referencia_servidor.json
 fuentes/catalogo/
 fuentes/fichas/
 .claude/
+# Prompts y respuestas de cada subagente cuando corre con agy o Codex (orquestar.mjs)
+corridas/*/motor/
