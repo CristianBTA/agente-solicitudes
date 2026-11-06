@@ -27,6 +27,7 @@ def regla(id, tipo, descripcion):
 _PUNTO_DE_MILES = re.compile(r"^[-+]?[1-9]\d{0,2}(\.\d{3})+(,\d+)?$")   # 78.000 · 1.250.000 · 1.250,50
 _ENTERO_LARGO = re.compile(r"^[-+]?\d{4,}$")                            # 1628100
 _NUMERICO = re.compile(r"^[-+]?\d[\d.]*(,\d+)?$")                  # solo cifras, puntos y una coma decimal
+_PUNTO_DECIMAL = re.compile(r"\.(\d{1,2}|\d{4,})(?!\d)")         # 12.5 · 3.14159: en esa columna el punto es decimal
 
 
 def leer_csv(ruta):
@@ -42,14 +43,16 @@ def leer_csv(ruta):
     for i, f in enumerate(filas, 2):
         if None in f or any(v is None for v in f.values()):
             raise ValueError(f"la línea {i} del CSV no tiene el mismo número de campos que el encabezado")
-        for col, v in f.items():
-            if v.lstrip().startswith("="):
-                raise ValueError(f"la línea {i}, columna «{col}», trae una fórmula de Excel como texto, no su valor: "
-                                 "hay que exportar los valores (Pegado especial → Valores) antes de leer")
-    for col in cab:
-        valores = [f[col].strip() for f in filas]
-        if not any("." in v for v in valores):
-            continue
+        if "=" in "\x1f".join(f.values()):    # la revisión celda por celda solo donde hay un «=» (escala a millones de filas)
+            for col, v in f.items():
+                if v.lstrip().startswith("="):
+                    raise ValueError(f"la línea {i}, columna «{col}», trae una fórmula de Excel como texto, no su valor: "
+                                     "hay que exportar los valores (Pegado especial → Valores) antes de leer")
+    for col, crudos in zip(cab, zip(*(f.values() for f in filas))):
+        unidos = "\x1f".join(crudos)
+        if "." not in unidos or _PUNTO_DECIMAL.search(unidos):
+            continue    # sin puntos, o el punto ya es decimal en esta columna (12.5): 1.250 es un decimal, no miles
+        valores = [v.strip() for v in crudos]
         if not all(_NUMERICO.match(v) for v in valores if v):
             continue    # columna de texto o de códigos (referencias, radicados): no es un monto
         con_punto = [v for v in valores if _PUNTO_DE_MILES.match(v)]

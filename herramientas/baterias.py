@@ -87,7 +87,13 @@ def bateria_failfast():
             fallas.append(f"{p.name} se leyó sin error")
         except Exception:
             pass
-    return {"bateria": "failfast", "casos": len(casos), "fallas": fallas}
+    buenos = sorted((BAT / "failfast" / "se_leen").glob("*.csv"))   # y lo legítimo de cualquier fuente se lee (sin falsas alarmas)
+    for p in buenos:
+        try:
+            leer_csv(p)
+        except Exception as e:
+            fallas.append(f"falsa alarma: {p.name} se detuvo ({str(e)[:80]})")
+    return {"bateria": "failfast", "casos": len(casos) + len(buenos), "fallas": fallas}
 
 
 def bateria_inyeccion():
