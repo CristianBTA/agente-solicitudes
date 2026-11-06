@@ -257,7 +257,8 @@ def main(argv):
         pedido = (f"Lee {trabajo / 'ENCARGO.md'} y hazlo completo: una ficha por candidato en {fichas}, cada una validada. "
                   f"Solo puedes conectarte a los conjuntos autorizados ({', '.join(autorizados)}); a ningún otro. "
                   "No modifiques nada fuera de esa carpeta ni los *.dictamen.json. Responde en español con cifras.")
-        motores = {   # las mismas invocaciones no interactivas que usa orquestar.mjs; sin servidores MCP del usuario
+        motores = {   # invocaciones no interactivas, como en orquestar.mjs; solo Claude va sin servidores MCP: agy y Codex
+                      # cargan los del usuario (orquestar.mjs los apaga con un HOME temporal y -c mcp_servers.*.enabled=false)
             "claude": [os.environ.get("CLAUDE_BIN", "claude"), "-p", pedido, "--dangerously-skip-permissions",
                        "--strict-mcp-config", "--add-dir", str(RAIZ)],
             "agy": [os.environ.get("AGY_BIN", "agy"), "--dangerously-skip-permissions", "-p", pedido],

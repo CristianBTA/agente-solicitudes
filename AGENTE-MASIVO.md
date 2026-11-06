@@ -36,7 +36,7 @@ El agente **no elige solo a qué datos conectarse.** Trabaja únicamente con los
 .venv/bin/python herramientas/agente_masivo.py www.datos.gov.co --trabajo fuentes/fichas/mi-corrida --conjuntos jbjy-vk9h,p6dx-8zbt --motor claude   # o agy, o codex
 ```
 
-Las tres herramientas se invocan sin interacción, igual que en `orquestar.mjs`, y sin servidores MCP. Se puede cambiar el binario con `CLAUDE_BIN`, `AGY_BIN` o `CODEX_BIN`. Claude usa el perfil de `CLAUDE_CONFIG_DIR`, si está definido.
+Las tres herramientas se invocan sin interacción, como en `orquestar.mjs`. **Servidores MCP:** Claude corre sin ninguno (`--strict-mcp-config`); agy y Codex, en cambio, cargan los MCP de tu configuración (`~/.gemini/config/mcp_config.json` y `~/.codex/config.toml`), que pueden conectarse a tu navegador. `orquestar.mjs` sí los apaga; aquí todavía no. Si no quieres eso, usa `--motor claude` o `--motor ninguno`. Se puede cambiar el binario con `CLAUDE_BIN`, `AGY_BIN` o `CODEX_BIN`. Claude usa el perfil de `CLAUDE_CONFIG_DIR`, si está definido.
 
 **Conviene correrlo con más de una IA** (por ejemplo, Claude y agy, cada una en su carpeta de trabajo) y comparar: una IA encuentra lo que la otra no ve. El tamaño ya medido se reutiliza entre corridas.
 
