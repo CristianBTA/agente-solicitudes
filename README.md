@@ -43,7 +43,7 @@ Cualquiera con cuenta de GitHub puede hacer [fork](https://github.com/CristianBT
 
 ```bash
 python3.13 -m venv .venv && .venv/bin/pip install --require-hashes -r requirements.txt
-.venv/bin/python herramientas/baterias.py      # debe dar las cinco baterías en ✓
+.venv/bin/python herramientas/baterias.py      # debe dar todas las baterías en ✓
 .venv/bin/python herramientas/blindaje.py      # cada ataque al pipeline debe salir en RESISTE
 ```
 
