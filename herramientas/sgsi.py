@@ -737,6 +737,15 @@ def main(argv):
         cuenta = {}
         for e in efect.values():
             cuenta[e["estado"]] = cuenta.get(e["estado"], 0) + 1
+        med = {k: v for k, v in (medidas or {}).items() if not k.startswith("_")}
+        for grupo, prefijo in (("banco de blindaje", "B"), ("baterías", "bateria:"), ("otras", "")):
+            ids = sorted(k for k in med if (k.startswith(prefijo) if prefijo else not (k.startswith("B") or k.startswith("bateria:"))))
+            if prefijo == "B":
+                ids = [k for k in ids if re.fullmatch(r"B\d+", k)]
+            if ids:
+                pasan = sum(1 for k in ids if med[k] in ("pasa", "no aplica aquí"))
+                malas = [f"{k}={med[k]}" for k in ids if med[k] not in ("pasa", "no aplica aquí")]
+                print(f"Pruebas medidas · {grupo}: {pasan} de {len(ids)} pasan" + (f"; no: {', '.join(malas)}" if malas else ""))
         print("Efectividad de los controles (9.1): " + ", ".join(f"{v} {k}" for k, v in sorted(cuenta.items())))
         for clave, texto_ in sorted((medidas or {}).items()):
             if clave.startswith("_diagnostico"):
