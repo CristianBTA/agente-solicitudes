@@ -65,4 +65,6 @@ Solo lees estos. Junto a cada ficha está `<id>.dictamen.json`, el tamaño medid
 
 La verificación final la hace el dueño, sin caché.
 
-**Prohibido:** escribir fuera de esta carpeta, modificar los dictámenes y usar git o gh.
+**Prohibido:**
+- Escribir fuera de esta carpeta, modificar los dictámenes y usar git o gh.
+- **Modificar el agente:** herramientas, plantillas, baterías, `flujo.js` o sus documentos, ni siquiera para investigar o para «arreglar» algo que falle. El agente se usa, no se modifica. Antes de tu turno se sella su huella y al final se compara: si cambió algo, la corrida no vale. Si crees que una herramienta tiene un error, anótalo en tu respuesta.

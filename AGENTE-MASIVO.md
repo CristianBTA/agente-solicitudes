@@ -67,6 +67,15 @@ Si tu IA de terminal permite comandos propios, crea uno con el texto de la forma
 6. **La IA escribe las fichas.**
 7. **Validación sin IA,** contra la fuente real y sin caché (`validar_ficha.py`, de V1 a V16): columnas, consultas reales, cruces medidos, grano, sumas creíbles, lugar, k-anonimato, normas verificadas y que no haya conclusiones. El resultado queda en `RESULTADO.md`.
 
+## Uso local: el agente se usa, no se modifica
+
+El agente es para correrlo en tu máquina. La IA que escribe las fichas, o la que haga una investigación con él, **solo escribe en la carpeta de trabajo; nunca cambia el agente.** Para que no dependa de que la IA obedezca:
+- Antes de darle el turno, el agente sella la huella SHA-256 de lo que lo forma: `herramientas/`, `plantillas/`, `baterias/`, `flujo.js`, `orquestar.mjs` y estos documentos. Al terminar la compara. Si algo cambió, **la corrida no vale**: `RESULTADO.md` lo dice con los archivos.
+- La validación final corre con las herramientas de la versión de Git (`git archive HEAD`), no con las de la carpeta.
+- El catálogo, las fichas y los resultados viven en `fuentes/`, que está fuera de Git: nada de una corrida se publica.
+- Para cambiar el agente, el camino es un aporte, no una corrida: [`APORTAR-CON-TU-AGENTE.md`](APORTAR-CON-TU-AGENTE.md).
+- Autoprueba sin red: `.venv/bin/python herramientas/agente_masivo.py --autoprueba`.
+
 ## Reglas que el agente no negocia
 
 - Ninguna fila de datos se guarda en el repositorio: todo vive en `fuentes/`, que está fuera de Git.

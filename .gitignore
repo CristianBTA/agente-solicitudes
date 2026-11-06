@@ -16,3 +16,5 @@ fuentes/fichas/
 .claude/
 # Prompts y respuestas de cada subagente cuando corre con agy o Codex (orquestar.mjs)
 corridas/*/motor/
+# uso local del agente masivo: catálogo, fichas y resultados nunca se publican
+fuentes/

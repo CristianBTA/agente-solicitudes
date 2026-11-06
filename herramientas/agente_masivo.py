@@ -16,10 +16,21 @@ La IA propone y una prueba sin IA comprueba. Los pasos sin IA corren solos; el d
      CODEX_BIN; Claude usa el perfil de CLAUDE_CONFIG_DIR); con --motor ninguno se imprime el texto para pegarlo en otra IA;
   7. validación sin IA: validar_ficha.py por ficha, SIN caché y contra la fuente real → <trabajo>/RESULTADO.md.
 Después de esto, el juicio de valor lo hacen un juez ciego y las personas: el validador mide la forma, no el valor.
+
+Uso local: el agente se USA, no se modifica. La IA solo escribe en la carpeta de trabajo; aunque haga una investigación,
+nunca toca el agente. Para que no dependa de que la IA obedezca:
+  - antes de darle el turno, se sella la huella SHA-256 de lo que forma el agente (herramientas/, plantillas/, baterias/,
+    flujo.js, orquestar.mjs y los documentos de uso); al terminar se compara: si algo cambió, la corrida NO VALE y se
+    nombran los archivos (no se restauran solos: en la misma carpeta pueden trabajar otras personas);
+  - la validación del paso 7 corre con las herramientas de la versión de Git (git archive HEAD), no con las de la carpeta;
+  - el catálogo, las fichas y los resultados viven en fuentes/, que está fuera de Git: nada de una corrida se publica.
+Autoprueba sin red: python herramientas/agente_masivo.py --autoprueba
 """
+import hashlib
 import json
 import os
 import shutil
+import tempfile
 import subprocess
 import sys
 from datetime import datetime
@@ -37,6 +48,60 @@ def correr(*args, salida=None):
     return p.returncode, p.stdout + p.stderr
 
 
+PROTEGIDO = ("herramientas", "plantillas", "baterias", "flujo.js", "orquestar.mjs", "AGENTE-MASIVO.md", "README.md",
+             "requirements.txt")
+
+
+def sellar(raiz=RAIZ, protegido=PROTEGIDO):
+    """Huella SHA-256 de cada archivo que forma el agente (sin cachés de Python)."""
+    huellas = {}
+    for nombre in protegido:
+        p = Path(raiz) / nombre
+        archivos = [p] if p.is_file() else sorted(x for x in p.rglob("*") if x.is_file()) if p.is_dir() else []
+        for f in archivos:
+            if "__pycache__" in f.parts or f.suffix == ".pyc":
+                continue
+            huellas[str(f.relative_to(raiz))] = hashlib.sha256(f.read_bytes()).hexdigest()
+    return huellas
+
+
+def comparar(antes, despues):
+    """Archivos del agente que cambiaron, aparecieron o desaparecieron mientras trabajaba la IA."""
+    return sorted(k for k in set(antes) | set(despues) if antes.get(k) != despues.get(k))
+
+
+def herramientas_de_git():
+    """Copia de herramientas/ y baterias/ tal como están en HEAD: la validación no usa lo que la IA pudo tocar."""
+    destino = Path(tempfile.mkdtemp(prefix="agente-masivo-git-"))
+    paq = subprocess.run(["git", "-C", str(RAIZ), "archive", "HEAD", "herramientas", "baterias"],  # nosec B603 B607
+                         capture_output=True, check=True).stdout
+    subprocess.run(["tar", "-x", "-C", str(destino)], input=paq, check=True)  # nosec B603 B607
+    return destino / "herramientas"
+
+
+def autoprueba():
+    """Sin red: el sello detecta un cambio, un archivo nuevo y uno borrado, y no da falsas alarmas."""
+    d = Path(tempfile.mkdtemp(prefix="agente-masivo-prueba-"))
+    (d / "herramientas").mkdir()
+    (d / "herramientas" / "validar_ficha.py").write_text("x = 1\n")
+    (d / "herramientas" / "otra.py").write_text("y = 2\n")
+    casos = []
+    antes = sellar(d, ("herramientas",))
+    casos.append(("sin cambios no hay alarma", comparar(antes, sellar(d, ("herramientas",))) == []))
+    (d / "herramientas" / "validar_ficha.py").write_text("x = 1  # la IA aflojó el validador\n")
+    casos.append(("un cambio se detecta", comparar(antes, sellar(d, ("herramientas",))) == ["herramientas/validar_ficha.py"]))
+    (d / "herramientas" / "nuevo.py").write_text("z = 3\n")
+    (d / "herramientas" / "otra.py").unlink()
+    cambiados = comparar(antes, sellar(d, ("herramientas",)))
+    casos.append(("lo nuevo y lo borrado se detectan", "herramientas/nuevo.py" in cambiados and "herramientas/otra.py" in cambiados))
+    shutil.rmtree(d, ignore_errors=True)
+    for nombre, ok in casos:
+        print(f"  {'✓' if ok else '✗'} {nombre}")
+    errores = sum(not ok for _, ok in casos)
+    print("RESUMEN " + json.dumps({"autoprueba": len(casos), "errores": errores}))
+    return 1 if errores else 0
+
+
 def resumen(texto):
     for linea in reversed(texto.splitlines()):
         if linea.startswith("RESUMEN "):
@@ -48,6 +113,8 @@ def resumen(texto):
 
 
 def main(argv):
+    if argv[:1] == ["--autoprueba"]:
+        return autoprueba()
     if len(argv) < 3 or "--trabajo" not in argv:
         raise SystemExit(__doc__)
     g = lambda k, d=None: argv[argv.index(k) + 1] if k in argv else d
@@ -103,8 +170,18 @@ def main(argv):
                       "--dangerously-bypass-approvals-and-sandbox", pedido],
         }
         if motor in motores and shutil.which(motores[motor][0]):
-            print(f"6. IA: {motor} escribe las fichas (puede tardar)…", flush=True)
+            sello = sellar()
+            (trabajo / "sello_agente.json").write_text(json.dumps(sello, indent=1), encoding="utf-8")
+            print(f"6. IA: {motor} escribe las fichas (puede tardar); el agente quedó sellado ({len(sello)} archivos)…", flush=True)
             subprocess.run(motores[motor], cwd=trabajo)  # nosec B603
+            tocados = comparar(sello, sellar())
+            if tocados:
+                aviso = ("✗ LA CORRIDA NO VALE: mientras trabajaba la IA cambiaron archivos del agente (uso local: el agente se usa, "
+                         "no se modifica): " + ", ".join(tocados[:20]))
+                print(aviso, flush=True)
+                (trabajo / "RESULTADO.md").write_text(f"# Corrida inválida\n\n{aviso}\n", encoding="utf-8")
+                return 1
+            print("   ✓ el agente quedó igual: la IA solo escribió en su carpeta", flush=True)
         else:
             if motor != "ninguno":
                 print(f"   (no se encontró la CLI de {motor}: se imprime el texto)", flush=True)
@@ -112,12 +189,17 @@ def main(argv):
             if "--validar" not in argv:
                 return 0
 
-    print("7. validación sin IA, contra la fuente real y sin caché…", flush=True)
+    print("7. validación sin IA, contra la fuente real y sin caché, con las herramientas de la versión de Git…", flush=True)
+    try:
+        h_git = herramientas_de_git()
+    except Exception as e:  # sin Git (por ejemplo, una copia descargada como .zip): se valida con la carpeta y se dice
+        print(f"   (sin Git: se valida con las herramientas de la carpeta; {type(e).__name__})", flush=True)
+        h_git = AQUI
     filas = []
     for f in sorted(fichas.glob("*.json")):
         if f.name.endswith((".dictamen.json", ".verificacion.json")):
             continue
-        rc, out = correr(AQUI / "validar_ficha.py", f, "--inventario", inventario, salida=f.with_suffix(".log"))
+        rc, out = correr(h_git / "validar_ficha.py", f, "--inventario", inventario, salida=f.with_suffix(".log"))
         r = resumen(out) or {}
         fallas = [l.strip()[2:] for l in out.splitlines() if l.strip().startswith("✗")]
         filas.append((f.stem, r.get("chequeos", "?"), r.get("fallas", "?"), "; ".join(fallas)[:300]))
