@@ -300,6 +300,12 @@
       "leccion": "Una llave repetida con valores distintos (el maestro de clientes con dos regiones) se resolvía por el orden del archivo: la operación repetidos marcaba desde la segunda aparición y el plan no podía pedir «la más reciente». Con los datos de ejemplo, 2 clientes quedaban en una región vieja (94.793.600 en ventas) y solo lo atrapaba el caso conocido; la corrida sellada de SECOP resolvió así 3 llaves de su caso conocido. Ahora el plan declara desempate (columna y conservar) y la limpieza avisa cuando falta o cuando hay empates.",
       "origen": "aporte del grupo (PR #11): integración de fuentes con maestros de registros; el dueño lo volvió verificable en limpieza.py, 6-nov-2026",
       "prueba": "bateria:limpieza/repetidos_esperado.json"
+    },
+    {
+      "id": "L51",
+      "leccion": "El filtro comparaba el pull request contra el main de hoy, pero GitHub revisa la fusión con la base del momento en que se abrió. Como las corridas de quien aporta por primera vez esperan la aprobación del dueño, main ya había avanzado: todo lo que entró entre tanto aparecía como borrado y tres aportes sanos salieron en rojo. En un pull request se compara ahora contra el primer padre del commit de fusión.",
+      "origen": "aprobación de los filtros de seis pull requests del grupo (6-nov-2026): tres en rojo por cambios que no eran suyos",
+      "prueba": "validar_aporte.py con GITHUB_EVENT_NAME=pull_request sobre una fusión con una base vieja: solo cuenta los archivos del aporte"
     }
   ]
 }
