@@ -15,13 +15,17 @@ python3.13 -m venv .venv && .venv/bin/pip install --require-hashes -r requiremen
 
 ## Tres formas de invocarlo
 
-### 1. Desde la terminal, con agy como la IA que escribe las fichas
+### 1. Desde la terminal: el agente lanza la IA que escribe las fichas (Claude, agy o Codex)
 
 ```bash
-.venv/bin/python herramientas/agente_masivo.py www.datos.gov.co --trabajo fuentes/fichas/mi-corrida --top 8 --motor agy
+.venv/bin/python herramientas/agente_masivo.py www.datos.gov.co --trabajo fuentes/fichas/mi-corrida --top 8 --motor claude   # o agy, o codex
 ```
 
-### 2. Con cualquier IA de terminal (Claude Code, Codex, Gemini CLI u otra), que es la que escribe
+Las tres herramientas se invocan sin interacción, igual que en `orquestar.mjs`, y sin servidores MCP. Se puede cambiar el binario con `CLAUDE_BIN`, `AGY_BIN` o `CODEX_BIN`. Claude usa el perfil de `CLAUDE_CONFIG_DIR`, si está definido.
+
+**Conviene correrlo con más de una IA** (por ejemplo, Claude y agy, cada una en su carpeta de trabajo) y comparar: una IA encuentra lo que la otra no ve. El tamaño ya medido se reutiliza entre corridas.
+
+### 2. Desde dentro de tu IA de terminal (Claude Code, Codex, Gemini CLI u otra)
 
 Pégale este texto:
 
@@ -49,7 +53,7 @@ Si tu IA de terminal permite comandos propios, crea uno con el texto de la forma
 | `--trabajo <carpeta>` | Dónde quedan `ENCARGO.md`, `fichas/` y `RESULTADO.md` |
 | `--top 8` | Cuántos candidatos, de mayor a menor relevancia |
 | `--min-filas 1000000` | Tamaño mínimo para ser candidato |
-| `--motor agy` o `--motor ninguno` | agy escribe las fichas, o se imprime el texto para otra IA |
+| `--motor claude`, `agy`, `codex` o `ninguno` | Esa IA escribe las fichas, o se imprime el texto para pegarlo en otra |
 | `--actualizar` | Retoma el conteo del catálogo completo |
 | `--solo-validar` | Solo valida las fichas que ya están en la carpeta |
 

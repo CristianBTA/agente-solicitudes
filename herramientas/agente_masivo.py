@@ -3,7 +3,8 @@
 
 Uso:
   python herramientas/agente_masivo.py <dominio> --trabajo <carpeta> [--top 8] [--min-filas 1000000]
-                                       [--catalogo fuentes/catalogo] [--motor agy|ninguno] [--actualizar] [--validar] [--solo-validar]
+                                       [--catalogo fuentes/catalogo] [--motor claude|agy|codex|ninguno] [--actualizar] [--validar]
+                                       [--solo-validar]
 
 La IA propone y una prueba sin IA comprueba. Los pasos sin IA corren solos; el de IA lo hace el motor que se tenga:
   1. catálogo: explorador_catalogo.py mide todos los conjuntos (reanudable con la caché de --catalogo);
@@ -11,11 +12,13 @@ La IA propone y una prueba sin IA comprueba. Los pasos sin IA corren solos; el d
   3. candidatos: los --top mejores con al menos --min-filas y estado, lugar e impacto;
   4. dictamen medido: dictamen_bigdata.py por candidato (<trabajo>/fichas/<id>.dictamen.json): la IA no lo escribe;
   5. encargo: <trabajo>/ENCARGO.md, desde plantillas/encargo_fichas.md, con los candidatos;
-  6. IA: con --motor agy se lanza agy con el encargo; con --motor ninguno se imprime el texto para pegarlo en otra IA;
+  6. IA: con --motor claude, agy o codex se lanza esa CLI sin interacción con el encargo (binarios: CLAUDE_BIN, AGY_BIN y
+     CODEX_BIN; Claude usa el perfil de CLAUDE_CONFIG_DIR); con --motor ninguno se imprime el texto para pegarlo en otra IA;
   7. validación sin IA: validar_ficha.py por ficha, SIN caché y contra la fuente real → <trabajo>/RESULTADO.md.
 Después de esto, el juicio de valor lo hacen un juez ciego y las personas: el validador mide la forma, no el valor.
 """
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -70,8 +73,9 @@ def main(argv):
         print(f"3. candidatos: {', '.join(c['id'] for c in cand)}", flush=True)
         for c in cand:
             d = fichas / f"{c['id']}.dictamen.json"
-            previo = RAIZ / "fuentes" / "fichas" / d.name
-            if not d.exists() and previo.exists():
+            previos = [RAIZ / "fuentes" / "fichas" / d.name] + sorted((RAIZ / "fuentes" / "fichas").glob(f"*/fichas/{d.name}"))
+            previo = next((x for x in previos if x.exists() and x.resolve() != d.resolve()), None)
+            if not d.exists() and previo:
                 shutil.copy(previo, d)
             if not d.exists():
                 print(f"4. dictamen medido de {c['id']}…", flush=True)
@@ -91,10 +95,19 @@ def main(argv):
         print(f"5. encargo: {trabajo / 'ENCARGO.md'}", flush=True)
         pedido = (f"Lee {trabajo / 'ENCARGO.md'} y hazlo completo: una ficha por candidato en {fichas}, cada una validada. "
                   "No modifiques nada fuera de esa carpeta ni los *.dictamen.json. Responde en español con cifras.")
-        if motor == "agy" and shutil.which("agy"):
-            print("6. IA: agy escribe las fichas (puede tardar)…", flush=True)
-            subprocess.run(["agy", "--dangerously-skip-permissions", "-p", pedido], cwd=trabajo)  # nosec B603 B607
+        motores = {   # las mismas invocaciones no interactivas que usa orquestar.mjs; sin servidores MCP del usuario
+            "claude": [os.environ.get("CLAUDE_BIN", "claude"), "-p", pedido, "--dangerously-skip-permissions",
+                       "--strict-mcp-config", "--add-dir", str(RAIZ)],
+            "agy": [os.environ.get("AGY_BIN", "agy"), "--dangerously-skip-permissions", "-p", pedido],
+            "codex": [os.environ.get("CODEX_BIN", "codex"), "exec", "--skip-git-repo-check", "--color", "never", "-C", str(trabajo),
+                      "--dangerously-bypass-approvals-and-sandbox", pedido],
+        }
+        if motor in motores and shutil.which(motores[motor][0]):
+            print(f"6. IA: {motor} escribe las fichas (puede tardar)…", flush=True)
+            subprocess.run(motores[motor], cwd=trabajo)  # nosec B603
         else:
+            if motor != "ninguno":
+                print(f"   (no se encontró la CLI de {motor}: se imprime el texto)", flush=True)
             print("6. IA: pega esto en la IA que uses, con acceso a la carpeta de trabajo:\n\n" + pedido + "\n")
             if "--validar" not in argv:
                 return 0
