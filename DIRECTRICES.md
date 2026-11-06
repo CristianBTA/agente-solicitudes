@@ -100,10 +100,13 @@ Conteo contra la fuente, llave única, llave sin nulos, rangos y dominios. Leer 
 **D7 · Minimización: que un dato sea público no lo vuelve de uso libre.**
 Solo se descargan las columnas que la pregunta necesita. Sin una justificación escrita en el contrato de datos no entra ninguna columna:
 - personal: nombres de personas, documentos, datos bancarios o domicilios;
-- cuasi-identificadora: tipo de documento, género o nacionalidad;
-- de texto libre: el objeto, la descripción del proceso, las observaciones o los comentarios.
+- cuasi-identificadora: tipo de documento, género, edad, nacionalidad o ubicación;
+- de texto libre: el objeto, la descripción del proceso, las observaciones o los comentarios;
+- sensible (Ley 1581, art. 5 y 7): origen étnico, salud o discapacidad, vida sexual, biométricos, convicciones o menores de edad. Además de la justificación, el contrato registra la base legal (`base_legal_sensibles`).
+
+La columna se clasifica por su nombre y, en Socrata, también por su descripción en los metadatos.
 *Por qué:* SECOP II publica la cédula de los contratistas, sus cuentas bancarias y los nombres de supervisores y ordenadores del gasto para la transparencia de la contratación. Eso no autoriza cualquier otro uso: todo tratamiento sigue sujeto a los principios de la Ley 1581 de 2012 (finalidad, circulación restringida, seguridad). Además, el texto libre trae nombres o cédulas escritos a mano en cerca de 1 de cada 1.000 filas. Lo que no se descarga no se filtra.
-*Cómo se comprueba:* `baterias/privacidad/columnas_secop.json` fija la clase esperada de 41 columnas de SECOP II (16 personales, 7 cuasi-identificadoras, 2 de texto libre y 16 sin marca); si el clasificador cambia, la batería falla. Ningún CSV de este repositorio trae columnas personales ni patrones de datos personales en su contenido.
+*Cómo se comprueba:* `baterias/privacidad/columnas_secop.json` fija la clase esperada de 78 columnas de SECOP II y de nombres genéricos (29 personales, 13 cuasi-identificadoras, 2 de texto libre, 19 sin marca, 8 datos sensibles y 7 que se clasifican por su descripción); si el clasificador cambia, la batería falla. La ingesta rechaza el contrato que pide una de esas columnas sin justificación (o sin base legal, si es sensible), y la gobernanza marca «revisar» si el resultado publica una clave que identifica a personas. Los CSV de este repositorio solo traen valores ficticios: lo que el clasificador marca como personal en ellos es inventado (empresas `Distribuidora 001 S.A.S.`, facturas `FV-001022`, `Persona Ficticia Uno`).
 
 ## C · Procesamiento
 

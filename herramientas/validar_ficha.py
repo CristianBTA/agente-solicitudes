@@ -558,8 +558,15 @@ def autoprueba():
                                                    "consulta_soql": "SELECT municipio, count(*) AS n GROUP BY municipio HAVING count(*) >= 10 LIMIT 20"},
                           buena["preguntas"][2] | {"columnas": ["municipio"],
                                                    "consulta_soql": "SELECT municipio, count(*) AS n GROUP BY municipio HAVING count(*) >= 10 LIMIT 30"}]
-        f["gobernanza"]["excluir"] = ["edad", "sexo"]
+        f["gobernanza"]["excluir"] = ["edad", "sexo", "fecha_diagnostico"]   # un dato de salud: sensible (Ley 1581, art. 5)
     variante("salud: afirmaciones por caso y k bajo", sensible, {"V3 sensible: solo agregados", "V3 k mínimo"})
+
+    def sensible_sin_decision(f):
+        sensible(f)
+        f["que_se_puede_decir"] = [{"tipo": "estado", "plantilla": "En {municipio} hay casos en estado {estado}.",
+                                    "columnas": ["municipio", "estado"]}]
+        f["gobernanza"].update(excluir=["edad", "sexo"], k_minimo=10)
+    variante("dato sensible sin decisión (fecha_diagnostico)", sensible_sin_decision, {"V3 gobernanza completa"})
     variante("norma con el año cambiado (Ley 1581 de 2013)",
              lambda f: f.update(base_legal="Ley 1581 de 2013"), {"V6 normas verificadas"})
     cruce_ajeno = copy.deepcopy(buena)

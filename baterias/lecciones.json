@@ -420,6 +420,12 @@
       "leccion": "Con CSV locales, la ingesta rellenaba con vacíos los campos que faltaban, descartaba los que sobraban y comparaba el conteo contra sí mismo: «2,1,500» (miles con coma, sin comillas) perdía el 500 y la carga se aprobaba con ✓ en el conteo. La ingesta lee con el mismo lector estricto de las reglas (leer_tabla: rechaza con el número de línea) y el conteo sale aparte: el que declara el contrato o los saltos de línea fuera de comillas.",
       "origen": "revisión de gobernanza de la ingesta (GOB-3), 6-nov-2026",
       "prueba": "bateria:failfast/miles_con_coma_sin_comillas.csv"
+    },
+    {
+      "id": "L71",
+      "leccion": "La protección de datos personales dependía de nombres de columna ajustados a SECOP: contratista, nit, nombre, razon_social o mail no se marcaban; etnia y discapacidad entraban sin justificación aunque el código decía que todas la piden, y una corrida que publicaba nombres y NIT de personas salía «aprobado». Ahora se clasifican nombres genéricos y la descripción de los metadatos, lo cuasi pide justificación, lo sensible base legal, y una clave que identifica a personas da «revisar».",
+      "origen": "revisión de gobernanza de datos personales (GOB-5), 6-nov-2026",
+      "prueba": "bateria:privacidad/columnas_secop.json"
     }
   ]
 }

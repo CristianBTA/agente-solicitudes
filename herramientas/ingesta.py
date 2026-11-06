@@ -11,7 +11,10 @@ El contrato de datos (el «lector» que escribe la IA y revisa una persona) decl
   dominios: {columna: [valores]}        duros: si un valor no está, la carga se rechaza
   rangos:   {columna: [min, max]}       duros (fechas como "aaaa-mm-dd")
   avisos:   {columna: [min, max]}       blandos: se cuentan y se reportan (R7), no se corrigen
-  personales_justificadas: {columna: motivo}   sin esto, una columna personal se rechaza
+  personales_justificadas: {columna: motivo}   sin esto, una columna personal, cuasi-identificadora o de texto libre
+                                               (por su nombre o por su descripción en los metadatos) se rechaza
+  base_legal_sensibles: {columna: base legal}  sin esto, un dato sensible (origen étnico, salud o discapacidad, vida
+                                               sexual, biométricos, convicciones, menores: Ley 1581, art. 5 y 7) se rechaza
 
 Pruebas de cada carga (R15 del curso): conteo contra la fuente, llave única, llave sin nulos,
 rangos y dominios; además, tipos declarados como FAILFAST (R11), columnas que existen en la fuente
@@ -32,7 +35,7 @@ from datetime import date, datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from gobernanza import clasificar_columna, enmascarar  # noqa: E402
+from gobernanza import clasificar_columna, enmascarar, es_sensible  # noqa: E402
 from reglas_base import contar_registros, leer_tabla  # noqa: E402
 
 PAGINA = 50000
@@ -50,9 +53,33 @@ def pedir(url, intentos=3):
             time.sleep(3 * (i + 1))
 
 
-def socrata(fuente, columnas, llave):
+def minimizacion(contrato, columnas, descripciones=None):
+    """Minimización (D7 y Ley 1581 de 2012): sin justificación escrita no entra una columna personal, cuasi-identificadora
+    o de texto libre (por su nombre o por su descripción en los metadatos), y un dato sensible además necesita la base
+    legal registrada en el contrato (base_legal_sensibles). Devuelve None o el rechazo."""
+    descripciones = descripciones or {}
+    justificadas = contrato.get("personales_justificadas", {})
+    bases = contrato.get("base_legal_sensibles", {})
+    sensibles = [c for c in columnas if es_sensible(c, descripciones.get(c))]
+    sin_base = [c for c in sensibles if not str(bases.get(c) or "").strip()]
+    sin_justificar = [c for c in columnas if c not in sensibles and c not in justificadas
+                      and clasificar_columna(c, descripciones.get(c)) in ("personal", "cuasi", "texto_libre")]
+    if not (sin_base or sin_justificar):
+        return None
+    lineas = []
+    if sin_base:
+        lineas.append(f"datos sensibles (Ley 1581 de 2012, art. 5 y 7) sin la base legal en base_legal_sensibles: {sin_base}")
+    if sin_justificar:
+        lineas.append(f"el contrato pide columnas personales, cuasi-identificadoras o de texto libre sin justificar: {sin_justificar}")
+    return {"motivo": ("datos sensibles sin base legal" if sin_base else "") + (" y " if sin_base and sin_justificar else "")
+            + ("columnas personales, cuasi-identificadoras o de texto libre sin justificar" if sin_justificar else ""),
+            "columnas": sin_base + sin_justificar,
+            "lineas": lineas}
+
+
+def socrata(fuente, columnas, llave, meta=None):
     base = f"https://{fuente['dominio']}"
-    meta = json.loads(pedir(f"{base}/api/views/{fuente['conjunto']}.json"))
+    meta = meta or json.loads(pedir(f"{base}/api/views/{fuente['conjunto']}.json"))
     existen = {c["fieldName"] for c in meta.get("columns", [])}
     inventadas = [c for c in columnas if c not in existen]
     if inventadas:
@@ -145,7 +172,7 @@ def probar(contrato, columnas, filas, conteo_fuente, conteo_de=None):
     fallas_tipo, fuera_rango, fuera_dominio, conteo_avisos = {}, {}, {}, {}
     for j, col in enumerate(columnas):
         tipo = tipos[col]
-        personal = clasificar_columna(col) == "personal"
+        personal = clasificar_columna(col) == "personal" or es_sensible(col)
         dom = set(contrato.get("dominios", {}).get(col, []))
         rango = contrato.get("rangos", {}).get(col)
         aviso = contrato.get("avisos", {}).get(col)
@@ -193,13 +220,19 @@ def ingerir(ruta_contrato, salida, repetir=False):
     if llave not in columnas:
         raise SystemExit(f"La llave {llave} no está entre las columnas declaradas")
     justificadas = contrato.get("personales_justificadas", {})
-    personales = [c for c in columnas if clasificar_columna(c) in ("personal", "texto_libre") and c not in justificadas]
-    if personales:
-        print(f"✗ minimización: el contrato pide columnas personales o de texto libre sin justificar: {personales}")
-        print("RESUMEN " + json.dumps({"estado": "rechazada", "motivo": "columnas personales sin justificar",
-                                       "columnas": personales}, ensure_ascii=False))
+    meta = None
+    if fuente["tipo"] == "socrata":   # la descripción de cada columna también cuenta: el nombre puede esconder lo que es
+        meta = json.loads(pedir(f"https://{fuente['dominio']}/api/views/{fuente['conjunto']}.json"))
+    descripciones = {c.get("fieldName"): c.get("description") or "" for c in (meta or {}).get("columns", [])}
+    rechazo = minimizacion(contrato, columnas, descripciones)
+    if rechazo:
+        for linea in rechazo["lineas"]:
+            print(f"✗ minimización: {linea}")
+        print(f"Ingesta rechazada: {rechazo['motivo']}")
+        print("RESUMEN " + json.dumps({"estado": "rechazada", "motivo": rechazo["motivo"], "columnas": rechazo["columnas"]},
+                                      ensure_ascii=False))
         return 1
-    leer = (lambda: socrata(fuente, columnas, llave)) if fuente["tipo"] == "socrata" else (lambda: local(fuente, columnas))
+    leer = (lambda: socrata(fuente, columnas, llave, meta)) if fuente["tipo"] == "socrata" else (lambda: local(fuente, columnas))
     filas, conteo_fuente, origen, nota, extra = leer()
     if filas is None:
         print(f"Ingesta rechazada: {nota}")
@@ -247,7 +280,7 @@ def ingerir(ruta_contrato, salida, repetir=False):
         "sha256": huella, "sha256_anterior": anterior, "sin_cambios": anterior == huella,
         "nulos": nulos, "avisos": avisos, "nota": nota, "pruebas": pruebas, "cita": cita,
         "licencia": fuente.get("licencia"), "atribucion": fuente.get("atribucion"),
-        "columnas_personales_justificadas": justificadas,
+        "columnas_personales_justificadas": justificadas, "base_legal_sensibles": contrato.get("base_legal_sensibles", {}),
     }
     proc["estado"] = "aprobada" if all(p["ok"] for p in pruebas) else "rechazada"
     for nombre in (f"procedencia_{tabla}.json", "procedencia.json"):

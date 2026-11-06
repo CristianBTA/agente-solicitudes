@@ -6,7 +6,9 @@ Uso:
   python gobernanza.py --columnas a.csv muestra cómo se clasifica cada columna por su nombre
 
 Qué hace:
-  1. Clasifica cada columna por su nombre: identificador personal, cuasi-identificador o sin marca.
+  1. Clasifica cada columna por su nombre (y por su descripción en los metadatos, si la hay): identificador personal,
+     cuasi-identificador, texto libre o sin marca. Los datos sensibles (Ley 1581, art. 5) cuentan como cuasi y la
+     ingesta además les pide base legal. Una clave publicada que identifica a personas es un problema, con o sin k.
   2. Barre el texto libre con expresiones regulares (cédulas con contexto, correos, celulares,
      nombres con tratamiento) y entrega SOLO conteos y ejemplos enmascarados, nunca valores.
   3. Barre las salidas que se van a publicar (informe, resultado, gráfico): deben salir en cero.
@@ -19,13 +21,31 @@ import re
 import sys
 from pathlib import Path
 
+ROLES = r"(representante|ordenador|supervisor|persona|contacto|funcionario|proveedor|contratista|beneficiario|titular|usuario|paciente|afiliado|ciudadano)"
 PERSONAL = re.compile(
-    r"(nombre_(representante|ordenador|supervisor|persona|contacto|funcionario|proveedor)|representante_legal|"
-    r"identificaci|c[ée]dula|^documento(?!s_tipo)|documento_(proveedor|persona|representante)|n_mero_de_documento|"
-    r"proveedor_adjudicado|codigo_proveedor|nit_proveedor|correo|e_?mail|tel[ée]fono|celular|direcci|domicilio|"
+    rf"(nombre_{ROLES}|nombre_del_{ROLES}|nombre_completo|^nombres?$|^apellidos?$|nombres?_y_apellidos|representante_legal|"
+    r"contratista|raz[oó_]n_social|"
+    r"identificaci|identidad|c[ée]dula|^documento(?!s_tipo)|documento_(proveedor|persona|representante|identidad|de_identidad)|"
+    r"doc_identidad|n_mero_de_documento|n[uú]mero_de_documento|numero_documento|num_documento|"
+    r"proveedor_adjudicado|codigo_proveedor|nit_proveedor|^nit$|nit_(contratista|persona|beneficiario|titular)|"
+    r"correo|e_?mail|(^|_)mail($|_)|tel[ée]fono|celular|(^|_)m[oó]vil($|_)|whatsapp|direcci|domicilio|"
     r"cuenta|banco|tarjeta|placa)", re.I)
-CUASI = re.compile(r"(g[ée_]nero|sexo|edad|nacimiento|nacionalidad|etnia|discapacidad|estrato|tipodocproveedor|tipo_de_documento_)", re.I)
+CUASI = re.compile(r"(g[ée_]nero|sexo|edad|nacimiento|nacionalidad|estrato|tipodocproveedor|tipo_de_documento_|"
+                   r"latitud|longitud|coordenada)", re.I)
+# Datos sensibles (Ley 1581 de 2012, art. 5; los de niños, niñas y adolescentes, art. 7): cuentan como cuasi para todo
+# lo demás y, además, la ingesta los rechaza si el contrato no registra la base legal (base_legal_sensibles).
+SENSIBLE = re.compile(r"(etni|[ée]tnic|(^|_)raza($|_)|racial|ind[ií]gena|afrocolombian|afrodescendient|discapacidad|"
+                      r"(^|_)salud|enfermedad|diagn[oó]stic|(^|_)vih($|_)|orientaci[oó]n_sexual|vida_sexual|sexualidad|"
+                      r"biom[ée]tric|huella_dactilar|religi|creencia|afiliaci[oó]n_pol|partido_pol|sindica|"
+                      r"menor(es)?_de_edad|^es_menor)", re.I)
 TEXTO_LIBRE = re.compile(r"(objeto|descripcion_del_proceso|observaci|comentari|^detalle|_detalle|^notas?$|_notas?$|mensaje)", re.I)
+# La descripción de la columna en los metadatos (Socrata: /api/views/<id>.json) delata lo que el nombre esconde
+PERSONAL_DESC = re.compile(rf"(c[ée]dula|documento de identidad|n[uú]mero de (identificaci[oó]n|documento)|nombres? y apellidos|"
+                           rf"nombre completo|apellidos|nombre del {ROLES}|correo electr[oó]nico|tel[ée]fono|celular|"
+                           rf"direcci[oó]n de (residencia|domicilio|notificaci[oó]n)|domicilio|n[uú]mero de cuenta)", re.I)
+CUASI_DESC = re.compile(r"(fecha de nacimiento|\bg[ée]nero\b|\bsexo\b|\bedad\b|nacionalidad|\bestrato\b|tipo de (documento|identificaci[oó]n))", re.I)
+SENSIBLE_DESC = re.compile(r"(\betnia|[ée]tnic|\braza\b|racial|discapacidad|orientaci[oó]n sexual|vida sexual|biom[ée]tric|"
+                           r"huella dactilar|religi[oó]n|afiliaci[oó]n pol[ií]tica|partido pol[ií]tico|sindica|menor(es)? de edad)", re.I)
 PATRONES = {
     "cédula con contexto": re.compile(
         # cada parte opcional consume sus propios espacios: con tres «\s*» seguidos, una nota con miles de espacios
@@ -62,16 +82,28 @@ def parece_instruccion(texto):
                for c in COMENTARIO_OCULTO.findall(t))
 
 
-def clasificar_columna(nombre):
-    """personal: identifica a una persona; cuasi: combinada puede identificarla; texto_libre: puede traer
-    nombres o cédulas escritos a mano (en SECOP, cerca de 1 de cada 1.000 filas). Todas piden justificación."""
+def clasificar_columna(nombre, descripcion=None):
+    """personal: identifica a una persona; cuasi: combinada puede identificarla (los datos sensibles también son
+    cuasi, ver es_sensible); texto_libre: puede traer nombres o cédulas escritos a mano (en SECOP, cerca de 1 de cada
+    1.000 filas). Todas piden justificación en la ingesta. Con la descripción de los metadatos, si el nombre no dice
+    nada, decide la descripción («campo_7: Número de cédula del beneficiario» es personal)."""
     if PERSONAL.search(nombre):
         return "personal"
-    if CUASI.search(nombre):
+    if es_sensible(nombre, descripcion) or CUASI.search(nombre):
         return "cuasi"
     if TEXTO_LIBRE.search(nombre):
         return "texto_libre"
+    if descripcion and PERSONAL_DESC.search(descripcion):
+        return "personal"
+    if descripcion and CUASI_DESC.search(descripcion):
+        return "cuasi"
     return None
+
+
+def es_sensible(nombre, descripcion=None):
+    """Dato sensible (Ley 1581 de 2012, art. 5: origen racial o étnico, salud, vida sexual, biométricos, convicciones,
+    afiliación sindical o política; art. 7: menores de edad). La ingesta lo rechaza sin base legal registrada."""
+    return bool(SENSIBLE.search(nombre) or (descripcion and SENSIBLE_DESC.search(descripcion)))
 
 
 def enmascarar(texto):
@@ -204,6 +236,10 @@ def gobernar(c):
             problemas.append(f"{p.name}: trae un texto con forma de instrucción para una IA (posible inyección en los datos)")
     if k.get("aplica") and not k.get("ok"):
         problemas.append(f"k-anonimato {k['k']} < {K_MINIMO} en {k['columnas']}")
+    # una clave que identifica (nombre, documento, NIT de persona, contacto) o un dato sensible no se publica ni con k alto
+    identifican = [x for x in spec["salida"]["claves"] if clasificar_columna(x) == "personal" or es_sensible(x)]
+    if identifican:
+        problemas.append(f"el resultado publica columnas que identifican a personas o son datos sensibles: {identifican}")
     if custodio.get("ia_no_vio"):
         problemas.append(f"la IA no marcó como personales: {custodio['ia_no_vio']} (el barrido sí)")
     usadas = set(spec.get("columnas_usadas") or [])
@@ -212,7 +248,7 @@ def gobernar(c):
     if personales_usadas:
         problemas.append(f"el análisis usa columnas personales: {personales_usadas}")
     out = {"tablas": tablas, "salidas": salidas, "k_anonimato": k, "custodio": custodio,
-           "personales_usadas": personales_usadas, "problemas": problemas,
+           "personales_usadas": personales_usadas, "claves_que_identifican": identifican, "problemas": problemas,
            "estado": "aprobado" if not problemas else "revisar"}
     (c / "gobernanza.json").write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"Gobernanza: {out['estado']}")

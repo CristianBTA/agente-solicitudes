@@ -89,15 +89,24 @@ def bateria_privacidad():
     for c in ("proveedor_adjudicado", "documento_proveedor", "objeto_del_contrato"):
         if c not in detectadas:
             fallas.append(falla(c, f"el barrido no detectó {c}"))
-    from gobernanza import clasificar_columna
+    from gobernanza import clasificar_columna, es_sensible
     cols = json.loads((BAT / "privacidad" / "columnas_secop.json").read_text(encoding="utf-8"))
     n_cols = 0
     for grupo, aceptadas in (("personal", {"personal"}), ("cuasi_o_personal", {"personal", "cuasi"}),
-                             ("texto_libre", {"texto_libre"}), ("sin_marca", {None})):
-        for c in cols[grupo]:
+                             ("texto_libre", {"texto_libre"}), ("sin_marca", {None}), ("sensible", {"personal", "cuasi"})):
+        for c in cols.get(grupo, []):
             n_cols += 1
             if clasificar_columna(c) not in aceptadas:
                 fallas.append(falla(c, f"columna de SECOP mal clasificada: {c} → {clasificar_columna(c)} (se esperaba {grupo})"))
+            if (grupo == "sensible") != es_sensible(c):
+                fallas.append(falla(c, f"dato sensible mal marcado: {c} → es_sensible {es_sensible(c)} (grupo {grupo})"))
+    # por la descripción de los metadatos: el nombre no dice nada y la descripción sí (o no, y no se marca)
+    for x in cols.get("por_descripcion", []):
+        n_cols += 1
+        clase = clasificar_columna(x["columna"], x["descripcion"])
+        if clase != x["clase"] or es_sensible(x["columna"], x["descripcion"]) != bool(x.get("sensible")):
+            fallas.append(falla(x["columna"], f"columna mal clasificada por su descripción: {x['columna']} «{x['descripcion'][:50]}» → "
+                                              f"{clase}{' (sensible)' if es_sensible(x['columna'], x['descripcion']) else ''} (se esperaba {x['clase']})"))
     return {"bateria": "privacidad", "casos": len(secretos) + 3 + 6 + n_cols, "fallas": fallas}
 
 
@@ -281,8 +290,11 @@ def bateria_grafico():
 
 def bateria_lecciones():
     d = json.loads((BAT / "lecciones.json").read_text(encoding="utf-8"))
-    fallas = []
+    fallas, vistas = [], set()
     for l in d["lecciones"]:
+        if l["id"] in vistas:   # al unir ramas, dos lecciones distintas pueden traer el mismo número
+            fallas.append(falla(l["id"], f"{l['id']} está repetida: cada lección lleva su propio id"))
+        vistas.add(l["id"])
         prueba = l.get("prueba", "")
         if not prueba:
             fallas.append(falla(l['id'], f"{l['id']} no tiene prueba"))

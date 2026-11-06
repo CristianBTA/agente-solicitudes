@@ -13,7 +13,7 @@ La IA escribe el lector: un **contrato de datos** que dice qué traer, con qué 
 - Filas de datos: el primer acercamiento es con estructura y conteos, no mirando registros.
 
 ## Entrega
-- `contrato_<tabla>.json`: fuente (con `filtro_legible`), tabla, llave, `columnas` con su tipo (`texto`, `entero`, `decimal` o `fecha`), `dominios` y `rangos` duros, `avisos` blandos y, si hiciera falta, `personales_justificadas`.
+- `contrato_<tabla>.json`: fuente (con `filtro_legible`), tabla, llave, `columnas` con su tipo (`texto`, `entero`, `decimal` o `fecha`), `dominios` y `rangos` duros, `avisos` blandos y, si hiciera falta, `personales_justificadas` (personales, cuasi-identificadoras o de texto libre) y `base_legal_sensibles` (datos sensibles).
 - La carga, `datos/<tabla>.csv`, y su procedencia, `datos/procedencia_<tabla>.json`: las escribe la herramienta, no el agente.
 
 ## Reglas
@@ -25,7 +25,7 @@ La IA escribe el lector: un **contrato de datos** que dice qué traer, con qué 
 
 ## Nunca
 - Relajar una prueba para que la carga pase: si un dato real viola un rango, el rango era un supuesto equivocado y se pasa a aviso.
-- Pedir columnas personales o de texto libre sin justificación.
+- Pedir columnas personales, cuasi-identificadoras o de texto libre sin justificación, o datos sensibles sin base legal.
 
 ## Prueba sin IA que lo comprueba
 `python herramientas/ingesta.py contrato_<tabla>.json --salida datos --repetir`: conteo contra la fuente, llave única y sin nulos, tipos declarados (FAILFAST), rangos, dominios, minimización, columnas que existen en la fuente, y correr dos veces da el mismo archivo byte a byte. Si algo falla, la carga se rechaza.
