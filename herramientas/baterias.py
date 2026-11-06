@@ -2,7 +2,7 @@
 """Baterías: lo que falló una vez se vuelve prueba para siempre (sin IA).
 
 Uso:
-  python baterias.py                         corre las tres baterías
+  python baterias.py                         corre todas las baterías
   python baterias.py --agregar-malo nombre archivo.py   guarda un hallazgo confirmado como código que debe bloquearse
   python baterias.py --leccion "texto" --origen "..." --prueba "..."   agrega una lección
 
@@ -15,6 +15,8 @@ Uso:
 5. Fechas: el perfil cuenta aparte las fechas que no existen en el calendario (baterias/fechas/casos.json).
 6. Repetidos: una llave repetida nunca se resuelve por el orden del archivo sin aviso (baterias/limpieza/).
 7. Factor: el perfil reconoce el factor de expansión de una encuesta (baterias/perfil/).
+8. Gráfico: las figuras de baterias/grafico/buenos pasan las comprobaciones de forma y color, y cada figura de
+   malos falla justo la comprobación que ataca (ni otra, ni ninguna).
 """
 import json
 import shutil
@@ -188,6 +190,34 @@ def bateria_factor():
     return {"bateria": "factor", "casos": len(d["casos"]), "fallas": fallas}
 
 
+def bateria_grafico():
+    """Forma y color del gráfico, sobre el JSON de la figura (sin caja de arena): los buenos pasan todo y cada malo
+    falla solo la comprobación que ataca. Un falso positivo también es una falla (L32)."""
+    from verificar_grafico import comprobar_forma_y_color
+    fallas, nombres, atacadas = [], set(), set()
+    buenos = sorted((BAT / "grafico" / "buenos").glob("*.json"))
+    malos = sorted((BAT / "grafico" / "malos").glob("*.json"))
+    for p in buenos:
+        res = comprobar_forma_y_color(json.loads(p.read_text(encoding="utf-8"))["figura"])
+        nombres |= {c["comprobacion"] for c in res}
+        fallan = [c["comprobacion"] for c in res if not c["ok"]]
+        if fallan:
+            fallas.append(f"falso positivo en {p.name}: {fallan}")
+    for p in malos:
+        caso = json.loads(p.read_text(encoding="utf-8"))
+        res = comprobar_forma_y_color(caso["figura"])
+        nombres |= {c["comprobacion"] for c in res}
+        fallan = [c["comprobacion"] for c in res if not c["ok"]]
+        objetivo = caso.get("debe_fallar")
+        atacadas.add(objetivo)
+        if objetivo not in {c["comprobacion"] for c in res}:
+            fallas.append(f"{p.name}: no existe la comprobación «{objetivo}»")
+        elif fallan != [objetivo]:
+            fallas.append(f"{p.name}: falla {fallan or 'ninguna'}; se esperaba solo «{objetivo}»")
+    fallas += [f"sin caso malo para «{n}»" for n in sorted(nombres - atacadas)]
+    return {"bateria": "grafico", "casos": len(buenos) + len(malos), "fallas": fallas}
+
+
 def bateria_lecciones():
     d = json.loads((BAT / "lecciones.json").read_text(encoding="utf-8"))
     fallas = []
@@ -220,7 +250,7 @@ def main(argv):
         print(f"Lección {d['lecciones'][-1]['id']} agregada.")
         return 0
     res = [bateria_seguridad(), bateria_privacidad(), bateria_failfast(), bateria_inyeccion(), bateria_cruces(),
-           bateria_fechas(), bateria_repetidos(), bateria_factor(), bateria_lecciones()]
+           bateria_fechas(), bateria_repetidos(), bateria_factor(), bateria_grafico(), bateria_lecciones()]
     for r in res:
         print(f"{'✓' if not r['fallas'] else '✗'} {r['bateria']}: {r['casos']} casos" + ("" if not r["fallas"] else " · " + "; ".join(r["fallas"])))
     malos = sum(len(r["fallas"]) for r in res)
