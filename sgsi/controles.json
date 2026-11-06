@@ -1,0 +1,239 @@
+{
+ "_nota": "Controles que este repositorio ya opera, con su tipo (ISO/IEC 27002:2022, 4.2: preventivo, detectivo o correctivo), la propiedad que protege AQUÍ (C, I, D: es la valoración de este repositorio, no la tabla ilustrativa de la norma), el control del Anexo A de ISO/IEC 27001:2022 que implementa, la evidencia que debe existir en el repositorio y las pruebas automáticas que lo miden. Una evidencia que deja de existir invalida el control; con --efectividad, también una prueba que falla. Lo comprueba herramientas/sgsi.py.",
+ "controles": [
+  {
+   "id": "CT01", "nombre": "Minimización en el contrato de datos (D7)", "tipo": "preventivo", "protege": ["C"],
+   "anexo_a": ["A.5.34", "A.8.12"],
+   "evidencia": [{"archivo": "herramientas/ingesta.py", "contiene": "justific"}, {"archivo": "baterias/privacidad/columnas_secop.json"}],
+   "pruebas": ["bateria:privacidad"]
+  },
+  {
+   "id": "CT02", "nombre": "Datos fuera del repositorio público: .gitignore y archivos prohibidos en el filtro", "tipo": "preventivo", "protege": ["C"],
+   "anexo_a": ["A.8.12", "A.5.14"],
+   "evidencia": [{"archivo": ".gitignore", "contiene": "^corridas/\\*/datos/$"}, {"archivo": "herramientas/validar_aporte.py", "contiene": "PROHIBIDOS = re.compile"}],
+   "pruebas": ["sgsi:restringidos"]
+  },
+  {
+   "id": "CT03", "nombre": "Barrido determinista de datos personales en datos y salidas, con k-anonimato (D18)", "tipo": "preventivo", "protege": ["C"],
+   "anexo_a": ["A.8.11", "A.8.12", "A.5.34"],
+   "evidencia": [{"archivo": "herramientas/gobernanza.py", "contiene": "k_anonimato"}, {"archivo": "herramientas/gobernanza.py", "contiene": "^PATRONES = "}],
+   "pruebas": ["bateria:privacidad"]
+  },
+  {
+   "id": "CT04", "nombre": "Nunca filas a la IA: el perfil y el custodio trabajan con nombres, tipos y conteos (D3, D18)", "tipo": "preventivo", "protege": ["C", "I"],
+   "anexo_a": ["A.8.3", "A.5.34"],
+   "evidencia": [{"archivo": "herramientas/perfilar.py", "contiene": "cuarentena"}, {"archivo": "agentes/10-custodio-de-datos-personales.md", "contiene": "## Nunca"}],
+   "pruebas": ["bateria:privacidad", "B04"]
+  },
+  {
+   "id": "CT05", "nombre": "Separación de funciones entre subagentes: quién puede ver qué", "tipo": "preventivo", "protege": ["C", "I"],
+   "anexo_a": ["A.5.3", "A.5.15", "A.8.3"],
+   "evidencia": [{"archivo": "agentes/README.md", "contiene": "Quién puede ver qué"}, {"archivo": "flujo.js"}],
+   "pruebas": []
+  },
+  {
+   "id": "CT06", "nombre": "Auditoría de independencia sobre las transcripciones reales (DB9)", "tipo": "detectivo", "protege": ["C", "I"],
+   "anexo_a": ["A.8.15", "A.8.16", "A.5.36"],
+   "evidencia": [{"archivo": "evidencia/blindaje/auditar_independencia.py"}],
+   "pruebas": []
+  },
+  {
+   "id": "CT07", "nombre": "Criterio e hipótesis sellados con SHA-256 antes del código (D8, D15)", "tipo": "detectivo", "protege": ["I"],
+   "anexo_a": ["A.8.24", "A.5.33"],
+   "evidencia": [{"archivo": "herramientas/verificar.py", "contiene": "def sellar"}, {"archivo": "herramientas/verificar_hipotesis.py", "contiene": "sellos"}],
+   "pruebas": ["corrida-sintetica"]
+  },
+  {
+   "id": "CT08", "nombre": "Manifiesto de integridad de herramientas, fichas y baterías durante la corrida (DB3)", "tipo": "detectivo", "protege": ["I"],
+   "anexo_a": ["A.8.9", "A.8.32"],
+   "evidencia": [{"archivo": "herramientas/integridad.py", "contiene": "^FIJOS = "}, {"archivo": "herramientas/integridad.py", "contiene": "^CRECEN = "}],
+   "pruebas": ["B02"]
+  },
+  {
+   "id": "CT09", "nombre": "Verificación sin IA del resultado: dos implementaciones, caso conocido, conservación, conciliación y repetibilidad (D9–D13)", "tipo": "detectivo", "protege": ["I"],
+   "anexo_a": ["A.8.29", "A.8.30"],
+   "evidencia": [{"archivo": "herramientas/verificar.py", "contiene": "conciliacion"}, {"archivo": "herramientas/verificar.py", "contiene": "repetible"}],
+   "pruebas": ["corrida-sintetica", "B05"]
+  },
+  {
+   "id": "CT10", "nombre": "Probar al probador con mutantes (D14)", "tipo": "detectivo", "protege": ["I"],
+   "anexo_a": ["A.8.29"],
+   "evidencia": [{"archivo": "evidencia/sintetico/mutantes"}, {"archivo": "evidencia/sintetico/resultados_mutacion.txt"}],
+   "pruebas": ["mutantes"]
+  },
+  {
+   "id": "CT11", "nombre": "FAILFAST, perfil y limpieza declarada: lo que no cumple el contrato se detiene, se explica o se marca (D3, D5, DL3–DL6)", "tipo": "preventivo", "protege": ["I"],
+   "anexo_a": ["A.8.26", "A.8.27"],
+   "evidencia": [{"archivo": "herramientas/limpieza.py", "contiene": "FAILFAST"}, {"archivo": "baterias/failfast"}],
+   "pruebas": ["bateria:failfast", "bateria:cruces", "B09", "B19"]
+  },
+  {
+   "id": "CT12", "nombre": "Compuerta estática (reglas propias y Bandit) y lista cerrada de librerías (D21, D22)", "tipo": "preventivo", "protege": ["C", "I", "D"],
+   "anexo_a": ["A.8.28", "A.8.7", "A.8.19", "A.8.30"],
+   "evidencia": [{"archivo": "herramientas/seguridad.py", "contiene": "Bandit"}, {"archivo": "herramientas/permitidas.json"}],
+   "pruebas": ["bateria:seguridad", "B15"]
+  },
+  {
+   "id": "CT13", "nombre": "Caja de arena: sin red, sin escritura, sin la carpeta personal, entorno mínimo y topes de tiempo y memoria (D23, DB2)", "tipo": "preventivo", "protege": ["C", "I", "D"],
+   "anexo_a": ["A.8.22", "A.8.31", "A.8.6", "A.8.1"],
+   "evidencia": [{"archivo": "herramientas/caja.py", "contiene": "sandbox-exec"}, {"archivo": "herramientas/caja.py", "contiene": "phys_footprint"}],
+   "pruebas": ["B00", "B01", "B10", "B11", "B12", "B13", "B14"]
+  },
+  {
+   "id": "CT14", "nombre": "Cadena de suministro fijada: dependencias con huella y acciones fijadas a su commit (DB7)", "tipo": "preventivo", "protege": ["I"],
+   "anexo_a": ["A.5.21", "A.8.19"],
+   "evidencia": [{"archivo": "requirements.txt", "contiene": "--hash=sha256:"}, {"archivo": ".github/workflows/validar-aporte.yml", "contiene": "--require-hashes"}],
+   "pruebas": ["B08", "sgsi:permisos"]
+  },
+  {
+   "id": "CT15", "nombre": "Vigilancia diaria de vulnerabilidades conocidas en las dependencias fijadas (OSV)", "tipo": "detectivo", "protege": ["C", "I", "D"],
+   "anexo_a": ["A.8.8", "A.5.7"],
+   "evidencia": [{"archivo": "herramientas/vulnerabilidades.py", "contiene": "api.osv.dev"}, {"archivo": ".github/workflows/vigilancia-diaria.yml", "contiene": "vulnerabilidades.py"}],
+   "pruebas": ["red:vulnerabilidades"]
+  },
+  {
+   "id": "CT16", "nombre": "Cuarentena de instrucciones: los datos y los aportes son datos, nunca órdenes (DB4)", "tipo": "preventivo", "protege": ["I"],
+   "anexo_a": ["A.8.26", "A.8.27"],
+   "evidencia": [{"archivo": "herramientas/gobernanza.py", "contiene": "^INSTRUCCION = "}, {"archivo": "baterias/inyeccion"}],
+   "pruebas": ["bateria:inyeccion", "B04", "B07"]
+  },
+  {
+   "id": "CT17", "nombre": "Salidas que no ejecutan nada al abrirse: HTML escapado y fórmulas neutralizadas (D24, DB5)", "tipo": "preventivo", "protege": ["C", "I"],
+   "anexo_a": ["A.8.28", "A.8.26"],
+   "evidencia": [{"archivo": "herramientas/informe_final.py", "contiene": "html\\.escape"}, {"archivo": "herramientas/limpieza.py", "contiene": "fórmula"}],
+   "pruebas": ["B03", "B17", "B18"]
+  },
+  {
+   "id": "CT18", "nombre": "Lista de comprobación del gráfico: eje desde cero, período, fuente y cuenta de control (D17)", "tipo": "detectivo", "protege": ["I"],
+   "anexo_a": ["A.8.29"],
+   "evidencia": [{"archivo": "herramientas/verificar_grafico.py", "contiene": "desde cero"}],
+   "pruebas": ["B17"]
+  },
+  {
+   "id": "CT19", "nombre": "Filtro automático de aportes, sin IA ni llaves (validar-aporte)", "tipo": "preventivo", "protege": ["C", "I"],
+   "anexo_a": ["A.8.32", "A.8.29", "A.8.4", "A.8.25"],
+   "evidencia": [{"archivo": ".github/workflows/validar-aporte.yml", "contiene": "validar_aporte\\.py"}, {"archivo": "herramientas/validar_aporte.py", "contiene": "sgsi\\.py"}],
+   "pruebas": ["B07"]
+  },
+  {
+   "id": "CT20", "nombre": "main protegida: revisión del dueño (CODEOWNERS), sin borrado ni force-push y aprobación de flujos de forks", "tipo": "preventivo", "protege": ["I", "D"],
+   "anexo_a": ["A.8.4", "A.8.32", "A.5.3", "A.5.18"],
+   "evidencia": [{"archivo": ".github/CODEOWNERS", "contiene": "@CristianBTA"}, {"archivo": "CONTRIBUTING.md", "contiene": "está protegida"}],
+   "pruebas": []
+  },
+  {
+   "id": "CT21", "nombre": "Comprobación diaria de que el repositorio sigue abierto a aportes", "tipo": "detectivo", "protege": ["I", "D"],
+   "anexo_a": ["A.8.16", "A.5.30", "A.5.22"],
+   "evidencia": [{"archivo": "herramientas/abierta_a_aportes.py"}, {"archivo": ".github/workflows/abierta-a-aportes.yml", "contiene": "abierta_a_aportes\\.py"}],
+   "pruebas": ["red:abierta_a_aportes"]
+  },
+  {
+   "id": "CT22", "nombre": "Restablecer: todo se reconstruye desde GitHub o un clon, el contrato de datos y la semilla", "tipo": "correctivo", "protege": ["I", "D"],
+   "anexo_a": ["A.8.13", "A.8.14", "A.5.29", "A.5.30"],
+   "evidencia": [{"archivo": "sgsi/README.md", "contiene": "^## Restablecer"}, {"archivo": "evidencia/sintetico/generar_datos.py", "contiene": "semilla"}, {"archivo": "herramientas/ingesta.py", "contiene": "--repetir"}],
+   "pruebas": ["corrida-sintetica"]
+  },
+  {
+   "id": "CT23", "nombre": "Procedencia con fecha y huella, licencia y atribución de la fuente (D6, D19, D20)", "tipo": "detectivo", "protege": ["I"],
+   "anexo_a": ["A.5.33", "A.5.32", "A.5.31"],
+   "evidencia": [{"archivo": "herramientas/ingesta.py", "contiene": "procedencia"}, {"archivo": "README.md", "contiene": "CC BY-SA 4\\.0"}],
+   "pruebas": []
+  },
+  {
+   "id": "CT24", "nombre": "Baterías que solo crecen: cada error real se vuelve lección y prueba (D26)", "tipo": "correctivo", "protege": ["C", "I", "D"],
+   "anexo_a": ["A.5.27", "A.8.8"],
+   "evidencia": [{"archivo": "baterias/lecciones.json"}, {"archivo": "herramientas/baterias.py", "contiene": "--leccion"}],
+   "pruebas": ["bateria:lecciones"]
+  },
+  {
+   "id": "CT25", "nombre": "Banco de blindaje con control positivo, con datos y secretos ficticios en carpetas temporales (DB1, DB10)", "tipo": "detectivo", "protege": ["C", "I", "D"],
+   "anexo_a": ["A.8.29", "A.8.34", "A.8.33"],
+   "evidencia": [{"archivo": "herramientas/blindaje.py", "contiene": "@prueba\\(\"B00\""}, {"archivo": "evidencia/blindaje/README.md"}],
+   "pruebas": ["B00"]
+  },
+  {
+   "id": "CT26", "nombre": "Revisión ciega de seguridad con prueba por hallazgo (D25)", "tipo": "detectivo", "protege": ["C", "I", "D"],
+   "anexo_a": ["A.5.35", "A.8.29", "A.5.7"],
+   "evidencia": [{"archivo": "agentes/11-revisor-ciego-de-seguridad.md"}, {"archivo": "baterias/clases_de_debilidad.json"}],
+   "pruebas": ["bateria:seguridad"]
+  },
+  {
+   "id": "CT27", "nombre": "Reparador con tope de dos rondas; lo que quede lo decide una persona", "tipo": "correctivo", "protege": ["I", "D"],
+   "anexo_a": ["A.8.25"],
+   "evidencia": [{"archivo": "agentes/06-reparador.md", "contiene": "Máximo 2 rondas"}],
+   "pruebas": []
+  },
+  {
+   "id": "CT28", "nombre": "Bitácora del copiloto e informe final con todo el texto escapado (D27)", "tipo": "detectivo", "protege": ["I"],
+   "anexo_a": ["A.8.15", "A.5.28"],
+   "evidencia": [{"archivo": "herramientas/informe_final.py", "contiene": "bit[aá]cora"}],
+   "pruebas": ["B18"]
+  },
+  {
+   "id": "CT29", "nombre": "Sin secretos en lo versionado: escaneo propio y protección de envíos de GitHub", "tipo": "preventivo", "protege": ["C", "I"],
+   "anexo_a": ["A.5.17", "A.8.12"],
+   "evidencia": [{"archivo": "herramientas/sgsi.py", "contiene": "^SECRETOS = "}],
+   "pruebas": ["sgsi:secretos"]
+  },
+  {
+   "id": "CT30", "nombre": "Acceso mínimo: aportes sin invitación, flujos de GitHub de solo lectura y sin secretos propios", "tipo": "preventivo", "protege": ["C", "I"],
+   "anexo_a": ["A.5.15", "A.5.16", "A.5.18", "A.8.2"],
+   "evidencia": [{"archivo": "CONTRIBUTING.md", "contiene": "necesitas que te inviten"}, {"archivo": ".github/workflows/validar-aporte.yml", "contiene": "contents: read"}],
+   "pruebas": ["sgsi:permisos"]
+  },
+  {
+   "id": "CT31", "nombre": "Procedimientos escritos para operar y aportar: directrices, guía de aportes e instructivo", "tipo": "preventivo", "protege": ["C", "I", "D"],
+   "anexo_a": ["A.5.37", "A.6.3", "A.5.10"],
+   "evidencia": [{"archivo": "DIRECTRICES.md", "contiene": "Validar este repositorio en 15 minutos"}, {"archivo": "CONTRIBUTING.md"}, {"archivo": "APORTAR-CON-TU-AGENTE.md"}],
+   "pruebas": []
+  },
+  {
+   "id": "CT32", "nombre": "Este SGSI comprobado sin IA: inventario, clasificación, riesgos y Declaración de Aplicabilidad", "tipo": "detectivo", "protege": ["C", "I", "D"],
+   "anexo_a": ["A.5.1", "A.5.2", "A.5.4", "A.5.8", "A.5.9", "A.5.12", "A.5.13", "A.5.36"],
+   "evidencia": [{"archivo": "herramientas/sgsi.py"}, {"archivo": "sgsi/README.md"}, {"archivo": "sgsi/soa.json"}],
+   "pruebas": ["sgsi:inventario"]
+  },
+  {
+   "id": "CT33", "nombre": "Reporte privado de vulnerabilidades y respuesta según la propiedad afectada (SECURITY.md)", "tipo": "correctivo", "protege": ["C", "I", "D"],
+   "anexo_a": ["A.5.24", "A.5.25", "A.5.26", "A.5.28", "A.6.8", "A.5.5"],
+   "evidencia": [{"archivo": "SECURITY.md", "contiene": "Report a vulnerability"}, {"archivo": "SECURITY.md", "contiene": "art\\. 17"}],
+   "pruebas": []
+  },
+  {
+   "id": "CT34", "nombre": "Proveedores con su papel y su límite: GitHub, datos.gov.co, OSV y los asistentes de IA", "tipo": "preventivo", "protege": ["C", "I", "D"],
+   "anexo_a": ["A.5.19", "A.5.23"],
+   "evidencia": [{"archivo": "sgsi/README.md", "contiene": "^## Proveedores"}],
+   "pruebas": []
+  },
+  {
+   "id": "CT35", "nombre": "Fichas de oportunidad validadas sin IA: consultas reales, cruces medidos y sin cifras inventadas (V1–V8)", "tipo": "preventivo", "protege": ["I"],
+   "anexo_a": ["A.8.29"],
+   "evidencia": [{"archivo": "herramientas/validar_ficha.py", "contiene": "V6 sin cifras inventadas"}],
+   "pruebas": []
+  },
+  {
+   "id": "CT36", "nombre": "El filtro también corre en local con el mismo comando: si GitHub Actions no está, el dueño lo corre antes de aprobar", "tipo": "correctivo", "protege": ["D"],
+   "anexo_a": ["A.5.29", "A.5.30"],
+   "evidencia": [{"archivo": "CONTRIBUTING.md", "contiene": "validar_aporte\\.py --base origin/main"}, {"archivo": ".github/PULL_REQUEST_TEMPLATE.md", "contiene": "dueño lo corre"}],
+   "pruebas": []
+  },
+  {
+   "id": "CT37", "nombre": "Vigilancia diaria de main: blindaje, baterías, corrida sintética, mutantes y SGSI", "tipo": "detectivo", "protege": ["C", "I", "D"],
+   "anexo_a": ["A.8.16", "A.8.8"],
+   "evidencia": [{"archivo": ".github/workflows/vigilancia-diaria.yml", "contiene": "sgsi\\.py --efectividad"}],
+   "pruebas": []
+  },
+  {
+   "id": "CT38", "nombre": "Retención mínima: los datos crudos se borran al cerrar la corrida y se reconstruyen con el contrato", "tipo": "preventivo", "protege": ["C"],
+   "anexo_a": ["A.8.10"],
+   "evidencia": [{"archivo": "sgsi/README.md", "contiene": "^## Retención"}],
+   "pruebas": []
+  },
+  {
+   "id": "CT39", "nombre": "Conteo de rutas locales del equipo en lo versionado: no puede crecer sin que se note", "tipo": "detectivo", "protege": ["C"],
+   "anexo_a": ["A.8.12"],
+   "evidencia": [{"archivo": "herramientas/sgsi.py", "contiene": "^RUTA_LOCAL = "}],
+   "pruebas": ["sgsi:secretos"]
+  }
+ ]
+}

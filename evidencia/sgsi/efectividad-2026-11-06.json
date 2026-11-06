@@ -1,0 +1,1078 @@
+{
+ "resumen": {
+  "fallas": 0,
+  "avisos": 1,
+  "riesgos_fuera_del_criterio": [
+   "R16"
+  ],
+  "soa_aplican": 64,
+  "efectividad": {
+   "CT01": "operando",
+   "CT02": "operando",
+   "CT03": "operando",
+   "CT04": "operando",
+   "CT05": "sin prueba automática",
+   "CT06": "sin prueba automática",
+   "CT07": "operando",
+   "CT08": "operando",
+   "CT09": "operando",
+   "CT10": "operando",
+   "CT11": "operando",
+   "CT12": "operando",
+   "CT13": "operando",
+   "CT14": "operando",
+   "CT15": "operando",
+   "CT16": "operando",
+   "CT17": "operando",
+   "CT18": "operando",
+   "CT19": "operando",
+   "CT20": "sin prueba automática",
+   "CT21": "operando",
+   "CT22": "operando",
+   "CT23": "sin prueba automática",
+   "CT24": "operando",
+   "CT25": "operando",
+   "CT26": "operando",
+   "CT27": "sin prueba automática",
+   "CT28": "operando",
+   "CT29": "operando",
+   "CT30": "operando",
+   "CT31": "sin prueba automática",
+   "CT32": "operando",
+   "CT33": "sin prueba automática",
+   "CT34": "sin prueba automática",
+   "CT35": "sin prueba automática",
+   "CT36": "sin prueba automática",
+   "CT37": "sin prueba automática",
+   "CT38": "sin prueba automática",
+   "CT39": "operando"
+  }
+ },
+ "chequeos": {
+  "inventario": {
+   "fallas": [],
+   "avisos": []
+  },
+  "restringidos": {
+   "fallas": [],
+   "avisos": []
+  },
+  "secretos": {
+   "fallas": [],
+   "avisos": []
+  },
+  "permisos": {
+   "fallas": [],
+   "avisos": []
+  },
+  "controles": {
+   "fallas": [],
+   "avisos": []
+  },
+  "riesgos": {
+   "fallas": [],
+   "avisos": [
+    "R16: tratamiento por decidir (dueño del riesgo): comprobar cada referencia legal contra su texto oficial (ley, artículo y cita textual) sin IA, y un verificador ciego de otra familia de modelos para lo que no se pueda comprobar así; mientras tanto, residual 3×5 = 15, por encima del criterio"
+   ]
+  },
+  "soa": {
+   "fallas": [],
+   "avisos": []
+  },
+  "corridas": {
+   "fallas": [],
+   "avisos": []
+  },
+  "informe": {
+   "fallas": [],
+   "avisos": []
+  }
+ },
+ "riesgos": [
+  {
+   "id": "R01",
+   "propiedad": "C",
+   "activos": [
+    "A01",
+    "A02"
+   ],
+   "amenaza": "Datos de SECOP II con personas se suben al repositorio público (un «git add .» o un aporte con la carpeta datos/ o limpio/)",
+   "probabilidad": 3,
+   "impacto": 4,
+   "nivel": 12,
+   "residual_probabilidad": 1,
+   "residual_impacto": 3,
+   "residual": 3,
+   "controles": [
+    "CT02",
+    "CT01",
+    "CT19",
+    "CT31"
+   ],
+   "no_reducen": [
+    "CT33"
+   ],
+   "sin_validez": [],
+   "tratamiento": "mitigar",
+   "estado": "dentro del criterio",
+   "plan": null
+  },
+  {
+   "id": "R02",
+   "propiedad": "C",
+   "activos": [
+    "A01",
+    "A09"
+   ],
+   "amenaza": "Una salida publicada (informe, gráfico o tabla) lleva cédulas, nombres o texto libre de personas",
+   "probabilidad": 3,
+   "impacto": 4,
+   "nivel": 12,
+   "residual_probabilidad": 1,
+   "residual_impacto": 3,
+   "residual": 3,
+   "controles": [
+    "CT03",
+    "CT04",
+    "CT01",
+    "CT17"
+   ],
+   "no_reducen": [],
+   "sin_validez": [],
+   "tratamiento": "mitigar",
+   "estado": "dentro del criterio",
+   "plan": null
+  },
+  {
+   "id": "R03",
+   "propiedad": "C",
+   "activos": [
+    "A04"
+   ],
+   "amenaza": "Un generador ve el criterio sellado (reglas o caso conocido) y escribe para pasar la prueba",
+   "probabilidad": 3,
+   "impacto": 3,
+   "nivel": 9,
+   "residual_probabilidad": 2,
+   "residual_impacto": 3,
+   "residual": 6,
+   "controles": [
+    "CT05"
+   ],
+   "no_reducen": [
+    "CT06"
+   ],
+   "sin_validez": [],
+   "tratamiento": "mitigar",
+   "estado": "dentro del criterio",
+   "plan": null
+  },
+  {
+   "id": "R04",
+   "propiedad": "C",
+   "activos": [
+    "A13"
+   ],
+   "amenaza": "El código de la IA lee secretos del entorno o archivos de la carpeta personal y los saca",
+   "probabilidad": 3,
+   "impacto": 5,
+   "nivel": 15,
+   "residual_probabilidad": 1,
+   "residual_impacto": 5,
+   "residual": 5,
+   "controles": [
+    "CT13",
+    "CT12"
+   ],
+   "no_reducen": [],
+   "sin_validez": [],
+   "tratamiento": "mitigar",
+   "estado": "dentro del criterio",
+   "plan": null
+  },
+  {
+   "id": "R05",
+   "propiedad": "C",
+   "activos": [
+    "A13"
+   ],
+   "amenaza": "Un token o una llave queda en un commit o en un aporte",
+   "probabilidad": 2,
+   "impacto": 5,
+   "nivel": 10,
+   "residual_probabilidad": 1,
+   "residual_impacto": 5,
+   "residual": 5,
+   "controles": [
+    "CT29",
+    "CT02",
+    "CT30"
+   ],
+   "no_reducen": [
+    "CT33"
+   ],
+   "sin_validez": [],
+   "tratamiento": "mitigar",
+   "estado": "dentro del criterio",
+   "plan": null
+  },
+  {
+   "id": "R06",
+   "propiedad": "C",
+   "activos": [
+    "A01"
+   ],
+   "amenaza": "Texto libre de SECOP con cédulas o nombres escritos a mano llega al perfil, a la IA o al informe",
+   "probabilidad": 3,
+   "impacto": 4,
+   "nivel": 12,
+   "residual_probabilidad": 1,
+   "residual_impacto": 3,
+   "residual": 3,
+   "controles": [
+    "CT01",
+    "CT04",
+    "CT03"
+   ],
+   "no_reducen": [],
+   "sin_validez": [],
+   "tratamiento": "mitigar",
+   "estado": "dentro del criterio",
+   "plan": null
+  },
+  {
+   "id": "R07",
+   "propiedad": "C",
+   "activos": [
+    "A15"
+   ],
+   "amenaza": "Archivos versionados guardan rutas absolutas del equipo del dueño",
+   "probabilidad": 5,
+   "impacto": 2,
+   "nivel": 10,
+   "residual_probabilidad": 5,
+   "residual_impacto": 2,
+   "residual": 10,
+   "controles": [],
+   "no_reducen": [
+    "CT39"
+   ],
+   "sin_validez": [],
+   "tratamiento": "aceptar",
+   "estado": "dentro del criterio",
+   "plan": "se acepta por estar dentro del criterio: revela el usuario del equipo, no un secreto; spec.json está sellado y cambiarlo exige rehacer los sellos. CT39 avisa si la cifra crece. Mejora sugerida: que flujo.js y gobernanza.py escriban rutas relativas al clon"
+  },
+  {
+   "id": "R08",
+   "propiedad": "I",
+   "activos": [
+    "A05",
+    "A06",
+    "A07"
+   ],
+   "amenaza": "Un agente o un aporte edita una herramienta, una ficha o una batería para que todo apruebe",
+   "probabilidad": 3,
+   "impacto": 5,
+   "nivel": 15,
+   "residual_probabilidad": 2,
+   "residual_impacto": 2,
+   "residual": 4,
+   "controles": [
+    "CT08",
+    "CT20",
+    "CT19",
+    "CT25",
+    "CT37"
+   ],
+   "no_reducen": [],
+   "sin_validez": [],
+   "tratamiento": "mitigar",
+   "estado": "dentro del criterio",
+   "plan": null
+  },
+  {
+   "id": "R09",
+   "propiedad": "I",
+   "activos": [
+    "A04"
+   ],
+   "amenaza": "El criterio o el umbral se cambia después de ver el resultado",
+   "probabilidad": 3,
+   "impacto": 5,
+   "nivel": 15,
+   "residual_probabilidad": 2,
+   "residual_impacto": 2,
+   "residual": 4,
+   "controles": [
+    "CT07",
+    "CT05",
+    "CT06"
+   ],
+   "no_reducen": [],
+   "sin_validez": [],
+   "tratamiento": "mitigar",
+   "estado": "dentro del criterio",
+   "plan": null
+  },
+  {
+   "id": "R10",
+   "propiedad": "I",
+   "activos": [
+    "A08",
+    "A09",
+    "A02"
+   ],
+   "amenaza": "El código de la IA trae un error silencioso (fechas, duplicados, uniones, marcas) y la cifra sale mal",
+   "probabilidad": 4,
+   "impacto": 5,
+   "nivel": 20,
+   "residual_probabilidad": 3,
+   "residual_impacto": 2,
+   "residual": 6,
+   "controles": [
+    "CT09",
+    "CT10",
+    "CT11",
+    "CT27",
+    "CT24"
+   ],
+   "no_reducen": [],
+   "sin_validez": [],
+   "tratamiento": "mitigar",
+   "estado": "dentro del criterio",
+   "plan": null
+  },
+  {
+   "id": "R11",
+   "propiedad": "I",
+   "activos": [
+    "A14"
+   ],
+   "amenaza": "El código de la IA trae algo peligroso (ejecutar texto, abrir la red, deserializar, instalar paquetes) y corre en el equipo",
+   "probabilidad": 3,
+   "impacto": 5,
+   "nivel": 15,
+   "residual_probabilidad": 1,
+   "residual_impacto": 3,
+   "residual": 3,
+   "controles": [
+    "CT12",
+    "CT13",
+    "CT26",
+    "CT25"
+   ],
+   "no_reducen": [],
+   "sin_validez": [],
+   "tratamiento": "mitigar",
+   "estado": "dentro del criterio",
+   "plan": null
+  },
+  {
+   "id": "R12",
+   "propiedad": "I",
+   "activos": [
+    "A09"
+   ],
+   "amenaza": "Un valor de los datos con forma de instrucción cambia lo que hace la IA (inyección)",
+   "probabilidad": 3,
+   "impacto": 5,
+   "nivel": 15,
+   "residual_probabilidad": 1,
+   "residual_impacto": 3,
+   "residual": 3,
+   "controles": [
+    "CT16",
+    "CT17",
+    "CT04",
+    "CT25"
+   ],
+   "no_reducen": [],
+   "sin_validez": [],
+   "tratamiento": "mitigar",
+   "estado": "dentro del criterio",
+   "plan": null
+  },
+  {
+   "id": "R13",
+   "propiedad": "I",
+   "activos": [
+    "A11",
+    "A06",
+    "A07"
+   ],
+   "amenaza": "Un aporte trae órdenes escondidas para los agentes o debilita una defensa",
+   "probabilidad": 3,
+   "impacto": 5,
+   "nivel": 15,
+   "residual_probabilidad": 1,
+   "residual_impacto": 3,
+   "residual": 3,
+   "controles": [
+    "CT19",
+    "CT20",
+    "CT16",
+    "CT25",
+    "CT08",
+    "CT24"
+   ],
+   "no_reducen": [],
+   "sin_validez": [],
+   "tratamiento": "mitigar",
+   "estado": "dentro del criterio",
+   "plan": null
+  },
+  {
+   "id": "R14",
+   "propiedad": "I",
+   "activos": [
+    "A14"
+   ],
+   "amenaza": "Un paquete con nombre inventado o alterado entra al entorno (slopsquatting o paquete comprometido)",
+   "probabilidad": 2,
+   "impacto": 5,
+   "nivel": 10,
+   "residual_probabilidad": 1,
+   "residual_impacto": 3,
+   "residual": 3,
+   "controles": [
+    "CT14",
+    "CT12",
+    "CT15"
+   ],
+   "no_reducen": [],
+   "sin_validez": [],
+   "tratamiento": "mitigar",
+   "estado": "dentro del criterio",
+   "plan": null
+  },
+  {
+   "id": "R15",
+   "propiedad": "I",
+   "activos": [
+    "A09"
+   ],
+   "amenaza": "Un gráfico o un informe engaña (eje truncado, período incompleto sin marcar) o ejecuta algo al abrirse",
+   "probabilidad": 3,
+   "impacto": 5,
+   "nivel": 15,
+   "residual_probabilidad": 2,
+   "residual_impacto": 2,
+   "residual": 4,
+   "controles": [
+    "CT18",
+    "CT17",
+    "CT28"
+   ],
+   "no_reducen": [],
+   "sin_validez": [],
+   "tratamiento": "mitigar",
+   "estado": "dentro del criterio",
+   "plan": null
+  },
+  {
+   "id": "R16",
+   "propiedad": "I",
+   "activos": [
+    "A09"
+   ],
+   "amenaza": "Una referencia legal o una cifra inventada por la IA llega a una ficha de oportunidad o a un informe (alucinación)",
+   "probabilidad": 3,
+   "impacto": 5,
+   "nivel": 15,
+   "residual_probabilidad": 3,
+   "residual_impacto": 5,
+   "residual": 15,
+   "controles": [
+    "CT35"
+   ],
+   "no_reducen": [],
+   "sin_validez": [],
+   "tratamiento": "por decidir",
+   "estado": "pendiente del dueño",
+   "plan": "comprobar cada referencia legal contra su texto oficial (ley, artículo y cita textual) sin IA, y un verificador ciego de otra familia de modelos para lo que no se pueda comprobar así; mientras tanto, residual 3×5 = 15, por encima del criterio"
+  },
+  {
+   "id": "R17",
+   "propiedad": "I",
+   "activos": [
+    "A16"
+   ],
+   "amenaza": "El SGSI declara controles que ya no existen o se queda atrás del código",
+   "probabilidad": 3,
+   "impacto": 4,
+   "nivel": 12,
+   "residual_probabilidad": 2,
+   "residual_impacto": 2,
+   "residual": 4,
+   "controles": [
+    "CT32",
+    "CT19",
+    "CT37"
+   ],
+   "no_reducen": [],
+   "sin_validez": [],
+   "tratamiento": "mitigar",
+   "estado": "dentro del criterio",
+   "plan": null
+  },
+  {
+   "id": "R18",
+   "propiedad": "I",
+   "activos": [
+    "A10"
+   ],
+   "amenaza": "La procedencia o la bitácora no corresponden a lo que se hizo",
+   "probabilidad": 2,
+   "impacto": 4,
+   "nivel": 8,
+   "residual_probabilidad": 1,
+   "residual_impacto": 2,
+   "residual": 2,
+   "controles": [
+    "CT23",
+    "CT28",
+    "CT20"
+   ],
+   "no_reducen": [],
+   "sin_validez": [],
+   "tratamiento": "mitigar",
+   "estado": "dentro del criterio",
+   "plan": null
+  },
+  {
+   "id": "R19",
+   "propiedad": "I",
+   "activos": [
+    "A12"
+   ],
+   "amenaza": "La configuración de GitHub se debilita (protección de main, permisos de los flujos, acciones sin fijar)",
+   "probabilidad": 2,
+   "impacto": 5,
+   "nivel": 10,
+   "residual_probabilidad": 1,
+   "residual_impacto": 5,
+   "residual": 5,
+   "controles": [
+    "CT30",
+    "CT14",
+    "CT20",
+    "CT21"
+   ],
+   "no_reducen": [],
+   "sin_validez": [],
+   "tratamiento": "mitigar",
+   "estado": "dentro del criterio",
+   "plan": null
+  },
+  {
+   "id": "R20",
+   "propiedad": "I",
+   "activos": [
+    "A13"
+   ],
+   "amenaza": "Roban la sesión o un token del dueño y cambian main o la configuración sin revisión",
+   "probabilidad": 2,
+   "impacto": 5,
+   "nivel": 10,
+   "residual_probabilidad": 1,
+   "residual_impacto": 4,
+   "residual": 4,
+   "controles": [
+    "CT29",
+    "CT30",
+    "CT37"
+   ],
+   "no_reducen": [],
+   "sin_validez": [],
+   "tratamiento": "mitigar",
+   "estado": "dentro del criterio",
+   "plan": null
+  },
+  {
+   "id": "R21",
+   "propiedad": "D",
+   "activos": [
+    "A12"
+   ],
+   "amenaza": "El repositorio deja de recibir aportes en plena clase (fork o pull requests apagados, plantilla o instructivo borrados)",
+   "probabilidad": 2,
+   "impacto": 4,
+   "nivel": 8,
+   "residual_probabilidad": 1,
+   "residual_impacto": 2,
+   "residual": 2,
+   "controles": [
+    "CT21",
+    "CT22",
+    "CT20"
+   ],
+   "no_reducen": [],
+   "sin_validez": [],
+   "tratamiento": "mitigar",
+   "estado": "dentro del criterio",
+   "plan": null
+  },
+  {
+   "id": "R22",
+   "propiedad": "D",
+   "activos": [
+    "A05",
+    "A06",
+    "A07"
+   ],
+   "amenaza": "Se pierde el repositorio o el equipo del dueño (borrado, daño o secuestro de datos)",
+   "probabilidad": 2,
+   "impacto": 3,
+   "nivel": 6,
+   "residual_probabilidad": 1,
+   "residual_impacto": 2,
+   "residual": 2,
+   "controles": [
+    "CT22",
+    "CT20"
+   ],
+   "no_reducen": [],
+   "sin_validez": [],
+   "tratamiento": "mitigar",
+   "estado": "dentro del criterio",
+   "plan": null
+  },
+  {
+   "id": "R23",
+   "propiedad": "D",
+   "activos": [
+    "A01"
+   ],
+   "amenaza": "datos.gov.co no responde o el conjunto cambia y la cifra no se puede reproducir",
+   "probabilidad": 3,
+   "impacto": 2,
+   "nivel": 6,
+   "residual_probabilidad": 3,
+   "residual_impacto": 1,
+   "residual": 3,
+   "controles": [
+    "CT22"
+   ],
+   "no_reducen": [],
+   "sin_validez": [],
+   "tratamiento": "mitigar",
+   "estado": "dentro del criterio",
+   "plan": null
+  },
+  {
+   "id": "R24",
+   "propiedad": "D",
+   "activos": [
+    "A14"
+   ],
+   "amenaza": "El código de la IA agota la memoria o no termina y la corrida se cae",
+   "probabilidad": 3,
+   "impacto": 3,
+   "nivel": 9,
+   "residual_probabilidad": 1,
+   "residual_impacto": 2,
+   "residual": 2,
+   "controles": [
+    "CT13",
+    "CT27"
+   ],
+   "no_reducen": [],
+   "sin_validez": [],
+   "tratamiento": "mitigar",
+   "estado": "dentro del criterio",
+   "plan": null
+  },
+  {
+   "id": "R25",
+   "propiedad": "D",
+   "activos": [
+    "A12"
+   ],
+   "amenaza": "El filtro automático no corre (GitHub Actions caído o sin minutos) y los aportes quedan sin validar",
+   "probabilidad": 2,
+   "impacto": 4,
+   "nivel": 8,
+   "residual_probabilidad": 2,
+   "residual_impacto": 2,
+   "residual": 4,
+   "controles": [
+    "CT36"
+   ],
+   "no_reducen": [],
+   "sin_validez": [],
+   "tratamiento": "mitigar",
+   "estado": "dentro del criterio",
+   "plan": null
+  },
+  {
+   "id": "R26",
+   "propiedad": "C",
+   "activos": [
+    "A01"
+   ],
+   "amenaza": "Filas con datos de personas llegan al proveedor del asistente de IA",
+   "probabilidad": 3,
+   "impacto": 4,
+   "nivel": 12,
+   "residual_probabilidad": 1,
+   "residual_impacto": 3,
+   "residual": 3,
+   "controles": [
+    "CT04",
+    "CT01",
+    "CT34"
+   ],
+   "no_reducen": [],
+   "sin_validez": [],
+   "tratamiento": "mitigar",
+   "estado": "dentro del criterio",
+   "plan": null
+  },
+  {
+   "id": "R27",
+   "propiedad": "C",
+   "activos": [
+    "A01"
+   ],
+   "amenaza": "Los datos crudos con personas se quedan en el disco más tiempo del necesario",
+   "probabilidad": 3,
+   "impacto": 4,
+   "nivel": 12,
+   "residual_probabilidad": 2,
+   "residual_impacto": 3,
+   "residual": 6,
+   "controles": [
+    "CT38",
+    "CT01"
+   ],
+   "no_reducen": [],
+   "sin_validez": [],
+   "tratamiento": "mitigar",
+   "estado": "dentro del criterio",
+   "plan": null
+  }
+ ],
+ "efectividad": {
+  "CT01": {
+   "estado": "operando",
+   "pruebas": {
+    "bateria:privacidad": "pasa"
+   }
+  },
+  "CT02": {
+   "estado": "operando",
+   "pruebas": {
+    "sgsi:restringidos": "pasa"
+   }
+  },
+  "CT03": {
+   "estado": "operando",
+   "pruebas": {
+    "bateria:privacidad": "pasa"
+   }
+  },
+  "CT04": {
+   "estado": "operando",
+   "pruebas": {
+    "bateria:privacidad": "pasa",
+    "B04": "pasa"
+   }
+  },
+  "CT05": {
+   "estado": "sin prueba automática",
+   "pruebas": {}
+  },
+  "CT06": {
+   "estado": "sin prueba automática",
+   "pruebas": {}
+  },
+  "CT07": {
+   "estado": "operando",
+   "pruebas": {
+    "corrida-sintetica": "pasa"
+   }
+  },
+  "CT08": {
+   "estado": "operando",
+   "pruebas": {
+    "B02": "pasa"
+   }
+  },
+  "CT09": {
+   "estado": "operando",
+   "pruebas": {
+    "corrida-sintetica": "pasa",
+    "B05": "pasa"
+   }
+  },
+  "CT10": {
+   "estado": "operando",
+   "pruebas": {
+    "mutantes": "pasa"
+   }
+  },
+  "CT11": {
+   "estado": "operando",
+   "pruebas": {
+    "bateria:failfast": "pasa",
+    "B09": "pasa",
+    "B19": "pasa"
+   }
+  },
+  "CT12": {
+   "estado": "operando",
+   "pruebas": {
+    "bateria:seguridad": "pasa",
+    "B15": "pasa"
+   }
+  },
+  "CT13": {
+   "estado": "operando",
+   "pruebas": {
+    "B00": "pasa",
+    "B01": "pasa",
+    "B10": "pasa",
+    "B11": "pasa",
+    "B12": "pasa",
+    "B13": "pasa",
+    "B14": "pasa"
+   }
+  },
+  "CT14": {
+   "estado": "operando",
+   "pruebas": {
+    "B08": "pasa",
+    "sgsi:permisos": "pasa"
+   }
+  },
+  "CT15": {
+   "estado": "operando",
+   "pruebas": {
+    "red:vulnerabilidades": "pasa"
+   }
+  },
+  "CT16": {
+   "estado": "operando",
+   "pruebas": {
+    "bateria:inyeccion": "pasa",
+    "B04": "pasa",
+    "B07": "pasa"
+   }
+  },
+  "CT17": {
+   "estado": "operando",
+   "pruebas": {
+    "B03": "pasa",
+    "B17": "pasa",
+    "B18": "pasa"
+   }
+  },
+  "CT18": {
+   "estado": "operando",
+   "pruebas": {
+    "B17": "pasa"
+   }
+  },
+  "CT19": {
+   "estado": "operando",
+   "pruebas": {
+    "B07": "pasa"
+   }
+  },
+  "CT20": {
+   "estado": "sin prueba automática",
+   "pruebas": {}
+  },
+  "CT21": {
+   "estado": "operando",
+   "pruebas": {
+    "red:abierta_a_aportes": "pasa"
+   }
+  },
+  "CT22": {
+   "estado": "operando",
+   "pruebas": {
+    "corrida-sintetica": "pasa"
+   }
+  },
+  "CT23": {
+   "estado": "sin prueba automática",
+   "pruebas": {}
+  },
+  "CT24": {
+   "estado": "operando",
+   "pruebas": {
+    "bateria:lecciones": "pasa"
+   }
+  },
+  "CT25": {
+   "estado": "operando",
+   "pruebas": {
+    "B00": "pasa"
+   }
+  },
+  "CT26": {
+   "estado": "operando",
+   "pruebas": {
+    "bateria:seguridad": "pasa"
+   }
+  },
+  "CT27": {
+   "estado": "sin prueba automática",
+   "pruebas": {}
+  },
+  "CT28": {
+   "estado": "operando",
+   "pruebas": {
+    "B18": "pasa"
+   }
+  },
+  "CT29": {
+   "estado": "operando",
+   "pruebas": {
+    "sgsi:secretos": "pasa"
+   }
+  },
+  "CT30": {
+   "estado": "operando",
+   "pruebas": {
+    "sgsi:permisos": "pasa"
+   }
+  },
+  "CT31": {
+   "estado": "sin prueba automática",
+   "pruebas": {}
+  },
+  "CT32": {
+   "estado": "operando",
+   "pruebas": {
+    "sgsi:inventario": "pasa"
+   }
+  },
+  "CT33": {
+   "estado": "sin prueba automática",
+   "pruebas": {}
+  },
+  "CT34": {
+   "estado": "sin prueba automática",
+   "pruebas": {}
+  },
+  "CT35": {
+   "estado": "sin prueba automática",
+   "pruebas": {}
+  },
+  "CT36": {
+   "estado": "sin prueba automática",
+   "pruebas": {}
+  },
+  "CT37": {
+   "estado": "sin prueba automática",
+   "pruebas": {}
+  },
+  "CT38": {
+   "estado": "sin prueba automática",
+   "pruebas": {}
+  },
+  "CT39": {
+   "estado": "operando",
+   "pruebas": {
+    "sgsi:secretos": "pasa"
+   }
+  }
+ },
+ "pruebas_medidas": {
+  "sgsi:inventario": "pasa",
+  "sgsi:restringidos": "pasa",
+  "sgsi:secretos": "pasa",
+  "sgsi:permisos": "pasa",
+  "B00": "pasa",
+  "B01": "pasa",
+  "B02": "pasa",
+  "B03": "pasa",
+  "B04": "pasa",
+  "B05": "pasa",
+  "B07": "pasa",
+  "B08": "pasa",
+  "B09": "pasa",
+  "B10": "pasa",
+  "B11": "pasa",
+  "B12": "pasa",
+  "B13": "pasa",
+  "B14": "pasa",
+  "B15": "pasa",
+  "B17": "pasa",
+  "B18": "pasa",
+  "B19": "pasa",
+  "bateria:seguridad": "pasa",
+  "bateria:privacidad": "pasa",
+  "bateria:failfast": "pasa",
+  "bateria:inyeccion": "pasa",
+  "bateria:lecciones": "pasa",
+  "corrida-sintetica": "pasa",
+  "mutantes": "pasa",
+  "red:abierta_a_aportes": "pasa",
+  "red:vulnerabilidades": "pasa"
+ },
+ "corridas": [
+  {
+   "corrida": "2026-11-06-pipeline-completo-secop-medellin-2025",
+   "C": [
+    "publicable",
+    "barrido de datos personales limpio; solo agregados, sin columnas de personas"
+   ],
+   "I": [
+    "íntegra",
+    "huellas del criterio recalculadas hoy y resultado aprobado sin IA"
+   ],
+   "D": [
+    "reconstruible",
+    "se vuelve a descargar con el contrato de datos (ingesta.py) y se compara con la procedencia"
+   ]
+  },
+  {
+   "corrida": "2026-11-06-pipeline-secop-medellin-2025",
+   "C": [
+    "publicable",
+    "barrido de datos personales limpio; solo agregados, sin columnas de personas"
+   ],
+   "I": [
+    "íntegra",
+    "huellas del criterio recalculadas hoy y resultado aprobado sin IA"
+   ],
+   "D": [
+    "reconstruible",
+    "se vuelve a descargar con el contrato de datos (ingesta.py) y se compara con la procedencia"
+   ]
+  },
+  {
+   "corrida": "2026-11-06-secop-medellin-2025",
+   "C": [
+    "publicable",
+    "barrido de datos personales limpio; solo agregados, sin columnas de personas"
+   ],
+   "I": [
+    "íntegra",
+    "huellas del criterio recalculadas hoy y resultado aprobado sin IA"
+   ],
+   "D": [
+    "reconstruible",
+    "se vuelve a descargar con el contrato de datos (ingesta.py) y se compara con la procedencia"
+   ]
+  },
+  {
+   "corrida": "2026-11-06-ventas-semestre",
+   "C": [
+    "publicable",
+    "barrido de datos personales limpio; solo agregados, sin columnas de personas"
+   ],
+   "I": [
+    "íntegra",
+    "huellas del criterio recalculadas hoy y resultado aprobado sin IA"
+   ],
+   "D": [
+    "reconstruible",
+    "datos sintéticos versionados y regenerables desde la semilla (generar_datos.py)"
+   ]
+  }
+ ]
+}

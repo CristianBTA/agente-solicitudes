@@ -246,6 +246,12 @@
       "leccion": "Ventas, inventario y cuentas por pagar escriben distinto el mismo producto, laboratorio o proveedor: espacios dobles o invisibles (U+00A0) dentro del nombre, S.A.S. frente a SAS, tildes, códigos 001 frente a 1. El cruce falla en silencio. El perfil dice por qué no cruza cada valor para que la limpieza lo declare, y no explica un valor que de verdad falta aunque se parezca; si hay NIT o código, se cruza por él y no por el nombre.",
       "origen": "aporte del grupo: rotación de inventarios y cruce de ventas con pagos a proveedores en una distribuidora agrícola (ERP comercial), 6-nov-2026",
       "prueba": "bateria:cruces/esperado.json"
+    },
+    {
+      "id": "L42",
+      "leccion": "Las defensas se prueban donde existen: el filtro de aportes corría en Linux, donde no hay sandbox-exec; B11 (red) y B12 (escritura) cedían y todo aporte que tocara herramientas/ habría fallado. El filtro y la vigilancia diaria corren en macOS.",
+      "origen": "primera ejecución real del filtro en GitHub Actions (pull request del SGSI, 6-nov-2026); lo encontró la valoración de riesgos del SGSI",
+      "prueba": "sgsi.py, chequeo permisos: un flujo que corre el banco de blindaje fuera de macOS falla"
     }
   ]
 }

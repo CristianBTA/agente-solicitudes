@@ -12,6 +12,7 @@ Lo corre GitHub Actions en cada pull request, y también se puede correr a mano.
   4. Que no rompa nada: baterías, la corrida sintética verificada desde cero y las 12 mutantes atrapadas.
   5. Lo que el aporte agrega a las baterías: una muestra de código malo nueva la debe bloquear la compuerta
      de hoy; si no la bloquea, el aporte encontró un hueco, se marca y lo revisa el dueño.
+  6. El SGSI (sgsi/README.md): nada restringido versionado, sin llaves, flujos de solo lectura y cada control con evidencia.
 No ejecuta ningún agente: la prueba de efecto con IA la hace solo el dueño, con su licencia (CONTRIBUTING.md).
 """
 import json
@@ -122,6 +123,11 @@ def main(argv):
             (avisos if del_aporte else fallas).append(
                 (f"hueco encontrado por el aporte (valioso; el dueño decide cómo cerrarlo): {linea[2:]}" if del_aporte
                  else f"baterías: {linea[2:]}")[:300])
+    # el SGSI (sgsi/README.md): lo restringido sigue fuera, sin llaves, flujos de solo lectura y cada control con su evidencia
+    rc, out = correr("herramientas/sgsi.py")
+    for linea in out.splitlines():
+        if linea.startswith("    ✗ "):
+            fallas.append(f"SGSI: {linea.strip()[2:][:200]}")
     # la corrida sintética se verifica en una copia temporal: no se reescribe ningún archivo del repositorio
     tmp = Path(tempfile.mkdtemp(prefix="validar-")) / "corrida"
     shutil.copytree(RAIZ / "corridas/2026-11-06-ventas-semestre", tmp)
