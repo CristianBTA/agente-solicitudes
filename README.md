@@ -2,7 +2,7 @@
 
 Un análisis de datos hecho con IA, de la pregunta al informe, en las cinco etapas del ciclo del dato. En cada etapa la IA hace el trabajo y una prueba que no es IA lo comprueba. Quien pide el análisis no lee código: lee un informe de una página con la cifra, lo que se entendió, los supuestos, las preguntas abiertas y qué pasó cada prueba.
 
-Quién analiza depende de la herramienta. En el pipeline de esta versión, la IA también propone las hipótesis de la etapa de análisis y una prueba sin IA las comprueba. En el [agente masivo](#agente-masivo-de-datos-públicos) y en su whitepaper, el análisis es de las personas: la IA deja preguntas y un resumen, sin conclusiones.
+Quién analiza: las personas, en las dos herramientas. En el pipeline de esta versión, la IA ya no propone ni prueba hipótesis: el documentador resume lo desarrollado en un whitepaper sin conclusiones, una prueba sin IA lo comprueba y las personas escriben su hipótesis antes de mirar (`plantillas/analisis_humano.md`). En el [agente masivo](#agente-masivo-de-datos-públicos) y en su whitepaper, igual: la IA deja preguntas y un resumen, sin conclusiones.
 
 Material aplicado del curso **«Big Data con IA»** (NODO · Universidad EAFIT, noviembre de 2026), con datos abiertos de Colombia (SECOP II).
 
@@ -32,11 +32,11 @@ Lee https://raw.githubusercontent.com/CristianBTA/agente-solicitudes/main/APORTA
 |---|---|---|
 | **Ingesta** | escribe el lector: un contrato de datos con fuente, columnas, tipos, llave, dominios y rangos | conteo contra la fuente, llave única y sin nulos, tipos, rangos, dominios, minimización, correr dos veces da el mismo archivo, procedencia con fecha y huella |
 | **Procesamiento** | limpia y transforma: especificación, plan de limpieza, reglas, caso con respuesta conocida y dos implementaciones independientes | capa limpia con las mismas filas y marcas de calidad, calidad antes y después con umbrales, criterio sellado antes del código, reglas sobre el dato crudo, caso conocido, A = B, conciliación, repetibilidad, compuertas y caja de arena |
-| **Análisis** | propone hipótesis | registro y sello previos, consulta independiente de otro agente, umbral y línea base |
+| **Análisis** | no da el análisis, que lo hacen las personas: solo resume lo desarrollado en un whitepaper, con preguntas de costo, calidad e impacto | cada cifra del whitepaper está en los artefactos verificados, sin conclusiones ni recomendaciones, con sus secciones y sus preguntas (`validar_whitepaper.py`); las personas escriben su hipótesis antes de mirar (`plantillas/analisis_humano.md`) |
 | **Visualización** | genera el gráfico y propone la presentación (solo textos y cifras declaradas) | cuenta de control, eje desde cero, título con período, unidades, fuente y fecha, color con contraste y apto para daltonismo, un solo eje, sin datos personales; en la presentación: respuesta primero, títulos que afirman y cada cifra calculada y escrita por el código |
 | **Gobernanza** | halla datos personales con nombres, tipos y conteos, nunca filas | barrido determinista de datos y salidas, k-anonimato, comparación con la IA, revisión ciega de seguridad y baterías |
 
-- **Los subagentes y sus parámetros:** [`agentes/`](agentes/README.md). Doce fichas independientes de la herramienta (rol, qué puede leer y qué no, qué entrega, reglas, lo que nunca hace y la prueba sin IA que lo comprueba), las reglas comunes y la matriz de quién puede ver qué.
+- **Los subagentes y sus parámetros:** [`agentes/`](agentes/README.md). Once fichas independientes de la herramienta (rol, qué puede leer y qué no, qué entrega, reglas, lo que nunca hace y la prueba sin IA que lo comprueba), las reglas comunes y la matriz de quién puede ver qué.
 - **Cómo validar el trabajo y qué exige cada práctica:** [`DIRECTRICES.md`](DIRECTRICES.md), con la guía «Validar este repositorio en 15 minutos».
 - **La seguridad como sistema (SGSI):** [`sgsi/`](sgsi/README.md). Inventario con su valor en confidencialidad, integridad y disponibilidad, 27 riesgos, la Declaración de Aplicabilidad de los 93 controles de ISO/IEC 27001:2022 y la regla de la tríada (la confidencialidad no tiene reversa, la integridad se corrige, la disponibilidad se restablece), comprobados sin IA por `herramientas/sgsi.py`. Las vulnerabilidades se reportan en privado: [`SECURITY.md`](SECURITY.md).
 - **Qué se midió:** [`evidencia/README.md`](evidencia/README.md). Generadores de un solo disparo frente al sistema verificado, en datos sintéticos y en SECOP II, con la prueba del criterio por mutantes (12 de 12 y 11 de 11) y los costos.
@@ -138,7 +138,7 @@ orquestar.mjs            corre flujo.js con agy o con Codex (un subagente = una 
 herramientas/            pruebas y utilidades sin IA
 baterias/                seguridad, privacidad, FAILFAST, inyección, cruces, fechas, repetidos, factor, gráfico y lecciones: lo que falló una vez, probado siempre
 ejemplo/                 ventas sintéticas con trampas conocidas y su glosario
-agentes/                 parámetros de los doce subagentes, reglas comunes y quién puede ver qué
+agentes/                 parámetros de los once subagentes, reglas comunes y quién puede ver qué
 ejemplo-secop/           glosario de SECOP II (los datos no se publican: se descargan con ingesta.py)
 corridas/<fecha-nombre>/ spec, reglas, caso conocido, implementaciones, bitácora e informes de cada corrida
 evidencia/               experimentos: oráculos, mutantes, código y advertencias de los generadores de un solo disparo

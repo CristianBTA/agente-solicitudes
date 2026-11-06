@@ -154,10 +154,11 @@ La IA propone el plan de limpieza (`plan_limpieza_<tabla>.json`) y `herramientas
 
 ## D · Análisis
 
-**D15 · Hipótesis registradas antes de probarlas.**
-Quien propone escribe el enunciado, la medida, el umbral y la línea base, y los sella. Otro agente, sin ver ese razonamiento, escribe la consulta desde los datos de origen. El veredicto lo da el código.
-*Dónde:* `hipotesis.json`, `sellos_hipotesis.json`, `hipotesis.py` y `herramientas/verificar_hipotesis.py`.
-*Por qué:* mover el umbral después de ver el resultado convierte cualquier dato en confirmación.
+**D15 · El análisis lo hacen las personas; la IA solo documenta lo desarrollado.**
+Desde el 6-nov-2026 la IA no propone ni prueba hipótesis ni da el análisis. El documentador escribe un whitepaper con la pregunta, los datos y su procedencia, la limpieza, la cifra verificada y cómo se verificó, el gráfico, la gobernanza, los límites y preguntas de costo, calidad e impacto, sin conclusiones. Las personas escriben su hipótesis antes de mirar, la prueban con una consulta (pueden usar `herramientas/verificar_hipotesis.py`, que la sella) y concluyen en la plantilla.
+*Dónde:* `agentes/13-documentador.md`, `whitepaper.md` de cada corrida, `herramientas/validar_whitepaper.py` y `plantillas/analisis_humano.md`; las fichas del proponente y del probador, en `historial/agentes-retirados/`.
+*Cómo se comprueba:* `validar_whitepaper.py`: secciones obligatorias, cada cifra en los artefactos verificados (con tolerancia de redondeo), sin conclusiones, recomendaciones ni causas, al menos tres preguntas y sin instrucciones ni datos personales; `--autoprueba` con whitepapers buenos y malos. Las frases de conclusión se buscan con una lista: lo que no conoce, lo revisa una persona.
+*Por qué:* el valor del trabajo con datos (reducir un costo, mejorar una calidad, el impacto de un contrato en la sociedad) lo concluyen las personas, no la IA. Y la hipótesis va antes de mirar: mover el umbral después de ver el resultado convierte cualquier dato en confirmación.
 
 **D16 · Si hay modelo:** partición temporal, línea base de la misma partición, solo variables que se conocen en el momento de decidir (sin fuga), métrica según el costo del error y umbral explícito. Lo exige el módulo 3 del curso; los ejemplos de este repositorio no entrenan modelos.
 
@@ -285,7 +286,7 @@ La seguridad del repositorio, ordenada como un sistema de gestión (ISO/IEC 2700
 |---|---|---|
 | 1 · Pedir, probar, citar | R1 solo nombres reales · R2 nunca filas · R3 todo conteo cierra · R4 prueba independiente · R5 no borrar en silencio · R6 fechas · R7 valores imposibles se cuentan · R8 primero igual, después rápido · R9 citar con fecha | D1–D4, D9, D12, D13, D18, D20 |
 | 2 · Ingesta y procesamiento | R10 leer completo · R11 esquema declarado · R12 correr dos veces da lo mismo · R13 particionar sin perder nulos · R14 limpiar es marcar · R15 las cinco pruebas · R16 sin traer todo a memoria | D5–D7, D12, D13, DL1–DL7 |
-| 3 · Analítica | hipótesis, línea base, partición temporal, fuga, umbral, desmentir con una consulta, bitácora | D15, D16, D27 |
+| 3 · Analítica | lo hacen las personas: hipótesis escrita antes de mirar, línea base, partición temporal, fuga, umbral, desmentir con una consulta; la IA solo documenta (whitepaper) y deja bitácora | D15, D16, D27 |
 | 4 · Visualización y gobernanza | etiqueta exacta, eje desde cero, factor de mentira, período incompleto, cuenta de control, color con contraste y apto para daltonismo, presentación con la respuesta primero y cifras que escribe el código, unicidad (k), qué no se pega al asistente, cita | D17–D20, D24, D29, D30 |
 
 R13 y R16 son de PySpark: aquí no aplican, porque los datos caben en memoria (91.072 filas).
