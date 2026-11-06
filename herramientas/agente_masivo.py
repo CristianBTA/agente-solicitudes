@@ -32,7 +32,8 @@ nunca toca el agente. Para que no dependa de que la IA obedezca:
     flujo.js, orquestar.mjs y los documentos de uso); al terminar se compara: si algo cambió, la corrida NO VALE y se
     nombran los archivos (no se restauran solos: en la misma carpeta pueden trabajar otras personas);
   - la validación del paso 7 corre con las herramientas de la versión de Git (git archive HEAD), no con las de la carpeta;
-  - el catálogo, las fichas y los resultados viven en fuentes/, que está fuera de Git: nada de una corrida se publica.
+  - el catálogo, las fichas y los resultados viven en fuentes/, que está fuera de Git: nada de una corrida se publica
+    (si --trabajo cae en una carpeta que Git versionaría, el agente se detiene antes de escribir nada).
 Autoprueba sin red: python herramientas/agente_masivo.py --autoprueba
 """
 import hashlib
@@ -124,6 +125,18 @@ def comparar(antes, despues):
     return sorted(k for k in set(antes) | set(despues) if antes.get(k) != despues.get(k))
 
 
+def fuera_de_git(carpeta, raiz=RAIZ):
+    """Nada de una corrida se publica: la carpeta de trabajo queda fuera del repositorio o en una ruta que Git ignora
+    (fuentes/). Sin Git (una copia descargada como .zip) no hay nada que se pueda versionar."""
+    try:
+        Path(carpeta).resolve().relative_to(Path(raiz).resolve())
+    except ValueError:
+        return True
+    p = subprocess.run(["git", "-C", str(raiz), "check-ignore", "-q", str(Path(carpeta).resolve() / "RESULTADO.md")],  # nosec B603 B607
+                       capture_output=True)
+    return p.returncode != 1   # 0: Git la ignora; 1: la versionaría; 128: sin Git
+
+
 def herramientas_de_git():
     """Copia de herramientas/ y baterias/ tal como están en HEAD: la validación no usa lo que la IA pudo tocar."""
     destino = Path(tempfile.mkdtemp(prefix="agente-masivo-git-"))
@@ -134,7 +147,8 @@ def herramientas_de_git():
 
 
 def autoprueba():
-    """Sin red: el sello detecta un cambio, un archivo nuevo y uno borrado, y no da falsas alarmas."""
+    """Sin red: el sello detecta un cambio, un archivo nuevo y uno borrado, y no da falsas alarmas; la carpeta de trabajo
+    que Git versionaría se rechaza, y la de fuentes/ o la de fuera del repositorio se acepta."""
     d = Path(tempfile.mkdtemp(prefix="agente-masivo-prueba-"))
     (d / "herramientas").mkdir()
     (d / "herramientas" / "validar_ficha.py").write_text("x = 1\n")
@@ -148,6 +162,14 @@ def autoprueba():
     (d / "herramientas" / "otra.py").unlink()
     cambiados = comparar(antes, sellar(d, ("herramientas",)))
     casos.append(("lo nuevo y lo borrado se detectan", "herramientas/nuevo.py" in cambiados and "herramientas/otra.py" in cambiados))
+    # la carpeta de trabajo: en un repositorio de prueba que ignora fuentes/, como este
+    repo = d / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q", str(repo)], capture_output=True, check=True)  # nosec B603 B607
+    (repo / ".gitignore").write_text("fuentes/\n", encoding="utf-8")
+    casos.append(("una carpeta de trabajo que Git versionaría se rechaza", not fuera_de_git(repo / "fichas-hoy", repo)))
+    casos.append(("dentro de fuentes/ (ignorada) o fuera del repositorio se acepta",
+                  fuera_de_git(repo / "fuentes" / "fichas" / "mi-corrida", repo) and fuera_de_git(d / "afuera", repo)))
     shutil.rmtree(d, ignore_errors=True)
     for nombre, ok in casos:
         print(f"  {'✓' if ok else '✗'} {nombre}")
@@ -177,6 +199,9 @@ def main(argv):
         raise SystemExit(__doc__)
     g = lambda k, d=None: argv[argv.index(k) + 1] if k in argv else d
     dominio, trabajo = argv[0], Path(g("--trabajo")).resolve()
+    if not fuera_de_git(trabajo):
+        raise SystemExit(f"La carpeta de trabajo {trabajo} quedaría en Git (no está ignorada), y nada de una corrida se publica. "
+                         "Usa una carpeta dentro de fuentes/, por ejemplo --trabajo fuentes/fichas/mi-corrida, o una fuera del repositorio.")
     top, min_filas = int(g("--top", 8)), int(g("--min-filas", 1_000_000))
     catalogo = (RAIZ / g("--catalogo", "fuentes/catalogo")).resolve()
     motor = g("--motor", "ninguno")

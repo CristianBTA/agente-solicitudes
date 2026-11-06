@@ -57,7 +57,7 @@ Cualquiera con cuenta de GitHub puede hacer [fork](https://github.com/CristianBT
 Recorre un catálogo completo de datos abiertos (datos.gov.co tiene 8.470 conjuntos), mide sin IA qué conjuntos son big data de verdad y cuáles permiten decir «este contrato está así, aquí, y tiene tal impacto». A los mejores les pide a la IA una **ficha de oportunidad** (preguntas de costo, calidad e impacto para que las personas analicen) y la valida sin IA contra la fuente real:
 
 ```bash
-.venv/bin/python herramientas/agente_masivo.py www.datos.gov.co --trabajo fichas-hoy --conjuntos jbjy-vk9h --motor claude   # solo las fuentes que autorizas; o agy, codex, ninguno
+.venv/bin/python herramientas/agente_masivo.py www.datos.gov.co --trabajo fuentes/fichas/mi-corrida --conjuntos jbjy-vk9h --motor claude   # solo las fuentes que autorizas; o agy, codex, ninguno
 ```
 
 Cómo invocarlo desde la terminal, con agy o con cualquier IA de terminal, y el texto listo para pegar: [`AGENTE-MASIVO.md`](AGENTE-MASIVO.md).
