@@ -312,6 +312,12 @@
       "leccion": "leer_csv carga toda la fuente (de 1,3 a 3,6 KB por fila) y la caja de las reglas corta a los 1.536 MB: con 5 millones de filas se cortó a los 7 s y la verificación no podía ni empezar. recorrer_csv da las mismas filas y las mismas detenciones una por una; la regla de columna completa (punto de miles) guarda un estado por columna, no los valores, y se cierra al final. Con 5 millones de filas terminó en 36 s con la suma exacta. Procesar por lotes no es validar por lotes: un repetido o un total se miran sobre la fuente completa.",
       "origen": "aporte del grupo (archivo que no pudo entrar por el formulario): procesamiento por lotes de bases de clientes de más de 5 millones de registros, 6-nov-2026",
       "prueba": "herramientas/baterias.py (failfast con leer_csv y recorrer_csv)"
+    },
+    {
+      "id": "L53",
+      "leccion": "En una encuesta por muestreo, contar filas da cifras de la muestra, no de la población: en la GEIH 2025 (módulo de vivienda, nov-2025, 24.724 hogares) Bogotá pesa 3,5 % de las filas y 17,1 % de los hogares ponderados con FEX_C18; lo rural, 12,6 % frente a 21,4 %; cocinar con leña, 5,5 % frente a 9,4 %. El perfil reconoce el factor de expansión por su nombre y por ser positivo, y el especificador pondera toda cifra de población con él; el conteo de filas se informa aparte como tamaño de la muestra.",
+      "origen": "aporte del grupo (PR #17): análisis en clase de la GEIH 2025 del DANE, 6-nov-2026",
+      "prueba": "bateria:perfil/factor_de_expansion.json"
     }
   ]
 }

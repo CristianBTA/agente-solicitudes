@@ -14,6 +14,7 @@ Uso:
 4. Cruces: el perfil explica por qué no cruza cada valor (baterias/cruces/esperado.json) y no explica un ausente.
 5. Fechas: el perfil cuenta aparte las fechas que no existen en el calendario (baterias/fechas/casos.json).
 6. Repetidos: una llave repetida nunca se resuelve por el orden del archivo sin aviso (baterias/limpieza/).
+7. Factor: el perfil reconoce el factor de expansión de una encuesta (baterias/perfil/).
 """
 import json
 import shutil
@@ -175,6 +176,18 @@ def bateria_repetidos():
     return {"bateria": "repetidos", "casos": len(esperado["casos"]), "fallas": fallas}
 
 
+def bateria_factor():
+    """Encuestas: el perfil reconoce el factor de expansión (cifras de población ponderadas, no conteo de filas)."""
+    from perfilar import perfil_columna
+    d = json.loads((BAT / "perfil" / "factor_de_expansion.json").read_text(encoding="utf-8"))
+    fallas = []
+    for c in d["casos"]:
+        es = "factor_de_expansion" in perfil_columna(c["columna"], c["valores"])
+        if es != c["es_factor"]:
+            fallas.append(f"{c['columna']} {c['valores'][:2]}: {'marcado' if es else 'no marcado'} como factor de expansión")
+    return {"bateria": "factor", "casos": len(d["casos"]), "fallas": fallas}
+
+
 def bateria_lecciones():
     d = json.loads((BAT / "lecciones.json").read_text(encoding="utf-8"))
     fallas = []
@@ -207,7 +220,7 @@ def main(argv):
         print(f"Lección {d['lecciones'][-1]['id']} agregada.")
         return 0
     res = [bateria_seguridad(), bateria_privacidad(), bateria_failfast(), bateria_inyeccion(), bateria_cruces(),
-           bateria_fechas(), bateria_repetidos(), bateria_lecciones()]
+           bateria_fechas(), bateria_repetidos(), bateria_factor(), bateria_lecciones()]
     for r in res:
         print(f"{'✓' if not r['fallas'] else '✗'} {r['bateria']}: {r['casos']} casos" + ("" if not r["fallas"] else " · " + "; ".join(r["fallas"])))
     malos = sum(len(r["fallas"]) for r in res)

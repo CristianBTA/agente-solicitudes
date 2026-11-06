@@ -1,0 +1,62 @@
+{
+  "_que_prueba": "Un factor de expansión de encuesta se reconoce por su nombre y por ser positivo: las cifras de población se ponderan. Un peso en kilos no es un factor.",
+  "casos": [
+    {
+      "columna": "FEX_C18",
+      "valores": [
+        "1203.5",
+        "88.25",
+        "15022.0"
+      ],
+      "es_factor": true
+    },
+    {
+      "columna": "factor_expansion",
+      "valores": [
+        "10",
+        "20.5"
+      ],
+      "es_factor": true
+    },
+    {
+      "columna": "pweight",
+      "valores": [
+        "1.5",
+        "2.25"
+      ],
+      "es_factor": true
+    },
+    {
+      "columna": "peso_kg",
+      "valores": [
+        "12.5",
+        "1.250"
+      ],
+      "es_factor": false
+    },
+    {
+      "columna": "weight_kg",
+      "valores": [
+        "70.2",
+        "81.0"
+      ],
+      "es_factor": false
+    },
+    {
+      "columna": "fex_c18",
+      "valores": [
+        "-1",
+        "20"
+      ],
+      "es_factor": false
+    },
+    {
+      "columna": "fex_c18",
+      "valores": [
+        "alto",
+        "bajo"
+      ],
+      "es_factor": false
+    }
+  ]
+}
