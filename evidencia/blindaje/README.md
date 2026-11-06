@@ -32,8 +32,9 @@ El patrón del generador y el validador, aplicado al pipeline entero: **un ataca
 | B20 | aportes → equipo del dueño | Un aporte trae configuración de asistente o editor (`.mcp.json`, `.vscode/tasks.json`, `CLAUDE.md`…), un flujo de GitHub o llaves (L54) | **Cede** (rechazaba 3 de 31) | Resiste |
 | B21 | aportes → filtro | Un aporte apaga el filtro desde adentro: lo edita, lo renombra o reemplaza un módulo que importa (L56) | **Cede** | Resiste |
 | B22 | aportes → filtro | Un aporte deja un JSON roto en `baterias/` o en `sgsi/`: la herramienta se cae sin escribir «✗» y el filtro respondía «✓ pasa» (L67) | **Cede** | Resiste |
+| B23 | caja de arena | Un `json.py` plantado en la carpeta desde donde se lanza la caja reemplaza al de la biblioteca estándar dentro del ejecutor (L69) | **Cede** | Resiste |
 
-**De 5 de 14 a 21 de 21.** La línea base fueron los 14 ataques de B01 a B15; hoy el banco tiene 21 pruebas: B00 de control y 20 ataques. B17 salió de las pruebas con IA, y B18 a B22, de revisiones posteriores; cada una entró con su hueco ya cerrado. El número B06 no se usó, y B16 es la auditoría de independencia, que corre aparte. En Linux, B01 sale «NO APLICA», porque no existe `sandbox-exec` (allí la defensa es la compuerta), y B11 y B12 ceden: por eso el filtro de aportes corre en macOS (L42).
+**De 5 de 14 a 22 de 22.** La línea base fueron los 14 ataques de B01 a B15; hoy el banco tiene 22 pruebas: B00 de control y 21 ataques. B17 salió de las pruebas con IA, y B18 a B23, de revisiones posteriores; cada una entró con su hueco ya cerrado. El número B06 no se usó, y B16 es la auditoría de independencia, que corre aparte. En Linux, B01, B11 y B12 salen «NO APLICA», porque no existe `sandbox-exec` (allí la defensa es la compuerta), y el resumen del banco lo dice (`caja_de_arena: false`): por eso el filtro de aportes corre en macOS (L42).
 
 ## Lecciones de método
 

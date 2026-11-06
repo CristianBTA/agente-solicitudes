@@ -54,6 +54,7 @@ Necesita macOS o Linux con Python 3.13 (en Windows, WSL). En Linux y en WSL no e
 ## Por qué así
 
 - **`main` está protegida.** Solo entra lo que pasa el filtro automático y el dueño aprueba.
+- **El aporte no se juzga a sí mismo.** En GitHub corre el filtro de la base, con las herramientas y las dependencias de la base, sobre los archivos del aporte. Si el aporte cambia `herramientas/`, `flujo.js` o `requirements.txt`, el filtro termina en «✗ requiere decisión del dueño». No es un error de quien aporta: eso lo revisa y lo acepta el dueño. Lo de `.github/` (flujos, plantillas y CODEOWNERS) solo lo cambia el dueño: de otra persona, el filtro lo marca como falla. Si el filtro no puede revisar (la carpeta no es un clon con git o la base no existe), sale con código 2 y lo dice.
 - **La primera vez que alguien envía un pull request, el dueño aprueba que corra el filtro.** Es una protección de GitHub para repositorios públicos.
 - **El filtro automático no usa IA ni llaves**, así que no le cuesta nada a nadie y no puede filtrar secretos.
 - **La prueba con IA cuesta, y la paga una sola licencia,** la del dueño, sobre aportes que ya pasaron los filtros gratuitos.

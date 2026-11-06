@@ -402,6 +402,18 @@
       "leccion": "El filtro de aportes daba «✓ pasa» a un aporte que hacía caer baterias.py o sgsi.py: solo buscaba líneas «✗», y una herramienta que se cae no escribe ninguna. Bastaba una coma de más en baterias/fechas/casos.json o en sgsi/controles.json; fusionado, baterias.py (el segundo comando de «Instalar») dejaba de funcionar en main para todos. Ahora el filtro exige la línea RESUMEN de las baterías y del SGSI, como ya la exigía al banco de blindaje (L43), y una salida con error sin ninguna «✗» también es falla. La falla de un caso nuevo del aporte sigue contando como aviso.",
       "origen": "revisión de la versión de clase (etiqueta clase-2026-11-06 y main 935486d), 6-nov-2026: un JSON con una coma de más salía en verde en el filtro",
       "prueba": "herramientas/blindaje.py B22"
+    },
+    {
+      "id": "L68",
+      "leccion": "El filtro de aportes lo juzgaba el propio aporte: en el pull request corría el validar_aporte.py del commit de fusión, ignoraba el código de salida de git y de sus herramientas y solo contaba las líneas con «✗». Un JSON roto en las baterías, una caja debilitada con una prueba en ERROR o el juez editado daban «✓». El juez y sus herramientas salen de la base, se lee el RESUMEN de cada herramienta y lo que juzga a los aportes (herramientas, flujo, dependencias, GitHub) lo decide el dueño.",
+      "origen": "revisión de gobernanza del filtro de aportes (GOB-1), 6-nov-2026",
+      "prueba": "herramientas/validar_aporte.py --autoprueba"
+    },
+    {
+      "id": "L69",
+      "leccion": "python -c pone la carpeta actual en sys.path: un json.py plantado donde se lanzaba la caja reemplazaba al de la biblioteca estándar dentro del ejecutor. La caja corre con python -P.",
+      "origen": "revisión del filtro de aportes (GOB-1), 6-nov-2026",
+      "prueba": "herramientas/blindaje.py B23"
     }
   ]
 }

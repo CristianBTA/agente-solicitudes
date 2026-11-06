@@ -5,6 +5,7 @@ Lo que el código de la IA NO puede hacer aquí:
   - escribir fuera de una carpeta temporal propia;
   - leer la carpeta personal (/Users), salvo el repositorio y las rutas que se le pasan explícitamente;
   - ver las variables de entorno del proceso que la lanza (secretos): recibe un entorno mínimo y HOME temporal;
+  - importar un módulo de la carpeta desde donde se lanza (python -P): solo la biblioteca estándar y las permitidas;
   - pasar de un tope de tiempo y de memoria (un vigilante lo detiene).
 """
 import json
@@ -26,7 +27,7 @@ ENTORNO_PERMITIDO = ("PATH", "LANG", "LC_ALL", "LC_CTYPE")
 def entorno(tmp):
     e = {k: os.environ[k] for k in ENTORNO_PERMITIDO if k in os.environ}
     e.update({"HOME": tmp, "TMPDIR": tmp, "MPLCONFIGDIR": tmp, "PYTHONDONTWRITEBYTECODE": "1",
-              "PYTHONHASHSEED": "0", "PYTHONIOENCODING": "utf-8", "PYTHONNOUSERSITE": "1"})
+              "PYTHONHASHSEED": "0", "PYTHONIOENCODING": "utf-8", "PYTHONNOUSERSITE": "1", "PYTHONSAFEPATH": "1"})
     return e
 
 
@@ -75,7 +76,9 @@ def _huella_mb(pid):
 def ejecutar(args_python, tiempo=300, entrada=None, lecturas=()):
     """Corre `python <args>` en la caja. Devuelve (stdout, stderr, motivo_de_corte, segundos)."""
     tmp = tempfile.mkdtemp(prefix="caja-")
-    cmd = [sys.executable, *args_python]
+    # -P: la carpeta actual no entra a sys.path; un json.py plantado donde se lanza la caja no reemplaza al de la
+    # biblioteca estándar (B23)
+    cmd = [sys.executable, "-P", *args_python]
     if CAJA:
         cmd = [CAJA, "-p", perfil(tmp, lecturas)] + cmd
     t0 = time.perf_counter()

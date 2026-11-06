@@ -34,6 +34,11 @@ import seguridad  # noqa: E402
 from gobernanza import barrer_tabla  # noqa: E402
 
 
+def falla(caso, texto):
+    """Una falla con el caso que la produce: así el filtro de aportes distingue el hueco que encontró un caso nuevo."""
+    return {"caso": str(caso), "falla": texto}
+
+
 def bloquea(ruta):
     d = dependencias.revisar(ruta)
     s, _ = seguridad.revisar([ruta])
@@ -46,10 +51,10 @@ def bateria_seguridad():
     buenos = sorted((BAT / "seguridad" / "buenos").glob("*.py"))
     for p in malos:
         if not bloquea(p):
-            fallas.append(f"no se bloqueó {p.name}")
+            fallas.append(falla(p.name, f"no se bloqueó {p.name}"))
     for p in buenos:
         if bloquea(p):
-            fallas.append(f"falso positivo: se bloqueó {p.name}")
+            fallas.append(falla(p.name, f"falso positivo: se bloqueó {p.name}"))
     # Perfil de usuario: el código que sí usa red y archivos. Lo bueno del pipeline también tiene que pasar aquí.
     malos_u = sorted((BAT / "seguridad" / "malos_usuario").glob("*.py"))
     buenos_u = sorted((BAT / "seguridad" / "buenos_usuario").glob("*.py"))
@@ -58,9 +63,9 @@ def bateria_seguridad():
         for r in res:
             nombre, bloqueado = Path(r["archivo"]), bool(r["bloquean"])
             if nombre.parent.name == "malos_usuario" and not bloqueado:
-                fallas.append(f"perfil usuario: no se bloqueó {nombre.name}")
+                fallas.append(falla(nombre.name, f"perfil usuario: no se bloqueó {nombre.name}"))
             elif nombre.parent.name != "malos_usuario" and bloqueado:
-                fallas.append(f"perfil usuario: falso positivo en {nombre.name}: {r['bloquean'][0]['regla']}")
+                fallas.append(falla(nombre.name, f"perfil usuario: falso positivo en {nombre.name}: {r['bloquean'][0]['regla']}"))
     return {"bateria": "seguridad", "casos": len(malos) + len(buenos) + len(malos_u) + len(buenos_u), "fallas": fallas}
 
 
@@ -71,16 +76,16 @@ def bateria_privacidad():
     p = subprocess.run([sys.executable, str(AQUI / "perfilar.py"), f"t={csv_}"], capture_output=True, text=True)  # nosec B603
     for s in secretos:
         if s in p.stdout:
-            fallas.append(f"el perfil muestra un dato personal: {s[:3]}…")
+            fallas.append(falla(s, f"el perfil muestra un dato personal: {s[:3]}…"))
     from gobernanza import escanear_texto
     for t in (BAT / "privacidad" / "no_son_personales.txt").read_text(encoding="utf-8").splitlines():
         if t and escanear_texto(t):
-            fallas.append(f"falso positivo: «{t}» se marcó como dato personal {escanear_texto(t)}")
+            fallas.append(falla(t, f"falso positivo: «{t}» se marcó como dato personal {escanear_texto(t)}"))
     barrido = barrer_tabla(csv_)
     detectadas = {c for c, i in barrido["columnas"].items() if i.get("hallazgos") or i.get("clase_por_nombre") == "personal"}
     for c in ("proveedor_adjudicado", "documento_proveedor", "objeto_del_contrato"):
         if c not in detectadas:
-            fallas.append(f"el barrido no detectó {c}")
+            fallas.append(falla(c, f"el barrido no detectó {c}"))
     from gobernanza import clasificar_columna
     cols = json.loads((BAT / "privacidad" / "columnas_secop.json").read_text(encoding="utf-8"))
     n_cols = 0
@@ -89,7 +94,7 @@ def bateria_privacidad():
         for c in cols[grupo]:
             n_cols += 1
             if clasificar_columna(c) not in aceptadas:
-                fallas.append(f"columna de SECOP mal clasificada: {c} → {clasificar_columna(c)} (se esperaba {grupo})")
+                fallas.append(falla(c, f"columna de SECOP mal clasificada: {c} → {clasificar_columna(c)} (se esperaba {grupo})"))
     return {"bateria": "privacidad", "casos": len(secretos) + 3 + 6 + n_cols, "fallas": fallas}
 
 
@@ -102,7 +107,7 @@ def bateria_failfast():
         for nombre, leer in lectores:
             try:
                 leer(p)
-                fallas.append(f"{p.name} se leyó sin error con {nombre}")
+                fallas.append(falla(p.name, f"{p.name} se leyó sin error con {nombre}"))
             except Exception:
                 pass
     buenos = sorted((BAT / "failfast" / "se_leen").glob("*.csv"))   # y lo legítimo de cualquier fuente se lee (sin falsas alarmas)
@@ -111,7 +116,7 @@ def bateria_failfast():
             try:
                 leer(p)
             except Exception as e:
-                fallas.append(f"falsa alarma con {nombre}: {p.name} se detuvo ({str(e)[:80]})")
+                fallas.append(falla(p.name, f"falsa alarma con {nombre}: {p.name} se detuvo ({str(e)[:80]})"))
     return {"bateria": "failfast", "casos": 2 * (len(casos) + len(buenos)), "fallas": fallas}
 
 
@@ -120,8 +125,8 @@ def bateria_inyeccion():
     from gobernanza import parece_instruccion
     malos = [l for l in (BAT / "inyeccion" / "maliciosos.txt").read_text(encoding="utf-8").splitlines() if l.strip()]
     buenos = [l for l in (BAT / "inyeccion" / "legitimos.txt").read_text(encoding="utf-8").splitlines() if l.strip()]
-    fallas = [f"no detecta: «{m[:60]}»" for m in malos if not parece_instruccion(m)]
-    fallas += [f"falsa alarma: «{b[:60]}»" for b in buenos if parece_instruccion(b)]
+    fallas = [falla(m, f"no detecta: «{m[:60]}»") for m in malos if not parece_instruccion(m)]
+    fallas += [falla(b, f"falsa alarma: «{b[:60]}»") for b in buenos if parece_instruccion(b)]
     return {"bateria": "inyeccion", "casos": len(malos) + len(buenos), "fallas": fallas}
 
 
@@ -137,13 +142,13 @@ def bateria_cruces():
             continue
         x = next((c for c in p["cruces"] if c["desde"] == "origen" and c["columna"] == col), None)
         if x is None:
-            fallas.append(f"{col}: el perfil no reporta el cruce")
+            fallas.append(falla(col, f"{col}: el perfil no reporta el cruce"))
             continue
         obtenido = {**x, **x.get("de_los_que_no_cruzan", {})}
         for k, v in claves.items():
             casos += 1
             if obtenido.get(k) != v:
-                fallas.append(f"{col}.{k}: {obtenido.get(k)} (se esperaba {v})")
+                fallas.append(falla(col, f"{col}.{k}: {obtenido.get(k)} (se esperaba {v})"))
     return {"bateria": "cruces", "casos": casos, "fallas": fallas}
 
 
@@ -157,7 +162,7 @@ def bateria_fechas():
         obtenido = {**p, "fechas_imposibles": p.get("fechas_imposibles", 0)}
         for k, v in c.items():
             if k not in ("nombre", "valores") and obtenido.get(k) != v:
-                fallas.append(f"{c['nombre']}: {k} = {obtenido.get(k)} (se esperaba {v})")
+                fallas.append(falla(c['nombre'], f"{c['nombre']}: {k} = {obtenido.get(k)} (se esperaba {v})"))
     return {"bateria": "fechas", "casos": len(d["casos"]), "fallas": fallas}
 
 
@@ -181,10 +186,10 @@ def bateria_repetidos():
             ok = {f["id"]: f["region"] for f in csv.DictReader(open(tmp / "t.csv", encoding="utf-8")) if f.get("calidad_ok") == "1"}
             for k, v in c["conserva"].items():
                 if ok.get(k) != v:
-                    fallas.append(f"{c['nombre']}: {k} conserva {ok.get(k)} (se esperaba {v})")
+                    fallas.append(falla(c['nombre'], f"{c['nombre']}: {k} conserva {ok.get(k)} (se esperaba {v})"))
             aviso = inf["operaciones"][0].get("aviso")
             if (c["aviso"] is None) != (aviso is None) or (c["aviso"] and c["aviso"] not in aviso):
-                fallas.append(f"{c['nombre']}: aviso «{aviso}» (se esperaba «{c['aviso']}»)")
+                fallas.append(falla(c['nombre'], f"{c['nombre']}: aviso «{aviso}» (se esperaba «{c['aviso']}»)"))
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
     return {"bateria": "repetidos", "casos": len(esperado["casos"]), "fallas": fallas}
@@ -198,7 +203,7 @@ def bateria_factor():
     for c in d["casos"]:
         es = "factor_de_expansion" in perfil_columna(c["columna"], c["valores"])
         if es != c["es_factor"]:
-            fallas.append(f"{c['columna']} {c['valores'][:2]}: {'marcado' if es else 'no marcado'} como factor de expansión")
+            fallas.append(falla(c["columna"], f"{c['columna']} {c['valores'][:2]}: {'marcado' if es else 'no marcado'} como factor de expansión"))
     return {"bateria": "factor", "casos": len(d["casos"]), "fallas": fallas}
 
 
@@ -214,7 +219,7 @@ def bateria_grafico():
         nombres |= {c["comprobacion"] for c in res}
         fallan = [c["comprobacion"] for c in res if not c["ok"]]
         if fallan:
-            fallas.append(f"falso positivo en {p.name}: {fallan}")
+            fallas.append(falla(p.name, f"falso positivo en {p.name}: {fallan}"))
     for p in malos:
         caso = json.loads(p.read_text(encoding="utf-8"))
         res = comprobar_forma_y_color(caso["figura"])
@@ -223,10 +228,10 @@ def bateria_grafico():
         objetivo = caso.get("debe_fallar")
         atacadas.add(objetivo)
         if objetivo not in {c["comprobacion"] for c in res}:
-            fallas.append(f"{p.name}: no existe la comprobación «{objetivo}»")
+            fallas.append(falla(p.name, f"{p.name}: no existe la comprobación «{objetivo}»"))
         elif fallan != [objetivo]:
-            fallas.append(f"{p.name}: falla {fallan or 'ninguna'}; se esperaba solo «{objetivo}»")
-    fallas += [f"sin caso malo para «{n}»" for n in sorted(nombres - atacadas)]
+            fallas.append(falla(p.name, f"{p.name}: falla {fallan or 'ninguna'}; se esperaba solo «{objetivo}»"))
+    fallas += [falla(n, f"sin caso malo para «{n}»") for n in sorted(nombres - atacadas)]
     return {"bateria": "grafico", "casos": len(buenos) + len(malos), "fallas": fallas}
 
 
@@ -236,12 +241,12 @@ def bateria_lecciones():
     for l in d["lecciones"]:
         prueba = l.get("prueba", "")
         if not prueba:
-            fallas.append(f"{l['id']} no tiene prueba")
+            fallas.append(falla(l['id'], f"{l['id']} no tiene prueba"))
         for parte in prueba.split():
             if parte.startswith("bateria:"):
                 ruta = parte.split(":", 1)[1]
                 if not ((BAT / ruta).exists() or (RAIZ / ruta).exists()):
-                    fallas.append(f"{l['id']}: no existe {parte}")
+                    fallas.append(falla(l['id'], f"{l['id']}: no existe {parte}"))
     return {"bateria": "lecciones", "casos": len(d["lecciones"]), "fallas": fallas}
 
 
@@ -261,13 +266,28 @@ def main(argv):
         (BAT / "lecciones.json").write_text(json.dumps(d, ensure_ascii=False, indent=2), encoding="utf-8")
         print(f"Lección {d['lecciones'][-1]['id']} agregada.")
         return 0
-    res = [bateria_seguridad(), bateria_privacidad(), bateria_failfast(), bateria_inyeccion(), bateria_cruces(),
-           bateria_fechas(), bateria_repetidos(), bateria_factor(), bateria_grafico(), bateria_lecciones()]
+    res = [correr_bateria(fn) for fn in (bateria_seguridad, bateria_privacidad, bateria_failfast, bateria_inyeccion,
+                                         bateria_cruces, bateria_fechas, bateria_repetidos, bateria_factor,
+                                         bateria_grafico, bateria_lecciones)]
     for r in res:
-        print(f"{'✓' if not r['fallas'] else '✗'} {r['bateria']}: {r['casos']} casos" + ("" if not r["fallas"] else " · " + "; ".join(r["fallas"])))
+        print(f"{'✓' if not r['fallas'] else '✗'} {r['bateria']}: {r['casos']} casos"
+              + ("" if not r["fallas"] else " · " + "; ".join(f["falla"] for f in r["fallas"])))
     malos = sum(len(r["fallas"]) for r in res)
-    print("RESUMEN " + json.dumps({"baterias": len(res), "fallas": malos}, ensure_ascii=False))
+    detalle = [{"bateria": r["bateria"], "caso": f["caso"], "falla": f["falla"][:300]} for r in res for f in r["fallas"]]
+    print("RESUMEN " + json.dumps({"baterias": len(res), "fallas": malos, "errores": [r["bateria"] for r in res if r.get("error")],
+                                   "detalle": detalle[:200]}, ensure_ascii=False))
     return 1 if malos else 0
+
+
+def correr_bateria(fn):
+    """Si una batería se cae, cuenta como falla y las demás siguen corriendo: nunca se pierde el resto en silencio."""
+    try:
+        r = fn()
+        r["fallas"] = [f if isinstance(f, dict) else falla("", f) for f in r["fallas"]]
+        return r
+    except Exception as e:
+        return {"bateria": fn.__name__.replace("bateria_", ""), "casos": 0, "error": True,
+                "fallas": [falla("", f"ERROR: la batería no terminó: {type(e).__name__}: {str(e)[:160]}")]}
 
 
 if __name__ == "__main__":

@@ -15,6 +15,7 @@
 ## Resultado del filtro sin IA
 
 <!-- Pega la línea RESUMEN que imprime: python herramientas/validar_aporte.py --base upstream/main
+     Si tu aporte toca herramientas/, flujo.js o requirements.txt, termina en «requiere decisión del dueño»: es lo esperado (.github/ solo lo cambia el dueño).
      Si no pudiste correr Python, dilo aquí: el dueño lo corre antes de aprobar. -->
 
 ## Antes de enviar
