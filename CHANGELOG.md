@@ -25,4 +25,8 @@ Cada aporte aceptado queda aquí, con el usuario de GitHub de quien lo propuso (
 
 ## Aportes del grupo
 
-_Todavía ninguno._
+Cada aporte entra sin nombre hasta que quien lo propuso acepta aparecer (la casilla del pull request o del formulario).
+
+### 6 de noviembre de 2026
+
+- **Fórmulas de Excel exportadas como texto (L40).** `reglas_base.leer_csv` se detiene ante una celda que empieza por «=» (`=DAY(J2)`) en vez de leerla como texto. Con 168 fórmulas sembradas en `ejemplo/datos/ventas.csv`, las que cambiaban sin aviso las cifras de las reglas pasaron de 49 a 0; en los 11 CSV del repositorio (241.742 filas) no hubo ninguna falsa alarma. Caso nuevo en `baterias/failfast/`. Propuesto por un participante del curso; su usuario se agrega cuando acepte aparecer.
