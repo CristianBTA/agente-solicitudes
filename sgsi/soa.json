@@ -1,0 +1,500 @@
+{
+ "_nota": "Declaración de Aplicabilidad (ISO/IEC 27001:2022, 6.1.3 d): los 93 controles del Anexo A, una sola vez cada uno. Los nombres son una paráfrasis en español, no el texto de la norma. Lo que aplica lo implementa al menos un control de sgsi/controles.json (la herramienta calcula cuáles, qué propiedades protegen y qué riesgos tratan); lo que no aplica dice por qué. Alcance: sgsi/README.md.",
+ "norma": "ISO/IEC 27001:2022, Anexo A (con la enmienda 1:2024, que no cambia el Anexo A)",
+ "controles": [
+  {
+   "id": "A.5.1",
+   "nombre": "Políticas de seguridad de la información",
+   "aplica": true
+  },
+  {
+   "id": "A.5.2",
+   "nombre": "Roles y responsabilidades de seguridad de la información",
+   "aplica": true
+  },
+  {
+   "id": "A.5.3",
+   "nombre": "Segregación de funciones",
+   "aplica": true
+  },
+  {
+   "id": "A.5.4",
+   "nombre": "Responsabilidades de la dirección",
+   "aplica": true
+  },
+  {
+   "id": "A.5.5",
+   "nombre": "Contacto con las autoridades",
+   "aplica": true
+  },
+  {
+   "id": "A.5.6",
+   "nombre": "Contacto con grupos de interés especial",
+   "aplica": false,
+   "justificacion": "No se mantienen membresías en grupos de interés: las novedades de amenazas se siguen con fuentes abiertas (OSV en A.5.7 y A.8.8) y con las lecciones del curso."
+  },
+  {
+   "id": "A.5.7",
+   "nombre": "Inteligencia de amenazas",
+   "aplica": true
+  },
+  {
+   "id": "A.5.8",
+   "nombre": "Seguridad de la información en la gestión de proyectos",
+   "aplica": true
+  },
+  {
+   "id": "A.5.9",
+   "nombre": "Inventario de información y otros activos asociados",
+   "aplica": true
+  },
+  {
+   "id": "A.5.10",
+   "nombre": "Uso aceptable de la información y otros activos asociados",
+   "aplica": true
+  },
+  {
+   "id": "A.5.11",
+   "nombre": "Devolución de activos",
+   "aplica": false,
+   "justificacion": "No hay activos que devolver: nadie recibe equipos, llaves ni accesos del repositorio; los aportes llegan por fork, sin invitación como colaborador."
+  },
+  {
+   "id": "A.5.12",
+   "nombre": "Clasificación de la información",
+   "aplica": true
+  },
+  {
+   "id": "A.5.13",
+   "nombre": "Etiquetado de la información",
+   "aplica": true
+  },
+  {
+   "id": "A.5.14",
+   "nombre": "Transferencia de información",
+   "aplica": true
+  },
+  {
+   "id": "A.5.15",
+   "nombre": "Control de acceso",
+   "aplica": true
+  },
+  {
+   "id": "A.5.16",
+   "nombre": "Gestión de identidades",
+   "aplica": true
+  },
+  {
+   "id": "A.5.17",
+   "nombre": "Información de autenticación",
+   "aplica": true
+  },
+  {
+   "id": "A.5.18",
+   "nombre": "Derechos de acceso",
+   "aplica": true
+  },
+  {
+   "id": "A.5.19",
+   "nombre": "Seguridad de la información en las relaciones con proveedores",
+   "aplica": true
+  },
+  {
+   "id": "A.5.20",
+   "nombre": "Seguridad de la información en los acuerdos con proveedores",
+   "aplica": false,
+   "justificacion": "No hay acuerdos negociados con proveedores: se usan los términos estándar de GitHub, datos.gov.co, OSV y los asistentes de IA; el riesgo se trata limitando lo que cada uno recibe (A.5.19, A.5.23)."
+  },
+  {
+   "id": "A.5.21",
+   "nombre": "Gestión de la seguridad de la información en la cadena de suministro TIC",
+   "aplica": true
+  },
+  {
+   "id": "A.5.22",
+   "nombre": "Seguimiento, revisión y gestión de cambios de los servicios de proveedores",
+   "aplica": true
+  },
+  {
+   "id": "A.5.23",
+   "nombre": "Seguridad de la información en el uso de servicios en la nube",
+   "aplica": true
+  },
+  {
+   "id": "A.5.24",
+   "nombre": "Planificación y preparación de la gestión de incidentes",
+   "aplica": true
+  },
+  {
+   "id": "A.5.25",
+   "nombre": "Evaluación y decisión sobre eventos de seguridad de la información",
+   "aplica": true
+  },
+  {
+   "id": "A.5.26",
+   "nombre": "Respuesta a incidentes de seguridad de la información",
+   "aplica": true
+  },
+  {
+   "id": "A.5.27",
+   "nombre": "Aprendizaje de los incidentes de seguridad de la información",
+   "aplica": true
+  },
+  {
+   "id": "A.5.28",
+   "nombre": "Recolección de evidencias",
+   "aplica": true
+  },
+  {
+   "id": "A.5.29",
+   "nombre": "Seguridad de la información durante una disrupción",
+   "aplica": true
+  },
+  {
+   "id": "A.5.30",
+   "nombre": "Preparación de las TIC para la continuidad del negocio",
+   "aplica": true
+  },
+  {
+   "id": "A.5.31",
+   "nombre": "Requisitos legales, reglamentarios y contractuales",
+   "aplica": true
+  },
+  {
+   "id": "A.5.32",
+   "nombre": "Derechos de propiedad intelectual",
+   "aplica": true
+  },
+  {
+   "id": "A.5.33",
+   "nombre": "Protección de los registros",
+   "aplica": true
+  },
+  {
+   "id": "A.5.34",
+   "nombre": "Privacidad y protección de datos personales",
+   "aplica": true
+  },
+  {
+   "id": "A.5.35",
+   "nombre": "Revisión independiente de la seguridad de la información",
+   "aplica": true
+  },
+  {
+   "id": "A.5.36",
+   "nombre": "Cumplimiento de políticas, reglas y normas de seguridad",
+   "aplica": true
+  },
+  {
+   "id": "A.5.37",
+   "nombre": "Procedimientos de operación documentados",
+   "aplica": true
+  },
+  {
+   "id": "A.6.1",
+   "nombre": "Selección del personal",
+   "aplica": false,
+   "justificacion": "No hay personal: el repositorio lo opera una persona y el grupo aporta desde sus propias cuentas, sin acceso al repositorio; los aportes se filtran por su contenido (filtro sin IA y revisión del dueño), no por quién los hace."
+  },
+  {
+   "id": "A.6.2",
+   "nombre": "Términos y condiciones del empleo",
+   "aplica": false,
+   "justificacion": "No hay personal: el repositorio lo opera una persona y el grupo aporta desde sus propias cuentas, sin acceso al repositorio; los aportes se filtran por su contenido (filtro sin IA y revisión del dueño), no por quién los hace."
+  },
+  {
+   "id": "A.6.3",
+   "nombre": "Concienciación, educación y formación en seguridad de la información",
+   "aplica": true
+  },
+  {
+   "id": "A.6.4",
+   "nombre": "Proceso disciplinario",
+   "aplica": false,
+   "justificacion": "No hay personal: el repositorio lo opera una persona y el grupo aporta desde sus propias cuentas, sin acceso al repositorio; los aportes se filtran por su contenido (filtro sin IA y revisión del dueño), no por quién los hace."
+  },
+  {
+   "id": "A.6.5",
+   "nombre": "Responsabilidades después de la terminación o el cambio de empleo",
+   "aplica": false,
+   "justificacion": "No hay personal: el repositorio lo opera una persona y el grupo aporta desde sus propias cuentas, sin acceso al repositorio; los aportes se filtran por su contenido (filtro sin IA y revisión del dueño), no por quién los hace."
+  },
+  {
+   "id": "A.6.6",
+   "nombre": "Acuerdos de confidencialidad o de no divulgación",
+   "aplica": false,
+   "justificacion": "No se comparte información confidencial con terceros: todo lo que se publica es público a propósito y los datos con personas nunca salen del equipo del dueño (A.8.12)."
+  },
+  {
+   "id": "A.6.7",
+   "nombre": "Trabajo remoto",
+   "aplica": false,
+   "justificacion": "No hay personal que trabaje a distancia; el único equipo de trabajo es el del dueño, fuera del alcance (ver A.8.1 para lo que la caja de arena protege)."
+  },
+  {
+   "id": "A.6.8",
+   "nombre": "Reporte de eventos de seguridad de la información",
+   "aplica": true
+  },
+  {
+   "id": "A.7.1",
+   "nombre": "Perímetros de seguridad física",
+   "aplica": false,
+   "justificacion": "Sin instalaciones propias dentro del alcance: el código vive en GitHub (proveedor, A.5.19 y A.5.23) y el pipeline corre en el equipo del dueño, que queda fuera del alcance; la caja de arena protege ese equipo del código de la IA (A.8.1)."
+  },
+  {
+   "id": "A.7.2",
+   "nombre": "Controles físicos de entrada",
+   "aplica": false,
+   "justificacion": "Sin instalaciones propias dentro del alcance: el código vive en GitHub (proveedor, A.5.19 y A.5.23) y el pipeline corre en el equipo del dueño, que queda fuera del alcance; la caja de arena protege ese equipo del código de la IA (A.8.1)."
+  },
+  {
+   "id": "A.7.3",
+   "nombre": "Seguridad de oficinas, recintos e instalaciones",
+   "aplica": false,
+   "justificacion": "Sin instalaciones propias dentro del alcance: el código vive en GitHub (proveedor, A.5.19 y A.5.23) y el pipeline corre en el equipo del dueño, que queda fuera del alcance; la caja de arena protege ese equipo del código de la IA (A.8.1)."
+  },
+  {
+   "id": "A.7.4",
+   "nombre": "Monitoreo de la seguridad física",
+   "aplica": false,
+   "justificacion": "Sin instalaciones propias dentro del alcance: el código vive en GitHub (proveedor, A.5.19 y A.5.23) y el pipeline corre en el equipo del dueño, que queda fuera del alcance; la caja de arena protege ese equipo del código de la IA (A.8.1)."
+  },
+  {
+   "id": "A.7.5",
+   "nombre": "Protección contra amenazas físicas y ambientales",
+   "aplica": false,
+   "justificacion": "Sin instalaciones propias dentro del alcance: el código vive en GitHub (proveedor, A.5.19 y A.5.23) y el pipeline corre en el equipo del dueño, que queda fuera del alcance; la caja de arena protege ese equipo del código de la IA (A.8.1)."
+  },
+  {
+   "id": "A.7.6",
+   "nombre": "Trabajo en áreas seguras",
+   "aplica": false,
+   "justificacion": "Sin instalaciones propias dentro del alcance: el código vive en GitHub (proveedor, A.5.19 y A.5.23) y el pipeline corre en el equipo del dueño, que queda fuera del alcance; la caja de arena protege ese equipo del código de la IA (A.8.1)."
+  },
+  {
+   "id": "A.7.7",
+   "nombre": "Escritorio limpio y pantalla limpia",
+   "aplica": false,
+   "justificacion": "Sin instalaciones propias dentro del alcance: el código vive en GitHub (proveedor, A.5.19 y A.5.23) y el pipeline corre en el equipo del dueño, que queda fuera del alcance; la caja de arena protege ese equipo del código de la IA (A.8.1)."
+  },
+  {
+   "id": "A.7.8",
+   "nombre": "Ubicación y protección de los equipos",
+   "aplica": false,
+   "justificacion": "Sin instalaciones propias dentro del alcance: el código vive en GitHub (proveedor, A.5.19 y A.5.23) y el pipeline corre en el equipo del dueño, que queda fuera del alcance; la caja de arena protege ese equipo del código de la IA (A.8.1)."
+  },
+  {
+   "id": "A.7.9",
+   "nombre": "Seguridad de los activos fuera de las instalaciones",
+   "aplica": false,
+   "justificacion": "Sin instalaciones propias dentro del alcance: el código vive en GitHub (proveedor, A.5.19 y A.5.23) y el pipeline corre en el equipo del dueño, que queda fuera del alcance; la caja de arena protege ese equipo del código de la IA (A.8.1)."
+  },
+  {
+   "id": "A.7.10",
+   "nombre": "Medios de almacenamiento",
+   "aplica": false,
+   "justificacion": "Sin instalaciones propias dentro del alcance: el código vive en GitHub (proveedor, A.5.19 y A.5.23) y el pipeline corre en el equipo del dueño, que queda fuera del alcance; la caja de arena protege ese equipo del código de la IA (A.8.1)."
+  },
+  {
+   "id": "A.7.11",
+   "nombre": "Servicios de suministro",
+   "aplica": false,
+   "justificacion": "Sin instalaciones propias dentro del alcance: el código vive en GitHub (proveedor, A.5.19 y A.5.23) y el pipeline corre en el equipo del dueño, que queda fuera del alcance; la caja de arena protege ese equipo del código de la IA (A.8.1)."
+  },
+  {
+   "id": "A.7.12",
+   "nombre": "Seguridad del cableado",
+   "aplica": false,
+   "justificacion": "Sin instalaciones propias dentro del alcance: el código vive en GitHub (proveedor, A.5.19 y A.5.23) y el pipeline corre en el equipo del dueño, que queda fuera del alcance; la caja de arena protege ese equipo del código de la IA (A.8.1)."
+  },
+  {
+   "id": "A.7.13",
+   "nombre": "Mantenimiento de los equipos",
+   "aplica": false,
+   "justificacion": "Sin instalaciones propias dentro del alcance: el código vive en GitHub (proveedor, A.5.19 y A.5.23) y el pipeline corre en el equipo del dueño, que queda fuera del alcance; la caja de arena protege ese equipo del código de la IA (A.8.1)."
+  },
+  {
+   "id": "A.7.14",
+   "nombre": "Eliminación o reutilización segura de los equipos",
+   "aplica": false,
+   "justificacion": "Sin instalaciones propias dentro del alcance: el código vive en GitHub (proveedor, A.5.19 y A.5.23) y el pipeline corre en el equipo del dueño, que queda fuera del alcance; la caja de arena protege ese equipo del código de la IA (A.8.1)."
+  },
+  {
+   "id": "A.8.1",
+   "nombre": "Dispositivos de punto final del usuario",
+   "aplica": true
+  },
+  {
+   "id": "A.8.2",
+   "nombre": "Derechos de acceso privilegiado",
+   "aplica": true
+  },
+  {
+   "id": "A.8.3",
+   "nombre": "Restricción del acceso a la información",
+   "aplica": true
+  },
+  {
+   "id": "A.8.4",
+   "nombre": "Acceso al código fuente",
+   "aplica": true
+  },
+  {
+   "id": "A.8.5",
+   "nombre": "Autenticación segura",
+   "aplica": false,
+   "justificacion": "El repositorio no autentica a nadie: los aportes llegan por pull request y los revisa el dueño. La autenticación es la de la cuenta de GitHub del dueño, fuera del alcance (riesgo R20 para su robo)."
+  },
+  {
+   "id": "A.8.6",
+   "nombre": "Gestión de la capacidad",
+   "aplica": true
+  },
+  {
+   "id": "A.8.7",
+   "nombre": "Protección contra el malware",
+   "aplica": true
+  },
+  {
+   "id": "A.8.8",
+   "nombre": "Gestión de las vulnerabilidades técnicas",
+   "aplica": true
+  },
+  {
+   "id": "A.8.9",
+   "nombre": "Gestión de la configuración",
+   "aplica": true
+  },
+  {
+   "id": "A.8.10",
+   "nombre": "Eliminación de la información",
+   "aplica": true
+  },
+  {
+   "id": "A.8.11",
+   "nombre": "Enmascaramiento de datos",
+   "aplica": true
+  },
+  {
+   "id": "A.8.12",
+   "nombre": "Prevención de la fuga de datos",
+   "aplica": true
+  },
+  {
+   "id": "A.8.13",
+   "nombre": "Copias de respaldo de la información",
+   "aplica": true
+  },
+  {
+   "id": "A.8.14",
+   "nombre": "Redundancia de las instalaciones de procesamiento de información",
+   "aplica": true
+  },
+  {
+   "id": "A.8.15",
+   "nombre": "Registro de eventos",
+   "aplica": true
+  },
+  {
+   "id": "A.8.16",
+   "nombre": "Actividades de monitoreo",
+   "aplica": true
+  },
+  {
+   "id": "A.8.17",
+   "nombre": "Sincronización de relojes",
+   "aplica": false,
+   "justificacion": "El repositorio no administra relojes: las fechas de procedencia y de las comprobaciones vienen del sistema operativo y de GitHub."
+  },
+  {
+   "id": "A.8.18",
+   "nombre": "Uso de programas utilitarios privilegiados",
+   "aplica": false,
+   "justificacion": "El pipeline no usa programas con privilegios: la caja de arena (sandbox-exec) restringe al código de la IA, no lo eleva."
+  },
+  {
+   "id": "A.8.19",
+   "nombre": "Instalación de software en sistemas operativos",
+   "aplica": true
+  },
+  {
+   "id": "A.8.20",
+   "nombre": "Seguridad de las redes",
+   "aplica": false,
+   "justificacion": "Sin red propia que administrar: el código de la IA corre sin red (A.8.22) y la ingesta solo consulta datos.gov.co por HTTPS."
+  },
+  {
+   "id": "A.8.21",
+   "nombre": "Seguridad de los servicios de red",
+   "aplica": false,
+   "justificacion": "No se prestan ni se contratan servicios de red administrados; las únicas conexiones son consultas HTTPS a servicios públicos (datos.gov.co, OSV, la API de GitHub)."
+  },
+  {
+   "id": "A.8.22",
+   "nombre": "Segregación de redes",
+   "aplica": true
+  },
+  {
+   "id": "A.8.23",
+   "nombre": "Filtrado web",
+   "aplica": false,
+   "justificacion": "No hay navegación web dentro del pipeline que filtrar: el código de la IA no tiene red (A.8.22)."
+  },
+  {
+   "id": "A.8.24",
+   "nombre": "Uso de la criptografía",
+   "aplica": true
+  },
+  {
+   "id": "A.8.25",
+   "nombre": "Ciclo de vida de desarrollo seguro",
+   "aplica": true
+  },
+  {
+   "id": "A.8.26",
+   "nombre": "Requisitos de seguridad de las aplicaciones",
+   "aplica": true
+  },
+  {
+   "id": "A.8.27",
+   "nombre": "Arquitectura de sistemas seguros y principios de ingeniería",
+   "aplica": true
+  },
+  {
+   "id": "A.8.28",
+   "nombre": "Codificación segura",
+   "aplica": true
+  },
+  {
+   "id": "A.8.29",
+   "nombre": "Pruebas de seguridad en el desarrollo y la aceptación",
+   "aplica": true
+  },
+  {
+   "id": "A.8.30",
+   "nombre": "Desarrollo contratado externamente",
+   "aplica": true
+  },
+  {
+   "id": "A.8.31",
+   "nombre": "Separación de los entornos de desarrollo, prueba y producción",
+   "aplica": true
+  },
+  {
+   "id": "A.8.32",
+   "nombre": "Gestión de cambios",
+   "aplica": true
+  },
+  {
+   "id": "A.8.33",
+   "nombre": "Información de prueba",
+   "aplica": true
+  },
+  {
+   "id": "A.8.34",
+   "nombre": "Protección de los sistemas de información durante las pruebas de auditoría",
+   "aplica": true
+  }
+ ]
+}

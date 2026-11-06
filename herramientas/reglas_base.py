@@ -12,6 +12,7 @@ reales y para el caso con respuesta conocida.
         return aprox(a, b), f"resultado {a:,.0f} · fuente {b:,.0f}"
 """
 import csv
+import re
 
 REGLAS = []
 
@@ -23,9 +24,16 @@ def regla(id, tipo, descripcion):
     return decorar
 
 
+_PUNTO_DE_MILES = re.compile(r"^[-+]?[1-9]\d{0,2}(\.\d{3})+(,\d+)?$")   # 78.000 · 1.250.000 · 1.250,50
+_ENTERO_LARGO = re.compile(r"^[-+]?\d{4,}$")                            # 1628100
+_NUMERICO = re.compile(r"^[-+]?\d[\d.]*(,\d+)?$")                  # solo cifras, puntos y una coma decimal
+_PUNTO_DECIMAL = re.compile(r"\.(\d{1,2}|\d{4,})(?!\d)")         # 12.5 · 3.14159: en esa columna el punto es decimal
+
+
 def leer_csv(ruta):
     """Filas del CSV como diccionarios de texto, sin convertir nada. FAILFAST: una comilla sin cerrar o una
-    fila con más o menos campos que el encabezado detienen la lectura; nunca se leen en silencio."""
+    fila con más o menos campos que el encabezado o una celda con una fórmula de Excel como texto («=DAY(J2)»)
+    detienen la lectura; nunca se leen en silencio."""
     with open(ruta, newline="", encoding="utf-8-sig") as fh:
         lector = csv.DictReader(fh, strict=True)
         filas = list(lector)
@@ -35,6 +43,27 @@ def leer_csv(ruta):
     for i, f in enumerate(filas, 2):
         if None in f or any(v is None for v in f.values()):
             raise ValueError(f"la línea {i} del CSV no tiene el mismo número de campos que el encabezado")
+        if "=" in "\x1f".join(f.values()):    # la revisión celda por celda solo donde hay un «=» (escala a millones de filas)
+            for col, v in f.items():
+                if v.lstrip().startswith("="):
+                    raise ValueError(f"la línea {i}, columna «{col}», trae una fórmula de Excel como texto, no su valor: "
+                                     "hay que exportar los valores (Pegado especial → Valores) antes de leer")
+    for col, crudos in zip(cab, zip(*(f.values() for f in filas))):
+        unidos = "\x1f".join(crudos)
+        if "." not in unidos or _PUNTO_DECIMAL.search(unidos):
+            continue    # sin puntos, o el punto ya es decimal en esta columna (12.5): 1.250 es un decimal, no miles
+        valores = [v.strip() for v in crudos]
+        if not all(_NUMERICO.match(v) for v in valores if v):
+            continue    # columna de texto o de códigos (referencias, radicados): no es un monto
+        con_punto = [v for v in valores if _PUNTO_DE_MILES.match(v)]
+        if not con_punto:
+            continue
+        inequivoco = any(v.count(".") > 1 or "," in v for v in con_punto)
+        mezclado = any(_ENTERO_LARGO.match(v) for v in valores)
+        if inequivoco or mezclado:
+            detalle = " mezclados con números sin separador" if mezclado else ""
+            raise ValueError(f"la columna «{col}» trae números con punto de miles (p. ej. 1.250.000){detalle}: leerlos como decimales "
+                             "los divide por mil en silencio; hay que unificar el formato antes de leer")
     return filas
 
 

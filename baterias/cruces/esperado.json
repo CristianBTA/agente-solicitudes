@@ -1,0 +1,27 @@
+{
+  "_que_prueba": "Del origen al destino: por qué no cruza cada valor. Un ausente (aunque se parezca) no se explica.",
+  "producto": {
+    "cruzan_exacto": 1,
+    "cruzan_solo_tras_quitar_espacios_y_mayusculas": 1,
+    "no_cruzan": 4,
+    "cruzan_tras_unificar_espacios_internos": 2,
+    "cruzan_tras_quitar_tildes_puntuacion_y_ceros_a_la_izquierda": 1,
+    "sin_causa_de_escritura": 1
+  },
+  "proveedor": {
+    "cruzan_exacto": 2,
+    "cruzan_solo_tras_quitar_espacios_y_mayusculas": 0,
+    "no_cruzan": 4,
+    "cruzan_tras_unificar_espacios_internos": 0,
+    "cruzan_tras_quitar_tildes_puntuacion_y_ceros_a_la_izquierda": 2,
+    "sin_causa_de_escritura": 2
+  },
+  "codigo_producto": {
+    "cruzan_exacto": 2,
+    "cruzan_solo_tras_quitar_espacios_y_mayusculas": 0,
+    "no_cruzan": 4,
+    "cruzan_tras_unificar_espacios_internos": 0,
+    "cruzan_tras_quitar_tildes_puntuacion_y_ceros_a_la_izquierda": 2,
+    "sin_causa_de_escritura": 2
+  }
+}

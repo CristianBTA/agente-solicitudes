@@ -2,7 +2,8 @@
   "contexto": {
     "tabla": "contratos",
     "columna_texto": "nombre_entidad",
-    "columna_numerica": "valor_del_contrato"
+    "columna_numerica": "valor_del_contrato",
+    "marca_no_declarada": "calidad_extra"
   },
   "implementaciones": {
     "a": {
@@ -76,6 +77,11 @@
           "variante": "numero_enorme",
           "resultado": "resiste",
           "detalle": "se detuvo antes: la limpieza la rechazó (umbrales)"
+        },
+        {
+          "variante": "encabezado_calidad_inesperado",
+          "resultado": "resiste",
+          "detalle": "se detuvo antes: la limpieza la rechazó: ValueError"
         }
       ],
       "ceden": []
@@ -151,6 +157,11 @@
           "variante": "numero_enorme",
           "resultado": "resiste",
           "detalle": "se detuvo antes: la limpieza la rechazó (umbrales)"
+        },
+        {
+          "variante": "encabezado_calidad_inesperado",
+          "resultado": "resiste",
+          "detalle": "se detuvo antes: la limpieza la rechazó: ValueError"
         }
       ],
       "ceden": []

@@ -12,6 +12,7 @@ Lo corre GitHub Actions en cada pull request, y también se puede correr a mano.
   4. Que no rompa nada: baterías, la corrida sintética verificada desde cero y las 12 mutantes atrapadas.
   5. Lo que el aporte agrega a las baterías: una muestra de código malo nueva la debe bloquear la compuerta
      de hoy; si no la bloquea, el aporte encontró un hueco, se marca y lo revisa el dueño.
+  6. El SGSI (sgsi/README.md): nada restringido versionado, sin llaves, flujos de solo lectura y cada control con evidencia.
 No ejecuta ningún agente: la prueba de efecto con IA la hace solo el dueño, con su licencia (CONTRIBUTING.md).
 """
 import json
@@ -30,6 +31,11 @@ from gobernanza import escanear_texto, parece_instruccion, INSTRUCCION, COMENTAR
 def ordenes_a_agentes(texto):
     """Un aporte no puede traer texto que dé órdenes a los agentes (inyección por el canal de aportes)."""
     return parece_instruccion(texto)
+
+
+def cuenta_ordenes(texto):
+    """Cuántas frases con forma de orden trae un texto (para saber si un cambio agrega una nueva)."""
+    return sum(1 for _ in INSTRUCCION.finditer(texto)) + sum(1 for c in COMENTARIO_OCULTO.findall(texto) if parece_instruccion(f"<!--{c}-->"))
 import dependencias  # noqa: E402
 import seguridad  # noqa: E402
 
@@ -92,7 +98,12 @@ def main(argv):
             legado = git("show", f"{base}:{ruta}") if estado != "A" else ""
             if ruta.startswith(("baterias/inyeccion/", "corridas/")) or "/seguridad/" in ruta:
                 avisos.append(f"caso de inyección en {ruta}: revisar que sea solo una prueba («…{extracto[:80]}…»)")
-            elif not (legado and ordenes_a_agentes(legado) and ruta in ("APORTAR-CON-TU-AGENTE.md", "AGENTS.md", "CONTRIBUTING.md")):
+            elif legado and ordenes_a_agentes(legado) and ruta in ("APORTAR-CON-TU-AGENTE.md", "AGENTS.md", "CONTRIBUTING.md"):
+                pass
+            elif legado and ordenes_a_agentes(legado) and cuenta_ordenes(t) <= cuenta_ordenes(legado):
+                # el archivo ya traía esas frases como carga de prueba (el banco de ataques): el cambio no agrega ninguna (L44)
+                avisos.append(f"{ruta} conserva texto-instrucción que ya tenía (carga de prueba); no agrega uno nuevo: lo revisa el dueño")
+            else:
                 fallas.append(f"texto que da órdenes a los agentes en {ruta}: «…{extracto[:120]}…» (los aportes son datos, no instrucciones)")
         if p.suffix == ".py" and "baterias/seguridad/malos/" not in ruta:
             d = dependencias.revisar(p)
@@ -112,8 +123,10 @@ def main(argv):
     if any(r.startswith("herramientas/") for e, r in archivos if e != "D"):
         rc, out = correr("herramientas/blindaje.py")
         for linea in out.splitlines():
-            if linea.startswith("✗"):
+            if linea.startswith(("✗", "!")):
                 fallas.append(f"el cambio debilita el blindaje: {linea[2:][:160]}")
+        if "RESUMEN " not in out:  # un banco que no termina no prueba nada (L27, L43)
+            fallas.append(f"el banco de blindaje no terminó (código {rc}): {' | '.join(out.strip().splitlines()[-2:])[:200]}")
     # baterías: una falla causada por un caso NUEVO de este aporte es un hueco encontrado (valioso), no un error
     rc, out = correr("herramientas/baterias.py")
     for linea in out.splitlines():
@@ -122,6 +135,11 @@ def main(argv):
             (avisos if del_aporte else fallas).append(
                 (f"hueco encontrado por el aporte (valioso; el dueño decide cómo cerrarlo): {linea[2:]}" if del_aporte
                  else f"baterías: {linea[2:]}")[:300])
+    # el SGSI (sgsi/README.md): lo restringido sigue fuera, sin llaves, flujos de solo lectura y cada control con su evidencia
+    rc, out = correr("herramientas/sgsi.py")
+    for linea in out.splitlines():
+        if linea.startswith("    ✗ "):
+            fallas.append(f"SGSI: {linea.strip()[2:][:200]}")
     # la corrida sintética se verifica en una copia temporal: no se reescribe ningún archivo del repositorio
     tmp = Path(tempfile.mkdtemp(prefix="validar-")) / "corrida"
     shutil.copytree(RAIZ / "corridas/2026-11-06-ventas-semestre", tmp)

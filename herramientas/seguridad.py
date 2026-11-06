@@ -28,6 +28,14 @@ MODULOS_PROHIBIDOS = {
     "dill": "deserialización insegura", "ctypes": "acceso a memoria", "importlib": "importación dinámica",
     "shutil": "borra o mueve archivos", "tempfile": "escribe archivos", "multiprocessing": "lanza procesos",
     "builtins": "acceso directo a las funciones del sistema", "gc": "reflexión sobre objetos vivos", "inspect": "reflexión",
+    # ejecutan código que la compuerta no revisa: un archivo, un módulo o un texto (issue #9)
+    **{m: "ejecuta código" for m in ("runpy", "code", "codeop", "timeit", "cProfile", "profile", "pdb", "trace",
+                                     "doctest", "zipimport")},
+    "pydoc": "ejecuta comandos",
+}
+NOMBRES_PROHIBIDOS = {   # funciones de módulos permitidos que lanzan procesos: con from-import o como atributo
+    "ProcessPoolExecutor": "lanza procesos", "create_subprocess_exec": "ejecuta comandos",
+    "create_subprocess_shell": "ejecuta comandos", "subprocess": "ejecuta comandos",
 }
 BUILTINS_PROHIBIDOS = {   # solo cuando se llaman como función del sistema: eval(...), no re.compile(...)
     "eval": "ejecuta texto como código", "exec": "ejecuta texto como código", "compile": "ejecuta texto como código",
@@ -70,6 +78,10 @@ def revisar_ast(texto):
                 for a in n.names:
                     if a.name in OS_PROHIBIDOS:
                         hallazgos.append({"linea": n.lineno, "regla": f"from os import {a.name}", "detalle": OS_PROHIBIDOS[a.name]})
+            if isinstance(n, ast.ImportFrom):
+                for a in n.names:
+                    if a.name in NOMBRES_PROHIBIDOS:
+                        hallazgos.append({"linea": n.lineno, "regla": f"from {n.module} import {a.name}", "detalle": NOMBRES_PROHIBIDOS[a.name]})
         elif isinstance(n, ast.Call):
             f = n.func
             nombre = f.id if isinstance(f, ast.Name) else (f.attr if isinstance(f, ast.Attribute) else "")
@@ -78,6 +90,8 @@ def revisar_ast(texto):
                 hallazgos.append({"linea": n.lineno, "regla": f"llama {nombre}", "detalle": BUILTINS_PROHIBIDOS[nombre]})
             elif isinstance(f, ast.Attribute) and nombre in ATRIBUTOS_PROHIBIDOS:
                 hallazgos.append({"linea": n.lineno, "regla": f"llama .{nombre}", "detalle": ATRIBUTOS_PROHIBIDOS[nombre]})
+            elif isinstance(f, ast.Attribute) and nombre in NOMBRES_PROHIBIDOS:
+                hallazgos.append({"linea": n.lineno, "regla": f"llama .{nombre}", "detalle": NOMBRES_PROHIBIDOS[nombre]})
             elif sobre in alias_os and nombre in OS_PROHIBIDOS:
                 hallazgos.append({"linea": n.lineno, "regla": f"llama os.{nombre}", "detalle": OS_PROHIBIDOS[nombre]})
             if nombre == "open":

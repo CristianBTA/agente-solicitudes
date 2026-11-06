@@ -13,6 +13,7 @@ import re
 import sys
 import unicodedata
 from collections import Counter, defaultdict
+from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -40,6 +41,18 @@ def clave_norm(s):
     return re.sub(r"[^0-9a-z]", "", sin_tildes(s).casefold())
 
 
+def espacios_unificados(s):
+    """Un solo espacio normal entre palabras: quita dobles espacios internos y espacios invisibles (U+00A0)."""
+    return " ".join(s.split()).upper()
+
+
+def clave_cruce(s):
+    """Clave para explicar un cruce fallido: sin tildes, puntuación ni espacios, y sin ceros a la izquierda
+    si es un código solo de dígitos (001 = 1; S.A.S. = SAS)."""
+    k = clave_norm(s)
+    return (k.lstrip("0") or "0") if k.isdigit() else k
+
+
 def forma(v):
     out = []
     for ch in v:
@@ -63,6 +76,15 @@ def numero(v):
         return None
 
 
+def existe(anio, mes, dia):
+    """La fecha está en el calendario: 2026-13-04 o el 30 de febrero tienen forma de fecha, pero no existen."""
+    try:
+        date(int(anio), int(mes), int(dia))
+        return True
+    except ValueError:
+        return False
+
+
 def perfil_fechas(valores):
     iso = [v for v in valores if ISO.match(v)]
     barras = [BARRAS.match(v) for v in valores]
@@ -72,6 +94,16 @@ def perfil_fechas(valores):
     if len(iso) + len(barras) < 0.8 * len(valores):
         return None
     p = {"aaaa-mm-dd": len(iso), "con_barras": len(barras)}
+    # una fecha imposible se pierde en silencio al convertir (queda vacía o se descarta): se cuenta aparte
+    iso_imposibles = [v for v in iso if not existe(*re.match(r"(\d{4})-(\d{1,2})-(\d{1,2})", v).groups())]
+    barras_imposibles = [m for m in barras if not (existe(m.group(3), m.group(2), m.group(1)) or
+                                                   existe(m.group(3), m.group(1), m.group(2)))]
+    if iso_imposibles or barras_imposibles:
+        p["fechas_imposibles"] = len(iso_imposibles) + len(barras_imposibles)
+        p["ejemplos_imposibles"] = sorted(set(iso_imposibles) | {m.group(0) for m in barras_imposibles})[:3]
+    fuera = set(iso_imposibles)
+    iso = [v for v in iso if v not in fuera]
+    barras = [m for m in barras if not any(m is b for b in barras_imposibles)]
     if iso:
         dias = [v[:10] for v in iso]
         p["rango_aaaa-mm-dd"] = [min(dias), max(dias)]
@@ -227,6 +259,13 @@ def perfilar(tablas):
                     exactos = sum(1 for v in no_vacios if v in vy)
                     normalizados = sum(1 for v in no_vacios if v not in vy and v.strip().upper() in vy_norm)
                     sin_cruce = [v for v in no_vacios if v.strip().upper() not in vy_norm]
+                    # por qué no cruzan: espacios internos o invisibles; tildes, puntuación o ceros a la izquierda
+                    vy_esp = set(espacios_unificados(v) for v in vy)
+                    por_espacios = [v for v in sin_cruce if espacios_unificados(v) in vy_esp]
+                    vy_clave = {clave_cruce(v) for v in vy}
+                    resto = [v for v in sin_cruce if espacios_unificados(v) not in vy_esp]
+                    por_escritura = [v for v in resto if clave_cruce(v) in vy_clave]
+                    resto = [v for v in resto if clave_cruce(v) not in vy_clave]
                     if clasificar_columna(col) == "personal":
                         sin_cruce_mostrar = ["(omitidos: columna personal)"]
                     else:
@@ -236,6 +275,11 @@ def perfilar(tablas):
                         "vacios": len(vx) - len(no_vacios), "cruzan_exacto": exactos,
                         "cruzan_solo_tras_quitar_espacios_y_mayusculas": normalizados,
                         "no_cruzan": len(sin_cruce), "ejemplos_que_no_cruzan": sin_cruce_mostrar,
+                        "de_los_que_no_cruzan": {
+                            "cruzan_tras_unificar_espacios_internos": len(por_espacios),
+                            "cruzan_tras_quitar_tildes_puntuacion_y_ceros_a_la_izquierda": len(por_escritura),
+                            "sin_causa_de_escritura": len(resto),
+                        },
                     })
     return out
 
@@ -257,6 +301,9 @@ def resumen(p):
                 L.append(f"      numérico: min {m['min']:g} · max {m['max']:g} · suma {m['suma']:,.0f} · negativos {m['negativos']} · ceros {m['ceros']}")
             if "fechas" in c:
                 L.append(f"      fechas: {json.dumps(c['fechas'], ensure_ascii=False)}")
+                if c["fechas"].get("fechas_imposibles"):
+                    L.append(f"      ! {c['fechas']['fechas_imposibles']} fechas que no existen en el calendario (mes 13, 30 de febrero), "
+                             f"ej. {c['fechas']['ejemplos_imposibles']}: al convertirlas se pierden en silencio")
             if c.get("variantes_de_escritura"):
                 L.append(f"      ! variantes de escritura de un mismo valor: {len(c['variantes_de_escritura'])} grupos, ej. {c['variantes_de_escritura'][:3]}")
             if c.get("posible_inyeccion"):
@@ -275,6 +322,12 @@ def resumen(p):
             L.append(f"  - {x['desde']}.{x['columna']} → {x['hacia']}: {x['filas_con_valor']} con valor, vacíos {x['vacios']}, "
                      f"cruzan exacto {x['cruzan_exacto']}, solo tras quitar espacios/mayúsculas {x['cruzan_solo_tras_quitar_espacios_y_mayusculas']}, "
                      f"no cruzan {x['no_cruzan']} {x['ejemplos_que_no_cruzan']}")
+            d = x["de_los_que_no_cruzan"]
+            if d["cruzan_tras_unificar_espacios_internos"]:
+                L.append(f"      ! {d['cruzan_tras_unificar_espacios_internos']} no cruzan por espacios dobles o invisibles dentro del valor")
+            if d["cruzan_tras_quitar_tildes_puntuacion_y_ceros_a_la_izquierda"]:
+                L.append(f"      ! {d['cruzan_tras_quitar_tildes_puntuacion_y_ceros_a_la_izquierda']} no cruzan por tildes, "
+                         "puntuación (S.A.S. / SAS) o ceros a la izquierda (001 / 1)")
     return "\n".join(L)
 
 

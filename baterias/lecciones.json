@@ -210,6 +210,96 @@
       "leccion": "Una comprobación por palabra clave sin límites de palabra se satisface por accidente: «Recorte» contenía «corte» y daba por marcado un período incompleto que no lo estaba.",
       "origen": "graficador en la prueba IA-3, 6-nov-2026",
       "prueba": "herramientas/verificar_grafico.py (período incompleto con \\\\b)"
+    },
+    {
+      "id": "L36",
+      "leccion": "B01 resistía por la razón equivocada: la caja cambia HOME a su carpeta temporal y el ataque con «~» nunca llegaba a la carpeta personal. Se ataca con la ruta real (base de usuarios) y solo cuenta como resiste un PermissionError; el control positivo sin la negación debe ceder.",
+      "origen": "agente de cierre de marcas_desde_encabezado, 6-nov-2026",
+      "prueba": "herramientas/blindaje.py B01"
+    },
+    {
+      "id": "L37",
+      "leccion": "Con dos copias del repositorio en la misma máquina, la ruta absoluta sellada en la especificación existe pero es del OTRO clon: cada clon debe verificar sus propios datos (rutas.py da prioridad a la copia propia).",
+      "origen": "simulación de un participante con agy, 6-nov-2026",
+      "prueba": "herramientas/validar_aporte.py (corrida sintética en un clon)"
+    },
+    {
+      "id": "L38",
+      "leccion": "El prefijo calidad_ es de la capa limpia: una columna cruda con ese nombre se confundiría con una marca y excluiría filas. La limpieza se detiene (FAILFAST) y pide renombrarla en el contrato de ingesta.",
+      "origen": "agente de cierre de marcas_desde_encabezado, 6-nov-2026",
+      "prueba": "herramientas/blindaje.py B19"
+    },
+    {
+      "id": "L39",
+      "leccion": "Los nombres de marcas y los motivos de exclusión los escribe el código de la IA: en el informe solo pasan nombres [a-z0-9_] y motivos sin marcado ni forma de instrucción.",
+      "origen": "revisor ciego (marcas_desde_encabezado), 6-nov-2026",
+      "prueba": "herramientas/blindaje.py B18"
+    },
+    {
+      "id": "L40",
+      "leccion": "Un consolidado de ventas en Excel guarda columnas calculadas con fórmula (=DAY(J2), =H2-I2) en las filas viejas y con valor en las recientes; si se exporta así, la columna llega con texto «=DAY(J2)» en vez del número y se lee sin error. El lector se detiene ante una celda que empieza por «=».",
+      "origen": "aporte del grupo: consolidado de ventas de una distribuidora agrícola exportado de un ERP comercial, 6-nov-2026",
+      "prueba": "bateria:failfast/formula_de_excel_como_texto.csv"
+    },
+    {
+      "id": "L41",
+      "leccion": "Ventas, inventario y cuentas por pagar escriben distinto el mismo producto, laboratorio o proveedor: espacios dobles o invisibles (U+00A0) dentro del nombre, S.A.S. frente a SAS, tildes, códigos 001 frente a 1. El cruce falla en silencio. El perfil dice por qué no cruza cada valor para que la limpieza lo declare, y no explica un valor que de verdad falta aunque se parezca; si hay NIT o código, se cruza por él y no por el nombre.",
+      "origen": "aporte del grupo: rotación de inventarios y cruce de ventas con pagos a proveedores en una distribuidora agrícola (ERP comercial), 6-nov-2026",
+      "prueba": "bateria:cruces/esperado.json"
+    },
+    {
+      "id": "L42",
+      "leccion": "Las defensas se prueban donde existen: el filtro de aportes corría en Linux, donde no hay sandbox-exec; B11 (red) y B12 (escritura) cedían y todo aporte que tocara herramientas/ habría fallado. El filtro y la vigilancia diaria corren en macOS.",
+      "origen": "primera ejecución real del filtro en GitHub Actions (pull request del SGSI, 6-nov-2026); lo encontró la valoración de riesgos del SGSI",
+      "prueba": "sgsi.py, chequeo permisos: un flujo que corre el banco de blindaje fuera de macOS falla"
+    },
+    {
+      "id": "L43",
+      "leccion": "Un SystemExit dentro de una prueba cortaba el banco de blindaje en silencio: B18 cargaba la spec con verificar.cargar_spec, que exige los CSV de SECOP (no se publican); en GitHub Actions el banco se detenía en B18, B18 y B19 no corrían y el filtro de aportes pasaba porque solo buscaba líneas ✗. Ahora B18 lee la spec sin datos, el banco convierte un SystemExit en ERROR, el filtro exige que el banco termine (RESUMEN) y el SGSI no cuenta como operando un control con una prueba sin medir.",
+      "origen": "efectividad del SGSI en la vigilancia diaria sobre main (6-nov-2026): CT28 salió «sin medir aquí» en Actions y pasaba en el equipo del dueño, donde los datos sí existen",
+      "prueba": "blindaje.py en un clon sin datos de SECOP (GitHub Actions); validar_aporte.py falla si el banco no imprime RESUMEN"
+    },
+    {
+      "id": "L44",
+      "leccion": "El filtro rechazaba cualquier cambio a herramientas/blindaje.py porque el banco de ataques trae, a propósito, frases con forma de orden (sus cargas de prueba). Un archivo que ya las tenía solo falla si el cambio agrega una nueva; si las conserva, queda como aviso para el dueño.",
+      "origen": "pull request de la lección L43 (6-nov-2026): primer cambio al banco de ataques que pasó por el filtro",
+      "prueba": "validar_aporte.py: agregar una orden a una herramienta (o una más a blindaje.py) falla; conservar las cargas de blindaje.py es aviso"
+    },
+    {
+      "id": "L45",
+      "leccion": "Una fecha con forma de fecha que no existe en el calendario (2026-13-04, 30 de febrero) se pierde en silencio al convertirla: el lector la deja vacía y el documento sale del período sin error. Con 5 fechas del semestre en mes 13, la cifra de R1 bajó 178.151.800 y el perfil mostraba el rango hasta 2026-13-29 sin aviso. El perfil las cuenta aparte, las deja fuera del rango y no las usa para demostrar el orden día/mes.",
+      "origen": "aporte del grupo (issue #8): ingesta de un archivo con fechas en varios formatos guardadas como texto, 6-nov-2026",
+      "prueba": "bateria:fechas/casos.json"
+    },
+    {
+      "id": "L46",
+      "leccion": "Una columna de montos con punto de miles (78.000) mezclada con montos sin separador (1628100) se lee sin error, y float(\"78.000\") da 78,0: el monto se divide por mil en silencio. El lector se detiene si una columna solo numérica trae punto de miles inequívoco (1.250.000, 1.250,50) o mezclado con enteros largos. Las columnas de texto o de códigos no se revisan: en SECOP, referencia_del_contrato trae 3 valores con forma de monto entre 91.072 códigos.",
+      "origen": "aporte del grupo (issue #10): una IA leyó montos con punto de miles como decimales, 6-nov-2026",
+      "prueba": "bateria:failfast/monto_con_punto_de_miles.csv"
+    },
+    {
+      "id": "L47",
+      "leccion": "Una lista de módulos prohibidos se queda corta si se cierra caso por caso: runpy ejecuta un archivo que la compuerta nunca revisó, y code, timeit, cProfile, profile, pdb, trace y doctest ejecutan texto como código; zipimport carga código, pydoc lanza comandos, y asyncio y concurrent.futures lanzan procesos con create_subprocess_* y ProcessPoolExecutor. Las 14 muestras pasaban la compuerta; ahora se bloquean, y los hilos y asyncio sin procesos siguen pasando.",
+      "origen": "aporte del grupo (issue #9): runpy; el dueño cerró la familia completa, 6-nov-2026",
+      "prueba": "bateria:seguridad/malos/runpy.py bateria:seguridad/malos/procesos_pool_from.py bateria:seguridad/buenos/hilos_threadpool.py"
+    },
+    {
+      "id": "L48",
+      "leccion": "rutas.resolver_datos solo llevaba a la copia del clon las rutas de «datos», no las de «datos_crudos»: en cualquier clon distinto del del dueño, verificar_hipotesis.py leía el crudo en la carpeta del dueño, la caja de arena lo negaba (bien) y las 5 hipótesis del pipeline completo quedaban «sin prueba». Ahora resolver_datos resuelve los dos.",
+      "origen": "validación completa del repositorio en un clon limpio (6-nov-2026), con los datos de SECOP descargados de nuevo",
+      "prueba": "python herramientas/rutas.py --autoprueba; verificar_hipotesis.py sobre la corrida del pipeline completo en un clon limpio"
+    },
+    {
+      "id": "L49",
+      "leccion": "Una regla de lectura se valida con fuentes de varios dominios y formatos, no solo con la del caso: el lector debe servir para cualquier base de big data. En una columna donde el punto ya es decimal (12.5, 3.14159), 1.250 es un decimal y no miles: la regla de L46 detenía esa lectura. Y la revisión celda por celda se hace solo donde hay un «=» o un punto: con 12 conjuntos de datos.gov.co (550.000 filas) el sobrecosto bajó de +3,19 s a +1,14 s, con la misma detección.",
+      "origen": "re-validación de L40, L45 y L46 con 12 conjuntos de datos.gov.co (IDEAM, tasas de interés, matrícula, CUIF, combustibles, RUNT, hurtos, EVA, subsidios, cobertura móvil, violencia intrafamiliar, DIVIPOLA), 6-nov-2026",
+      "prueba": "bateria:failfast/se_leen/punto_decimal_con_tres_decimales.csv bateria:failfast/se_leen/codigos_con_forma_de_monto.csv"
+    },
+    {
+      "id": "L50",
+      "leccion": "Una llave repetida con valores distintos (el maestro de clientes con dos regiones) se resolvía por el orden del archivo: la operación repetidos marcaba desde la segunda aparición y el plan no podía pedir «la más reciente». Con los datos de ejemplo, 2 clientes quedaban en una región vieja (94.793.600 en ventas) y solo lo atrapaba el caso conocido; la corrida sellada de SECOP resolvió así 3 llaves de su caso conocido. Ahora el plan declara desempate (columna y conservar) y la limpieza avisa cuando falta o cuando hay empates.",
+      "origen": "aporte del grupo (PR #11): integración de fuentes con maestros de registros; el dueño lo volvió verificable en limpieza.py, 6-nov-2026",
+      "prueba": "bateria:limpieza/repetidos_esperado.json"
     }
   ]
 }

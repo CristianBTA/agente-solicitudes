@@ -37,7 +37,7 @@ La regla de oro: **tu prueba falla sin tu aporte y pasa con él.** Si ya pasaba 
 | Nivel | Quién | Costo para quien aporta | Qué se revisa |
 |---|---|---|---|
 | 0 | Tú propones | Ninguno | — |
-| 1 | GitHub Actions (`validar-aporte`), sin IA y sin llaves | Ninguno | Archivos prohibidos, datos personales, seguridad del código, que no rompa las baterías ni la corrida sintética, que el criterio siga atrapando las 12 mutantes |
+| 1 | GitHub Actions (`validar-aporte`), sin IA y sin llaves | Ninguno | Archivos prohibidos, datos personales, seguridad del código, que no rompa las baterías ni la corrida sintética, que el criterio siga atrapando las 12 mutantes y que el SGSI siga apuntando a controles que existen |
 | 2 | El dueño, leyendo | Ninguno | ¿Es real, es nuevo, aporta? |
 | 3 | El dueño, con su licencia, en lote y con tope de tokens | Ninguno | Solo para reglas de las fichas: el flujo con y sin la regla sobre el banco sintético, varias veces; se acepta si atrapa más errores o da menos falsas alarmas sin disparar el costo |
 | 4 | El dueño acepta | Ninguno | Entra a `main` y queda en `CHANGELOG.md` con tu usuario |
