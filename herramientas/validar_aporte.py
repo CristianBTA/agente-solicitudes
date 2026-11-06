@@ -225,3 +225,5 @@ def main(argv):
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))
+
+# prueba en vivo de rutas-protegidas (no se fusiona)
