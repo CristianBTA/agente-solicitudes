@@ -24,7 +24,7 @@ Ayudas a una persona a aportar al repositorio público **CristianBTA/subagentes-
 
 - **No corras el pipeline.** Nada de `flujo.js` ni de los subagentes, y ninguna prueba de efecto con IA: esa la hace el dueño, con su licencia.
 - **Gasta poco.** Lee solo los archivos que esta guía nombra para el tipo de aporte. No recorras el repositorio completo ni generes informes largos.
-- **Nunca incluyas datos reales.** Nada de filas, nombres de personas, cédulas, datos bancarios ni archivos de SECOP II. Para ejemplos, usa valores evidentemente ficticios: `Persona Ficticia Uno`, `000.000.001`, `persona@ejemplo.invalid`, `399 000 0001`.
+- **Nunca incluyas datos reales.** Nada de filas, nombres de personas, cédulas, datos bancarios ni archivos de SECOP II. Para ejemplos, usa valores evidentemente ficticios: `Persona Ficticia Uno`, `000.000.001`, un correo en el dominio `ejemplo.invalid` y un celular que empiece por `399`.
 - **Solo librerías permitidas:** la biblioteca estándar de Python y lo de `herramientas/permitidas.json` (pandas, numpy, plotly), instaladas desde `requirements.txt`.
 - **Sin firmas de asistentes.** Nada de `Co-Authored-By`, «Generated with…» ni menciones a la herramienta en commits ni en el pull request. El aporte es de la persona.
 - **Endurecer sí, aflojar nunca.** Puedes proponer que una herramienta bloquee o detecte más cosas. Nunca cambies una herramienta ni una prueba para que algo «pase».
