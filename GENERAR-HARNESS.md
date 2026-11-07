@@ -164,7 +164,8 @@ Con las 10 respuestas, arma el borrador con esta plantilla y muéstraselo comple
 
 - Respeta los títulos de las secciones tal cual: la revisión sin IA los busca.
 - Redacta en tercera persona y en presente («Recibe la solicitud…», «Compara el conteo…»).
-- Un control que la persona propone pero todavía no hace va marcado **(recomendado)**.
+- Lo que la persona le pide a la IA va en estilo indirecto («Le pide a la IA un borrador…»), nunca en imperativo dirigido a la IA: la revisión sin IA rechaza el texto con forma de orden. Las cifras, con puntos de miles: un número suelto de 6 a 12 cifras se rechaza.
+- Un control que la persona propone pero todavía no hace va marcado **(recomendado)**. Un paso sin control queda «(sin control)», y una pregunta sin responder, «(por completar)»: son las dos únicas marcas.
 
 ```markdown
 # Harness · <rol, en pocas palabras>
@@ -196,7 +197,7 @@ Cada paso tiene su control. Si el control no se cumple, no se avanza.
 
 | # | Paso | Control |
 |---|---|---|
-| 1 | <paso (pregunta 4)> | <cómo sabe que salió bien (pregunta 5), o «(por definir)»> |
+| 1 | <paso (pregunta 4)> | <cómo sabe que salió bien (pregunta 5), o «(sin control)» si hoy no tiene uno> |
 
 **Si un control falla:** <qué hace, a quién avisa y si se detiene (pregunta 6)>
 
@@ -216,12 +217,12 @@ Cada paso tiene su control. Si el control no se cumple, no se avanza.
 
 ## Origen
 
-Escrito el <AAAA-MM-DD> con el grill-me de `GENERAR-HARNESS.md`, con las respuestas de la persona. Lo marcado «(por completar)» no se respondió; nada se inventó.
+Escrito el <AAAA-MM-DD> con el grill-me de `GENERAR-HARNESS.md`, solo con las respuestas de la persona: nada se inventó.
 ```
 
 ### Fork y entrega
 
-Elige el modo tú mismo; no le preguntes cuál prefiere.
+Elige el modo tú mismo; no le preguntes cuál prefiere. Si no tienes terminal, o no estás seguro de tenerla, eres B. Si en el modo A un comando no devuelve nada o `gh` no tiene sesión y la persona no puede iniciarla, pasa al B sin insistir.
 
 **A · Si puedes usar una terminal con git y `gh`** (la cuenta de GitHub de la persona):
 ```bash

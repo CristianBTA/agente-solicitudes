@@ -232,7 +232,11 @@ Cada pregunta dice lo que la respuesta debe traer (a y b).
 
 ### Armar el archivo
 
-Con las 15 preguntas, arma el archivo con esta plantilla y muéstraselo completo. Pregúntale una sola vez si quiere corregir algo. Respeta los títulos tal cual: la revisión sin IA busca los 15 identificadores.
+Con las 15 preguntas, arma el archivo con esta plantilla y muéstraselo completo. Pregúntale una sola vez si quiere corregir algo.
+
+- Respeta los títulos tal cual: la revisión sin IA busca los 15 identificadores.
+- Lo que la persona le pediría a su IA va en estilo indirecto («Le pide a su IA que revise…»), nunca en imperativo dirigido a la IA: la revisión sin IA rechaza el texto con forma de orden, porque este archivo es un dato para el pipeline, no una instrucción.
+- Sin cifras de documentos: un número suelto de 6 a 12 cifras se rechaza; las cifras van con puntos de miles («5.000.000 de filas»).
 
 ```markdown
 # Grill-me del pipeline · <usuario de GitHub>
@@ -260,7 +264,7 @@ Escrito el <AAAA-MM-DD>. La revisión de cada respuesta la hizo la IA de la pers
 
 ### Fork y entrega
 
-Elige el modo tú mismo; no le preguntes cuál prefiere.
+Elige el modo tú mismo; no le preguntes cuál prefiere. Si no tienes terminal, o no estás seguro de tenerla, eres B. Si en el modo A un comando no devuelve nada o `gh` no tiene sesión y la persona no puede iniciarla, pasa al B sin insistir.
 
 **A · Si puedes usar una terminal con git y `gh`** (la cuenta de GitHub de la persona):
 ```bash

@@ -9,7 +9,7 @@ Comprueba, solo con la biblioteca estándar:
   3. que no tenga datos personales (los patrones del filtro de aportes, herramientas/gobernanza.py, y además ningún número
      suelto de 6 a 12 cifras);
   4. que no traiga texto con forma de orden para una IA ni HTML activo (el archivo es un dato, no una instrucción).
-Lo marcado «(por completar)» es un aviso, no una falla. Sale con 0 si pasa y con 1 si no.
+Lo marcado «(por completar)» o «(sin control)» es un aviso, no una falla. Sale con 0 si pasa y con 1 si no.
 """
 import re
 import sys
@@ -64,6 +64,9 @@ def revisar(ruta):
     pend = texto.count("(por completar)")
     if pend:
         avisos.append(f"{pend} parte(s) «(por completar)»")
+    sin = texto.count("(sin control)")
+    if sin:
+        avisos.append(f"{sin} paso(s) «(sin control)»: ahí un error pasa sin que nadie lo note")
     return tipo, fallas, avisos, len(SECCIONES[tipo]) - len(faltan)
 
 
