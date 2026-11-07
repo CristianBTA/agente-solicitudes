@@ -295,6 +295,10 @@
     {
      "archivo": "agentes/03-limpiador.md",
      "contiene": "vacios_maximo"
+    },
+    {
+     "archivo": "herramientas/verificar.py",
+     "contiene": "revisar_limpiezas"
     }
    ],
    "pruebas": [
@@ -306,7 +310,8 @@
     "B09",
     "B19",
     "B33",
-    "B34"
+    "B34",
+    "B39"
    ]
   },
   {

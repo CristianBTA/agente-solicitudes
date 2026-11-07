@@ -20,7 +20,7 @@ from pathlib import Path
 
 AQUI = Path(__file__).resolve().parent
 sys.path.insert(0, str(AQUI))
-from verificar import fmt, tabla_md, a_num  # noqa: E402
+from verificar import fmt, tabla_md, a_num, revisar_limpiezas  # noqa: E402
 from rutas import estado_ingesta, procedencias  # noqa: E402
 
 ETAPAS = ["Ingesta", "Procesamiento", "Análisis", "Visualización", "Gobernanza"]
@@ -117,10 +117,13 @@ def armar(c):
     bitac = [leer(p) for p in sorted((c / "bitacora").glob("*.json"))] if (c / "bitacora").exists() else []
     bat = subprocess.run([sys.executable, str(AQUI / "baterias.py")], capture_output=True, text=True)  # nosec B603
     bat_txt = [l for l in bat.stdout.splitlines() if not l.startswith("RESUMEN")]
+    # la limpieza se mira aparte de informe.json: si quedó rechazada o su capa limpia cambió después de verificar, el
+    # procesamiento no está aprobado aunque informe.json diga «aprobado» (L109)
+    _, motivos_limpieza = revisar_limpiezas(c, spec)
 
     estado = {
         "Ingesta": estado_ingesta(procs),    # ✅ solo si TODAS las tablas tienen su procedencia aprobada
-        "Procesamiento": inf.get("estado") == "aprobado" if inf else None,
+        "Procesamiento": (inf.get("estado") == "aprobado" and not motivos_limpieza) if inf or motivos_limpieza else None,
         "Análisis": est_analisis,
         "Visualización": None if not graf else graf.get("estado") == "aprobado",
         "Gobernanza": None if not gob else gob.get("estado") == "aprobado",
@@ -159,9 +162,12 @@ def armar(c):
         L.append("Sin procedencia: los datos no pasaron por la ingesta con contrato.")
 
     L += ["", "## 2 · Procesamiento: la IA limpia y transforma"]
+    L += [f"- ⚠️ {m}." for m in motivos_limpieza]
     for lp in sorted(c.glob("limpieza_*.json")):
         li = leer(lp)
         L += ["", f"### Limpieza de «{li.get('tabla')}»: {fmt(li.get('filas'))} filas, {fmt(li.get('filas_ok'))} sin marcas"]
+        if li.get("estado") != "aprobada":
+            L.append(f"- ⚠️ La limpieza quedó **{li.get('estado')}**" + (f": {li['motivo']}" if li.get("motivo") else "") + ".")
         L += ["| Operación | Columna | Filas cambiadas | Filas marcadas | Ejemplo |", "|---|---|---|---|---|"]
         for o in li.get("operaciones", []):
             col = o["columna"] if isinstance(o["columna"], str) else ", ".join(o["columna"]) if isinstance(o["columna"], list) else str(o["columna"])

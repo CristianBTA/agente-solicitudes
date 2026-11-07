@@ -224,7 +224,10 @@ def cargar_caso(c, spec):
         destino = c / "caso_conocido" / "_limpio"
         for tabla, plan in planes.items():
             if tabla in datos:
-                inf = limpieza.limpiar(plan, entrada=datos[tabla], salida=str(destino / f"{tabla}.csv"), informe=False)
+                try:
+                    inf = limpieza.limpiar(plan, entrada=datos[tabla], salida=str(destino / f"{tabla}.csv"), informe=False)
+                except (Exception, SystemExit) as e:  # noqa: BLE001 (un plan que detiene la limpieza no es un traceback del verificador)
+                    return None, f"el caso conocido no pasa la limpieza de {tabla}: se detuvo ({type(e).__name__}: {sanear(e, datos)[:160]})"
                 if inf.get("estado") != "aprobada":
                     return None, f"el caso conocido no pasa la limpieza de {tabla}: {[p['prueba'] for p in inf['pruebas'] if not p['ok']]}"
                 caso["datos"][tabla] = str(destino / f"{tabla}.csv")
@@ -287,6 +290,47 @@ def revisar_procedencias(c, spec):
         elif h != p.get("sha256"):
             motivos.append(f"el archivo crudo de {t} no es el que se ingirió: su huella {h[:12]}… no coincide con la de su "
                            f"procedencia ({str(p.get('sha256'))[:12]}…)")
+    return out, motivos
+
+
+def revisar_limpiezas(c, spec):
+    """La capa limpia que se verifica es la que dejó una limpieza aprobada (L109). Por cada tabla de spec.datos con plan
+    de limpieza (plan_limpieza_<tabla>.json) o con su informe (limpieza_<tabla>.json), el informe tiene que estar en
+    «aprobada» y su sha256_limpio tiene que ser la huella del archivo que leen las implementaciones. flujo.js solo mira
+    lo que el limpiador dice de sí mismo: sin esto, una limpieza rechazada, detenida o rehecha sobre otro dato dejaba
+    aprobar la corrida, y el informe final decía «todas las etapas aprobadas». Devuelve ({tabla: detalle}, motivos)."""
+    out, motivos = {}, []
+    for t, ruta in (spec.get("datos") or {}).items():
+        if not re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9_-]{0,63}", str(t)):
+            continue    # la limpieza solo escribe tablas con nombre simple: con otro nombre no hay plan que mirar
+        plan = (c / f"plan_limpieza_{t}.json").resolve()
+        informe = (c / f"limpieza_{t}.json").resolve()
+        if not (plan.is_relative_to(Path(c).resolve()) and informe.is_relative_to(Path(c).resolve())):
+            continue    # con el nombre simple no sale de la corrida; se comprueba igual
+        if not (plan.exists() or informe.exists()):
+            continue
+        try:
+            li = json.loads(informe.read_text(encoding="utf-8")) if informe.exists() else None
+        except (OSError, ValueError):
+            li = {"estado": "ilegible"}
+        if not isinstance(li, dict):
+            li = None if li is None else {"estado": "ilegible"}
+        if li is None:
+            motivos.append(f"la tabla {t} tiene plan de limpieza y no su informe (limpieza_{t}.json): la limpieza no se "
+                           "corrió o no terminó, y la capa limpia no la aprobó nadie")
+            out[t] = {"estado": None}
+            continue
+        r = Path(str(ruta))
+        h = hashlib.sha256(r.read_bytes()).hexdigest() if r.is_file() else None
+        esperado = li.get("sha256_limpio")
+        out[t] = {"estado": li.get("estado"), "sha256": h, "sha256_limpio": esperado, "coincide": h is not None and h == esperado}
+        if li.get("estado") != "aprobada":
+            motivos.append(f"la limpieza de {t} no está aprobada (limpieza_{t}.json dice «{str(li.get('estado'))[:20]}»): "
+                           "su capa limpia no se puede usar")
+        elif not out[t]["coincide"]:
+            motivos.append(f"la capa limpia de {t} no es la que aprobó la limpieza: "
+                           + ("no está el archivo" if h is None else f"su huella {h[:12]}… no es la de limpieza_{t}.json "
+                              f"({str(esperado)[:12]}…)"))
     return out, motivos
 
 
@@ -772,6 +816,8 @@ def verificar(c, impls, extra=False):
     motivos = []
     origen_datos, motivos_procedencia = revisar_procedencias(c, spec)
     motivos += motivos_procedencia
+    limpiezas, motivos_limpieza = revisar_limpiezas(c, spec)
+    motivos += motivos_limpieza
     if sellos["estado"] == "sin_sellar":
         motivos.append("el criterio (spec, reglas y caso conocido) no está sellado")
     elif sellos["estado"] == "alterados":
@@ -836,7 +882,7 @@ def verificar(c, impls, extra=False):
         "reglas": [{"id": r["id"], "tipo": r["tipo"], "descripcion": r["descripcion"]} for r in reglas],
         "implementaciones": res, "concordancia": conc, "resultado_oficial": oficial, "fuente_resultado": fuente,
         "anticipo": anticipo or None, "conciliaciones_iguales": conciliaciones_iguales, "caja_de_arena": bool(CAJA),
-        "procedencias": origen_datos,
+        "procedencias": origen_datos, "limpiezas": limpiezas,
         "filas_reales": {t: n for t, (n, _) in conteos.items()},
     }
     resumen = {"estado": inf["estado"], "motivos": motivos, "preguntas_abiertas": inf["preguntas_abiertas"],

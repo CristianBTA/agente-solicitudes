@@ -1475,6 +1475,111 @@ def b38():
                         "es falla con su prueba, y el que resiste no deja falla")
 
 
+# B39 (L109): la etapa de limpieza solo se comprobaba con lo que el limpiador dice de sí mismo (flujo.js mira su «ok»).
+# Una corrida mínima con capa limpia: el crudo, su plan, la capa limpia que deja la línea de comandos de limpieza.py y
+# una spec que lee la capa limpia (y las reglas, el crudo). Tres ataques sobre la misma corrida aprobada:
+#   1. limpieza_t.json queda en «rechazada» y la capa limpia sigue ahí (lo que dejaba la limpieza anterior al rechazar);
+#   2. la capa limpia cambia después de aprobarse (una entidad renombrada, que ninguna regla mira);
+#   3. el plan hace fallar el motor después de una limpieza aprobada (un umbral «"0"»: antes, TypeError al final).
+# En 1 y 2, verificar.py deja la corrida en «revisar» por la limpieza y el informe final no da el ✅ del procesamiento
+# aunque informe.json diga «aprobado»; en 3, la línea de comandos sale con 1, sin traceback, con limpieza_t.json en
+# «rechazada» y sin capa limpia. Control positivo (L27): con la limpieza aprobada, la corrida se aprueba y el informe
+# final da el ✅; y en 1 y 2 la limpieza es el único motivo: sin esta comprobación, nada más las detendría.
+PLAN_B39 = {"tabla": "t", "entrada": "datos/t.csv", "salida": "limpio/t.csv",
+            "operaciones": [{"op": "texto", "columna": "entidad"}], "umbrales": {"vacios_maximo": {"valor": 0}}}
+
+
+def _procesamiento_final(c):
+    """El icono de la fila Procesamiento del informe final, sin correr las baterías (no es lo que se mide aquí)."""
+    import types
+    import informe_final
+    antes = informe_final.subprocess
+    informe_final.subprocess = types.SimpleNamespace(run=lambda *a, **k: subprocess.CompletedProcess(a, 0, "", ""))
+    try:
+        md, _ = informe_final.armar(c)
+    finally:
+        informe_final.subprocess = antes
+    fila = next((x for x in md.splitlines() if x.startswith("| Procesamiento |")), "")
+    return "✅" if fila.rstrip().endswith("✅ |") else "⚠️" if "⚠️" in fila else f"«{fila[-20:]}»"
+
+
+@prueba("B39", "verificador", "la limpieza de una tabla queda rechazada, su capa limpia cambia después de aprobarse o el plan hace fallar el motor, y el limpiador dice que salió bien (flujo.js solo mira lo que dice la IA): ¿verificar.py o el informe final dan la corrida por buena?")
+def b39():
+    import contextlib
+    import io
+    import limpieza
+    d = Path(tempfile.mkdtemp(prefix="blindaje-limpieza-")).resolve()
+    c = d / "c"
+    reglas = "from reglas_base import aprox, leer_csv, regla, suma\n" + CONSERVACION.replace("MAS", "")
+    impls = {"a": c / "impl_a.py", "b": c / "impl_a.py"}
+
+    def limpiar_cli():
+        with contextlib.redirect_stdout(io.StringIO()):
+            return limpieza.limpiar(c / "plan_limpieza_t.json")
+
+    def solo_limpieza(inf):     # la limpieza es el único motivo: nada más detendría la corrida (L27)
+        return bool(inf.get("motivos")) and all("limpi" in m for m in inf["motivos"])
+
+    try:
+        _corrida_minima(c, "entidad,valor\nUno,10\nDos,5\nUno,2\n", "entidad,valor\nAlfa,1\nAlfa,2\nBeta,4\n",
+                        [{"entidad": "Alfa", "valor": 3}, {"entidad": "Beta", "valor": 4}], ["valor"])
+        spec = json.loads((c / "spec.json").read_text(encoding="utf-8"))
+        spec.update(datos={"t": str(c / "limpio" / "t.csv")}, datos_crudos={"t": str(c / "datos" / "t.csv")})
+        (c / "spec.json").write_text(json.dumps(spec), encoding="utf-8")
+        (c / "plan_limpieza_t.json").write_text(json.dumps(PLAN_B39), encoding="utf-8")
+        (c / "impl_a.py").write_text(IMPL_SUMA, encoding="utf-8")
+        codigo0 = limpiar_cli()
+        inf0, _ = _verificar_corrida(c, reglas, impls)
+        final0 = _procesamiento_final(c)
+        verificado = (c / "informe.json").read_text(encoding="utf-8")   # el informe.json «aprobado» de la corrida
+        aprobada = (c / "limpieza_t.json").read_text(encoding="utf-8")
+        capa = (c / "limpio" / "t.csv").read_text(encoding="utf-8")
+        # 1. limpieza_t.json en «rechazada», con la capa limpia todavía ahí
+        (c / "limpieza_t.json").write_text(json.dumps({**json.loads(aprobada), "estado": "rechazada"}), encoding="utf-8")
+        final1 = _procesamiento_final(c)
+        inf1, _ = _verificar_corrida(c, reglas, impls)
+        # 2. la capa limpia cambia después de aprobarse
+        (c / "limpieza_t.json").write_text(aprobada, encoding="utf-8")
+        (c / "limpio" / "t.csv").write_text(capa.replace("Dos,", "Tres,"), encoding="utf-8")
+        (c / "informe.json").write_text(verificado, encoding="utf-8")
+        final2 = _procesamiento_final(c)
+        inf2, _ = _verificar_corrida(c, reglas, impls)
+        # 3. el plan hace fallar el motor después de una limpieza aprobada
+        (c / "limpio" / "t.csv").write_text(capa, encoding="utf-8")
+        (c / "limpieza_t.json").write_text(aprobada, encoding="utf-8")
+        (c / "plan_limpieza_t.json").write_text(json.dumps({**PLAN_B39, "umbrales": {"vacios_maximo": {"valor": "0"}}}),
+                                                encoding="utf-8")
+        try:
+            codigo3, caida3 = limpiar_cli(), None
+        except (Exception, SystemExit) as e:  # noqa: BLE001 (la limpieza anterior salía con un traceback)
+            codigo3, caida3 = None, f"{type(e).__name__}: {str(e)[:80]}"
+        quedo3 = json.loads((c / "limpieza_t.json").read_text(encoding="utf-8")).get("estado")
+        capa3 = (c / "limpio" / "t.csv").exists()
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+    if codigo0 != 0 or inf0.get("estado") != "aprobado" or final0 != "✅":
+        return r("CEDE", f"prueba inválida: con la limpieza aprobada la corrida no se aprueba (limpieza {codigo0}, "
+                         f"verificar «{inf0.get('estado')}» {str(inf0.get('motivos'))[:100]}, informe final {final0}) (L32)")
+    invalidas = [n for n, inf in (("1", inf1), ("2", inf2)) if inf.get("estado") != "aprobado" and not solo_limpieza(inf)]
+    if invalidas:
+        return r("CEDE", f"prueba inválida: en {invalidas} la corrida se detiene por otra cosa que la limpieza "
+                         f"({str((inf1 if invalidas[0] == '1' else inf2).get('motivos'))[:140]}): no mediría la comprobación (L27)")
+    problemas = ([f"con limpieza_t.json en «rechazada», verificar.py da «{inf1.get('estado')}»"] if inf1.get("estado") == "aprobado" else []) \
+        + ([f"con limpieza_t.json en «rechazada», el informe final da {final1} al procesamiento"] if final1 != "⚠️" else []) \
+        + ([f"con la capa limpia cambiada, verificar.py da «{inf2.get('estado')}»"] if inf2.get("estado") == "aprobado" else []) \
+        + ([f"con la capa limpia cambiada, el informe final da {final2} al procesamiento"] if final2 != "⚠️" else []) \
+        + ([f"con un umbral «\"0\"» la limpieza se cae ({caida3})"] if caida3 else
+           [f"con un umbral «\"0\"» la limpieza sale con {codigo3}, limpieza_t.json dice «{quedo3}» y la capa limpia "
+            f"{'sigue ahí' if capa3 else 'no está'}"] if codigo3 != 1 or quedo3 != "rechazada" or capa3 else [])
+    if problemas:
+        return r("CEDE", "; ".join(problemas))
+    return r("RESISTE", "con la limpieza aprobada la corrida se aprueba y el informe final da ✅ al procesamiento; con "
+                        "limpieza_t.json en «rechazada» o con la capa limpia cambiada después, verificar.py la deja en "
+                        "«revisar» con la limpieza como único motivo y el informe final da ⚠️ aunque informe.json diga "
+                        "«aprobado»; y un plan que hace fallar el motor sale con 1, sin traceback, deja limpieza_t.json en "
+                        "«rechazada» y retira la capa limpia")
+
+
 def main(argv):
     solo = set(argv[argv.index("--solo") + 1].split(",")) if "--solo" in argv else None
     filas = []

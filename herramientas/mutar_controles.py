@@ -80,6 +80,14 @@ MUTANTES = [
      "    lineas = [x for x in texto.splitlines() if x.startswith(\"RESUMEN \")][-1:]\n    if len(lineas) != 1:\n        return None\n", "B38"),
     ("M24", "el filtro no cruza la salida del banco con su RESUMEN ni con las pruebas de la base", "herramientas/validar_aporte.py",
      "    if descuadre:\n        fallas.append(", "    if False:\n        fallas.append(", "B38"),
+    ("M25", "verificar.py no mira el estado ni la huella de la limpieza (una rechazada o una capa limpia cambiada aprueban)",
+     "herramientas/verificar.py", "    motivos += motivos_limpieza\n", "", "B39"),
+    ("M26", "el informe final da el procesamiento por aprobado con solo informe.json, sin mirar la limpieza",
+     "herramientas/informe_final.py",
+     '"Procesamiento": (inf.get("estado") == "aprobado" and not motivos_limpieza) if inf or motivos_limpieza else None,',
+     '"Procesamiento": inf.get("estado") == "aprobado" if inf else None,', "B39"),
+    ("M27", "una limpieza que se detiene deja la capa limpia de la anterior", "herramientas/limpieza.py",
+     "        retirado = retirar(destino.get(\"salida\"))\n", "        retirado = False\n", "B39"),
 ]
 
 

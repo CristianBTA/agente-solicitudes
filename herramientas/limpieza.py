@@ -46,22 +46,35 @@ Umbrales (se justifican sobre el dato real, no sobre el caso conocido):
   - El detalle de completitud y validez dice la holgura: cuántas filas más puede perder el dato antes de que el
     umbral bloquee.
   - Un umbral con nombre desconocido, sobre una columna que no existe o sobre una marca que ninguna operación pone
-    detiene la limpieza: nunca se ignora en silencio.
+    detiene la limpieza: nunca se ignora en silencio. También uno que no es de su tipo: completitud y validez, un número
+    entre 0 y 1; marcadas_maximo y vacios_maximo, un entero ≥ 0; unicidad, una lista de columnas («"0"» daba un
+    TypeError al final, con la capa limpia ya escrita: L109).
   - "umbrales_caso" (opcional): los del caso conocido, que trae defectos a propósito. Se aplican solo cuando quien
     llama lo pide (limpiar(..., caso=True), con la entrada del caso), nunca desde la línea de comandos ni sobre la
     entrada del plan. El caso no puede exigir más que el dato real: cada umbral de umbrales_caso debe estar también
     en umbrales y ser igual o más laxo; si no, la limpieza se detiene.
+
+Rechazo que detiene (L109, como la ingesta: GOB-7). La capa limpia se escribe solo si la limpieza queda «aprobada», en
+un temporal que la reemplaza al final. Si queda rechazada o el motor se detiene (FAILFAST, un plan que no se puede
+ejecutar o un error que no se previó), la capa limpia de una limpieza anterior se retira y limpieza_<tabla>.json queda
+en «rechazada», con su motivo y sin traceback: ninguna etapa lee datos que ninguna limpieza aprobó, y verificar.py y el
+informe final dejan la corrida en «revisar» con una limpieza sin aprobar o con una capa limpia que no es la de su informe.
+La tabla del plan es un nombre simple y la salida, un .csv que no es la entrada ni el plan.
 """
+import contextlib
 import csv
 import hashlib
 import io
 import json
 import math
+import os
 import re
 import shutil
 import sys
 import tempfile
+import traceback
 import unicodedata
+import uuid
 from datetime import datetime
 from pathlib import Path
 
@@ -75,6 +88,7 @@ INVISIBLES = re.compile(r"[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f\u
 OPS = {"<": lambda a, b: a < b, "<=": lambda a, b: a <= b, ">": lambda a, b: a > b, ">=": lambda a, b: a >= b,
        "==": lambda a, b: a == b, "!=": lambda a, b: a != b}
 UMBRALES = ("completitud_minima", "validez_minima", "unicidad", "marcadas_maximo", "vacios_maximo")
+TABLA = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_-]{0,63}")    # como en la ingesta: limpieza_<tabla>.json queda junto al plan
 # la forma completa de un número con cada decimal, solo con cifras ASCII (float() acepta 1_000, «٣», Infinity y espacios)
 NUMERO = {".": re.compile(r"[-+]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][-+]?[0-9]+)?"),
           ",": re.compile(r"[-+]?(?:[0-9]+|[1-9][0-9]{0,2}(?:\.[0-9]{3})+)(?:,[0-9]+)?")}   # 1.234,5 · 12.500.000 · 0,75
@@ -209,9 +223,21 @@ def marcas_posibles(plan):
     return nombres
 
 
+def _fraccion(x):
+    """Un número finito (no un booleano ni un texto) entre 0 y 1."""
+    return isinstance(x, (int, float)) and not isinstance(x, bool) and math.isfinite(x) and 0 <= x <= 1
+
+
+def _conteo(x):
+    """Un entero mayor o igual que 0 (no un booleano, un decimal ni un texto)."""
+    return isinstance(x, int) and not isinstance(x, bool) and x >= 0
+
+
 def revisar_umbrales(plan, cols):
-    """Un umbral que no se puede evaluar no se ignora: nombre desconocido, columna que no existe o marca que ninguna
-    operación pone. Y el caso conocido no exige más que el dato real."""
+    """Un umbral que no se puede evaluar no se ignora ni revienta: nombre desconocido, columna que no existe, marca que
+    ninguna operación pone o un valor que no es del tipo del umbral (completitud y validez, un número entre 0 y 1; los
+    máximos, un entero ≥ 0; unicidad, una lista de columnas). Antes, «"0"» en vacios_maximo daba un TypeError al final,
+    con la capa limpia ya escrita (L109). Y el caso conocido no exige más que el dato real."""
     p, posibles = [], marcas_posibles(plan)
     bloques = {"umbrales": plan.get("umbrales") or {}}
     if "umbrales_caso" in plan:
@@ -223,16 +249,34 @@ def revisar_umbrales(plan, cols):
         desconocidos = sorted(k for k in u if k not in UMBRALES and not k.startswith("_"))
         if desconocidos:
             p.append(f"{nombre}: umbrales desconocidos {desconocidos} (se admiten {', '.join(UMBRALES)})")
-        for k in ("completitud_minima", "validez_minima", "vacios_maximo"):
-            faltan = sorted(c for c in (u.get(k) or {}) if c not in cols)
+        for k, de_su_tipo, tipo in (("completitud_minima", _fraccion, "un número entre 0 y 1"),
+                                    ("validez_minima", _fraccion, "un número entre 0 y 1"),
+                                    ("marcadas_maximo", _conteo, "un entero mayor o igual que 0"),
+                                    ("vacios_maximo", _conteo, "un entero mayor o igual que 0")):
+            d = u.get(k)
+            if d is not None and not isinstance(d, dict):
+                p.append(f"{nombre}.{k} debe ser un objeto {{nombre: umbral}}")
+                continue
+            for c, x in (d or {}).items():
+                if not de_su_tipo(x):
+                    p.append(f"{nombre}.{k}.{c} debe ser {tipo} (es {json.dumps(x, ensure_ascii=False)[:30]})")
+            if k != "marcadas_maximo":
+                faltan = sorted(c for c in (d or {}) if c not in cols)
+                if faltan:
+                    p.append(f"{nombre}.{k} usa columnas que no existen: {faltan}")
+        uni = u.get("unicidad")
+        if uni is not None and not (isinstance(uni, list) and all(isinstance(c, str) for c in uni)):
+            p.append(f"{nombre}.unicidad debe ser una lista de columnas")
+        else:
+            faltan = sorted(c for c in (uni or []) if c not in cols)
             if faltan:
-                p.append(f"{nombre}.{k} usa columnas que no existen: {faltan}")
-        faltan = sorted(c for c in (u.get("unicidad") or []) if c not in cols)
-        if faltan:
-            p.append(f"{nombre}.unicidad usa columnas que no existen: {faltan}")
-        sin_op = sorted(m for m in (u.get("marcadas_maximo") or {}) if m not in posibles)
+                p.append(f"{nombre}.unicidad usa columnas que no existen: {faltan}")
+        marcadas = u.get("marcadas_maximo")
+        sin_op = sorted(m for m in (marcadas if isinstance(marcadas, dict) else {}) if m not in posibles)
         if sin_op:
             p.append(f"{nombre}.marcadas_maximo usa marcas que ninguna operación pone: {sin_op}")
+    if p:
+        return p    # con un umbral de otro tipo, comparar el caso con el dato real reventaría
     if "umbrales_caso" in bloques and isinstance(bloques["umbrales_caso"], dict) and isinstance(bloques["umbrales"], dict):
         real, caso = bloques["umbrales"], bloques["umbrales_caso"]
         for k, mas_estricto in (("completitud_minima", lambda r, c: r >= c), ("validez_minima", lambda r, c: r >= c),
@@ -247,10 +291,96 @@ def revisar_umbrales(plan, cols):
     return p
 
 
+def escribir_capa(sal, contenido):
+    """La capa limpia se escribe en un temporal de su misma carpeta y lo reemplaza de una vez (os.replace): quien la
+    lee nunca ve un archivo a medias ni el de antes mezclado con el nuevo."""
+    sal.parent.mkdir(parents=True, exist_ok=True)
+    tmp = sal.with_name(f".{sal.name}.{uuid.uuid4().hex[:12]}.tmp")
+    try:
+        tmp.write_bytes(contenido)
+        os.replace(tmp, sal)
+    finally:
+        tmp.unlink(missing_ok=True)
+
+
+def retirar(sal):
+    """Una limpieza rechazada o detenida no deja capa limpia: la de una limpieza anterior se retira (True si había)."""
+    if sal is not None and Path(sal).is_file():
+        Path(sal).unlink()
+        return True
+    return False
+
+
+def motivo_de(e):
+    """Lo que se dice de una detención: el mensaje propio del motor (FAILFAST o la operación con una columna que no
+    existe; sus ejemplos ya salen enmascarados) o, si el error no se previó, su tipo y su lugar, no su texto, que
+    puede traer un valor de la fuente (como en la ingesta)."""
+    texto = str(e)
+    if (isinstance(e, ValueError) and texto.startswith("FAILFAST")) or (isinstance(e, SystemExit) and isinstance(e.code, str)):
+        return texto[:600]
+    marcos = traceback.extract_tb(e.__traceback__)
+    donde = ([m for m in marcos if Path(m.filename).name == Path(__file__).name] or marcos or [None])[-1]   # el de este motor
+    lugar = f" en {donde.name}, {Path(donde.filename).name}:{donde.lineno}" if donde else ""
+    return f"la limpieza se detuvo antes de terminar sus pruebas ({type(e).__name__}{lugar}): no se aprueba"
+
+
+def rechazar(plan_ruta, destino, motivo, retirado):
+    """Línea de comandos: la limpieza que se detuvo deja limpieza_<tabla>.json en «rechazada» (nunca el «aprobada» de
+    una limpieza anterior), con su motivo, y sale con 1 sin traceback. Sin un nombre de tabla simple (del plan o de
+    plan_limpieza_<tabla>.json) no se escribe: con «../» quedaría fuera de la carpeta del plan."""
+    tabla = destino.get("tabla")
+    if tabla is None:
+        m = re.fullmatch(r"plan_limpieza_(.+)\.json", plan_ruta.name)
+        tabla = m.group(1) if m and TABLA.fullmatch(m.group(1)) else None
+    print(f"Limpieza rechazada: {motivo}")
+    if retirado:
+        print(f"  · se retira {Path(destino['salida']).name} de una limpieza anterior: ya no corresponde a una limpieza aprobada")
+    if tabla:
+        (plan_ruta.parent / f"limpieza_{tabla}.json").write_text(json.dumps(
+            {"tabla": tabla, "estado": "rechazada", "motivo": motivo,
+             "salida": str(destino["salida"]) if destino.get("salida") else None, "capa_limpia_retirada": retirado,
+             "sha256_limpio": None, "operaciones": [], "pruebas": []}, ensure_ascii=False, indent=2), encoding="utf-8")
+    else:
+        print("  · sin un nombre de tabla simple no se escribe limpieza_<tabla>.json")
+    print("RESUMEN " + json.dumps({"estado": "rechazada", "motivo": motivo}, ensure_ascii=False))
+    return 1
+
+
 def limpiar(plan_ruta, entrada=None, salida=None, informe=True, caso=False):
+    """Ejecuta el plan y lo prueba. La capa limpia se escribe solo si la limpieza queda «aprobada»; si queda rechazada
+    o el motor se detiene, la de una limpieza anterior se retira (L109). Con informe=True (la línea de comandos) deja
+    limpieza_<tabla>.json, también en «rechazada» con el motivo de la detención, y devuelve 0 o 1 sin traceback; con
+    informe=False devuelve el informe a quien llama y una detención le llega como excepción."""
     plan_ruta = Path(plan_ruta).resolve()
+    destino = {}     # la tabla y la salida, en cuanto se conocen y son seguras
+    try:
+        inf, contenido = _ejecutar(plan_ruta, entrada, salida, caso, destino)
+        if inf["estado"] == "aprobada":
+            escribir_capa(Path(inf["salida"]), contenido)
+        else:
+            inf["sha256_limpio"] = None
+            inf["capa_limpia_retirada"] = retirar(inf["salida"])
+    except (Exception, SystemExit) as e:  # noqa: BLE001 (FAILFAST: lo que no se previó también rechaza la limpieza)
+        retirado = retirar(destino.get("salida"))
+        if not informe:
+            raise
+        return rechazar(plan_ruta, destino, motivo_de(e), retirado)
+    if not informe:
+        return inf
+    return mostrar(plan_ruta.parent, inf)
+
+
+def _ejecutar(plan_ruta, entrada, salida, caso, destino):
+    """El plan, sus operaciones y sus pruebas, sin escribir nada: (informe, bytes de la capa limpia)."""
     base = plan_ruta.parent
     plan = json.loads(plan_ruta.read_text(encoding="utf-8"))
+    if not isinstance(plan, dict):
+        raise ValueError("FAILFAST: el plan es un objeto JSON {tabla, entrada, salida, llave, operaciones, umbrales}")
+    tabla = plan.get("tabla", "tabla")
+    if not (isinstance(tabla, str) and TABLA.fullmatch(tabla)):
+        raise ValueError("FAILFAST: la tabla del plan tiene que ser un nombre simple (letras, cifras, «_» y «-»): "
+                         "limpieza_<tabla>.json se escribe junto al plan")
+    destino["tabla"] = tabla
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from rutas import resolver
     if caso and entrada is None:
@@ -260,6 +390,11 @@ def limpiar(plan_ruta, entrada=None, salida=None, informe=True, caso=False):
     ent = Path(resolver(e)) if Path(e).is_absolute() else base / e
     s_ = salida or plan["salida"]
     sal = Path(s_) if Path(s_).is_absolute() else base / s_
+    # la salida se reemplaza si se aprueba y se retira si no: nunca puede ser el dato crudo ni el plan
+    if sal.suffix.lower() != ".csv" or sal.resolve() in (ent.resolve(), plan_ruta):
+        raise ValueError("FAILFAST: la salida del plan tiene que ser un .csv distinto de la entrada y del plan "
+                         "(limpio/<tabla>.csv): se reemplaza si la limpieza se aprueba y se retira si no")
+    destino["salida"] = sal
     cols, crudas, lineas, crudo = leer_crudo(ent)    # también detiene otro separador (la línea 1 con «;», tabulador o «|»)
     reservadas = [c for c in cols if c.lower().startswith("calidad_")]
     if reservadas:
@@ -496,9 +631,7 @@ def limpiar(plan_ruta, entrada=None, salida=None, informe=True, caso=False):
             fila[f"calidad_{m}"] = int(m in ms)
         fila["calidad_ok"] = int(not ms)
         w.writerow(fila)
-    contenido = buf.getvalue().encode("utf-8")
-    sal.parent.mkdir(parents=True, exist_ok=True)
-    sal.write_bytes(contenido)
+    contenido = buf.getvalue().encode("utf-8")    # se escribe solo si la limpieza queda aprobada (limpiar)
     despues = metricas(filas, cols, tipos)
 
     pruebas = [
@@ -536,17 +669,25 @@ def limpiar(plan_ruta, entrada=None, salida=None, informe=True, caso=False):
         k = sum(1 for f in filas if not f.get(c, "").strip())
         pruebas.append({"prueba": f"celdas vacías en {c} ≤ {mx}", "ok": k <= mx, "detalle": f"{miles(k)} de {miles(n)} filas"})
     conteo_marcas = {m: sum(1 for ms in marcas if m in ms) for m in todas}
-    informe_escribir = informe
     informe = {"tabla": plan.get("tabla"), "entrada": str(ent), "salida": str(sal), "filas": len(filas),
                "filas_ok": sum(1 for ms in marcas if not ms), "marcas": conteo_marcas, "operaciones": reporte,
                "calidad_antes": antes, "calidad_despues": despues, "calidad_cambio": cambio(antes, despues),
                "umbrales_aplicados": "caso_conocido" if usa_caso else "dato_real", "pruebas": pruebas,
                "sha256_limpio": hashlib.sha256(contenido).hexdigest(),
                "estado": "aprobada" if all(p["ok"] for p in pruebas) else "rechazada"}
-    if not informe_escribir:
-        return informe
-    (base / f"limpieza_{plan.get('tabla', 'tabla')}.json").write_text(json.dumps(informe, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"Limpieza {informe['estado']}: {len(filas)} filas → {sal} · sin marcas {informe['filas_ok']}")
+    return informe, contenido
+
+
+def mostrar(base, informe):
+    """Línea de comandos: escribe limpieza_<tabla>.json junto al plan y dice lo que hizo cada operación y cada prueba."""
+    reporte, pruebas, antes, despues = informe["operaciones"], informe["pruebas"], informe["calidad_antes"], informe["calidad_despues"]
+    filas, sal, conteo_marcas = informe["filas"], informe["salida"], informe["marcas"]
+    (base / f"limpieza_{informe.get('tabla') or 'tabla'}.json").write_text(json.dumps(informe, ensure_ascii=False, indent=2), encoding="utf-8")
+    if informe["estado"] == "aprobada":
+        print(f"Limpieza aprobada: {filas} filas → {sal} · sin marcas {informe['filas_ok']}")
+    else:
+        print(f"Limpieza rechazada: {filas} filas · la capa limpia no se escribe"
+              + (f" y se retira la de una limpieza anterior ({Path(sal).name})" if informe.get("capa_limpia_retirada") else ""))
     for r in reporte:
         print(f"  · {r['op']} {r['columna']}: cambiadas {r['filas_cambiadas']} · marcadas {r['filas_marcadas']}"
               + (f" · {'; '.join(r['ejemplos'][:2])}" if r["ejemplos"] else ""))
@@ -556,7 +697,7 @@ def limpiar(plan_ruta, entrada=None, salida=None, informe=True, caso=False):
         print(f"  · calidad de {c}: " + " · ".join(f"{k} {antes[c][k]:.2%} → {despues[c][k]:.2%}" for k in x))
     for p in pruebas:
         print(f"  {'✓' if p['ok'] else '✗'} {p['prueba']}: {p['detalle']}")
-    print("RESUMEN " + json.dumps({"estado": informe["estado"], "filas": len(filas), "marcas": conteo_marcas,
+    print("RESUMEN " + json.dumps({"estado": informe["estado"], "filas": filas, "marcas": conteo_marcas,
                                    "fallas": [p["prueba"] for p in pruebas if not p["ok"]]}, ensure_ascii=False))
     return 0 if informe["estado"] == "aprobada" else 1
 
@@ -648,6 +789,20 @@ def autoprueba(mod=None):
         caso_(f"umbral que no se puede evaluar: {nombre}", chico, {"operaciones": [{"op": "repetidos", "columnas": ["id"]}],
                                                                   "umbrales": u},
               lambda r, e: isinstance(e, ValueError) and "umbrales" in str(e))
+    # un umbral que no es de su tipo se detiene antes de leer las filas, con FAILFAST (antes: TypeError al final, L109)
+    for nombre, u in (("«\"0\"» en vacios_maximo", {"vacios_maximo": {"nit": "0"}}),
+                      ("1.5 en completitud_minima", {"completitud_minima": {"nit": 1.5}}),
+                      ("true en completitud_minima", {"completitud_minima": {"nit": True}}),
+                      ("-1 en marcadas_maximo", {"marcadas_maximo": {"repetido": -1}}),
+                      ("2.5 en vacios_maximo", {"vacios_maximo": {"nit": 2.5}}),
+                      ("validez_minima como lista", {"validez_minima": ["nit"]}),
+                      ("unicidad como texto", {"unicidad": "id"})):
+        caso_(f"umbral de otro tipo: {nombre} detiene la limpieza (L109)", chico,
+              {"operaciones": [{"op": "repetidos", "columnas": ["id"]}], "umbrales": u},
+              lambda r, e: isinstance(e, ValueError) and str(e).startswith("FAILFAST") and "debe ser" in str(e))
+    caso_("umbral de otro tipo en umbrales_caso también detiene la limpieza", chico,
+          {"operaciones": [], "umbrales": {"vacios_maximo": {"nit": 2}}, "umbrales_caso": {"vacios_maximo": {"nit": "2"}}},
+          lambda r, e: isinstance(e, ValueError) and "umbrales_caso.vacios_maximo.nit debe ser" in str(e), entrada=True, caso=True)
     # 4. la clase INVISIBLES va con escapes: quita los invisibles y nunca un espacio (al reescribir el archivo, U+2028 y
     #    U+2029 literales se volvieron espacios y la op texto pegaba los nombres)
     def limpio(r):
@@ -700,6 +855,52 @@ def autoprueba(mod=None):
           lambda r, e: aprueba(r, e) and r["marcas"].get("repetido") == 1 and not r["operaciones"][0].get("aviso"))
     caso_("repetidos sin desempate con valores distintos: avisa", rep, {"operaciones": [{"op": "repetidos", "columnas": ["id"]}]},
           lambda r, e: aprueba(r, e) and "sin criterio" in (r["operaciones"][0].get("aviso") or ""))
+
+    # 7. rechazo que detiene (L109): la línea de comandos, con una limpieza aprobada antes en la misma carpeta
+    def cli_(nombre, pasos, condicion):
+        """Corre mod.limpiar como la línea de comandos (informe=True) con cada (crudo, plan) en orden, en la misma carpeta y
+        sin mostrar su salida; condicion(carpeta, códigos de salida)."""
+        d = tmp / f"cli{len(resultados):02d}"
+        d.mkdir()
+        codigos, e = [], None
+        try:
+            for crudo, plan in pasos:
+                (d / "crudo.csv").write_text(crudo, encoding="utf-8")
+                (d / "plan.json").write_text(json.dumps({"tabla": "t", "entrada": "crudo.csv", "salida": "limpio/t.csv", **plan},
+                                                        ensure_ascii=False), encoding="utf-8")
+                with contextlib.redirect_stdout(io.StringIO()):
+                    codigos.append(mod.limpiar(d / "plan.json"))
+            ok = bool(condicion(d, codigos))
+        except BaseException as x:  # noqa: BLE001 (la versión anterior sale con un traceback)
+            ok, e = False, x
+        resultados.append((nombre, ok, f"{type(e).__name__}: {str(e)[:110]}" if e else f"códigos {codigos}"))
+
+    def quedo(d):
+        """(estado y motivo de limpieza_t.json, ¿hay capa limpia?, ¿su huella es la del informe?)"""
+        inf = json.loads((d / "limpieza_t.json").read_text(encoding="utf-8"))
+        capa = d / "limpio" / "t.csv"
+        huella = hashlib.sha256(capa.read_bytes()).hexdigest() if capa.exists() else None
+        return inf.get("estado"), inf.get("motivo") or "", capa.exists(), huella is not None and huella == inf.get("sha256_limpio")
+
+    bien = ("id,valor\n1,10\n2,20\n", {"operaciones": [], "umbrales": {"vacios_maximo": {"valor": 0}}})
+    vacios = "id,valor\n1,10\n2,\n3,\n"
+    cli_("línea de comandos: una limpieza aprobada escribe la capa limpia con la huella de su informe (control)", [bien],
+         lambda d, c: c == [0] and quedo(d)[0] == "aprobada" and quedo(d)[2:] == (True, True))
+    cli_("rechazada por un umbral: no escribe la capa limpia y retira la de la limpieza anterior (L109)",
+         [bien, (vacios, bien[1])],
+         lambda d, c: c == [0, 1] and quedo(d)[0] == "rechazada" and not quedo(d)[2])
+    cli_("un umbral «\"0\"» tras una aprobada: limpieza_t.json en «rechazada» con FAILFAST, sin traceback y sin capa limpia",
+         [bien, (vacios, {"operaciones": [], "umbrales": {"vacios_maximo": {"valor": "0"}}})],
+         lambda d, c: c == [0, 1] and quedo(d)[0] == "rechazada" and "FAILFAST" in quedo(d)[1] and not quedo(d)[2])
+    cli_("un error que no se previó (una regex mal escrita) también rechaza, con su tipo y su lugar, y retira la capa",
+         [bien, (bien[0], {"operaciones": [{"op": "reemplazar", "columna": "valor", "patron": "("}]})],
+         lambda d, c: c == [0, 1] and quedo(d)[0] == "rechazada" and "se detuvo" in quedo(d)[1] and not quedo(d)[2])
+    cli_("la salida no puede ser la entrada: se detiene y el crudo queda intacto",
+         [(bien[0], {"operaciones": [], "salida": "crudo.csv"})],
+         lambda d, c: c == [1] and quedo(d)[0] == "rechazada" and (d / "crudo.csv").read_text(encoding="utf-8") == bien[0])
+    cli_("una tabla con «../» se detiene y no escribe fuera de la carpeta del plan",
+         [(bien[0], {"operaciones": [], "tabla": "../fuera"})],
+         lambda d, c: c == [1] and not (d.parent / "fuera.json").exists() and not list(d.parent.glob("limpieza_*.json")))
     shutil.rmtree(tmp, ignore_errors=True)
     for nombre, ok, det in resultados:
         print(f"{'✓' if ok else '✗'} {nombre}" + ("" if ok else f" · {det}"))
