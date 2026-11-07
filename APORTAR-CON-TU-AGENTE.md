@@ -7,24 +7,24 @@ Instructivo para aportar a este repositorio con la IA que ya usas. El aporte no 
 1. Abre la IA que ya usas (Claude, ChatGPT, Copilot, Gemini u otra). Si es un agente que trabaja con archivos (Claude Code, Copilot en VS Code, Codex, Cursor), mejor: él prepara la copia del repositorio.
 2. Cópiale este texto:
    ```text
-   Lee https://raw.githubusercontent.com/CristianBTA/agente-solicitudes/main/APORTAR-CON-TU-AGENTE.md, sigue sus «Instrucciones para el agente» y empieza mi aporte al repositorio CristianBTA/agente-solicitudes.
+   Lee https://raw.githubusercontent.com/CristianBTA/subagentes-big-data/main/APORTAR-CON-TU-AGENTE.md, sigue sus «Instrucciones para el agente» y empieza mi aporte al repositorio CristianBTA/subagentes-big-data.
    ```
    Ella empieza: te pregunta tu idea. Cuéntala en tus palabras, por ejemplo: «vi que la IA leyó montos con punto de miles como decimales» o «a esta regla le falta el limpiador». Si tu IA no puede abrir enlaces, pégale este archivo completo.
 3. Revisa lo que te entregue y envíalo como te indique: un *pull request* o el texto para el formulario «Proponer un aporte». **Tú** marcas la casilla de consentimiento para aparecer en el registro de cambios.
 
-No necesitas invitación: con tu cuenta de GitHub, el botón [Fork](https://github.com/CristianBTA/agente-solicitudes/fork) crea tu copia (una comprobación automática revisa cada día que el repositorio siga abierto a aportes). Tampoco hace falta gastar mucho de tu cuota: tu agente **no** corre el flujo de agentes del repositorio (eso consume más de un millón de tokens). Solo arma el aporte y corre un filtro gratuito, sin IA. En las pruebas, un aporte completo costó cerca de 110.000 tokens.
+No necesitas invitación: con tu cuenta de GitHub, el botón [Fork](https://github.com/CristianBTA/subagentes-big-data/fork) crea tu copia (una comprobación automática revisa cada día que el repositorio siga abierto a aportes). Tampoco hace falta gastar mucho de tu cuota: tu agente **no** corre el flujo de agentes del repositorio (eso consume más de un millón de tokens). Solo arma el aporte y corre un filtro gratuito, sin IA. En las pruebas, un aporte completo costó cerca de 110.000 tokens.
 
 ---
 
 ## Instrucciones para el agente
 
-Ayudas a una persona a aportar al repositorio público **CristianBTA/agente-solicitudes** (pipeline de datos con IA en cinco etapas: la IA propone y una prueba sin IA comprueba). Convierte su idea en un aporte que pase el filtro, **con el menor costo posible para ella**, y déjalo listo para que el dueño lo revise.
+Ayudas a una persona a aportar al repositorio público **CristianBTA/subagentes-big-data** (pipeline de datos con IA en cinco etapas: la IA propone y una prueba sin IA comprueba). Convierte su idea en un aporte que pase el filtro, **con el menor costo posible para ella**, y déjalo listo para que el dueño lo revise.
 
 ### Límites que no se negocian
 
 - **No corras el pipeline.** Nada de `flujo.js` ni de los subagentes, y ninguna prueba de efecto con IA: esa la hace el dueño, con su licencia.
 - **Gasta poco.** Lee solo los archivos que esta guía nombra para el tipo de aporte. No recorras el repositorio completo ni generes informes largos.
-- **Nunca incluyas datos reales.** Nada de filas, nombres de personas, cédulas, datos bancarios ni archivos de SECOP II. Para ejemplos, usa valores evidentemente ficticios: `Persona Ficticia Uno`, `000.000.001`, `persona@ejemplo.invalid`, `399 000 0001`.
+- **Nunca incluyas datos reales.** Nada de filas, nombres de personas, cédulas, datos bancarios ni archivos de SECOP II. Para ejemplos, usa valores evidentemente ficticios: `Persona Ficticia Uno`, `000.000.001`, un correo en el dominio `ejemplo.invalid` y un celular que empiece por `399`.
 - **Solo librerías permitidas:** la biblioteca estándar de Python y lo de `herramientas/permitidas.json` (pandas, numpy, plotly), instaladas desde `requirements.txt`.
 - **Sin firmas de asistentes.** Nada de `Co-Authored-By`, «Generated with…» ni menciones a la herramienta en commits ni en el pull request. El aporte es de la persona.
 - **Endurecer sí, aflojar nunca.** Puedes proponer que una herramienta bloquee o detecte más cosas. Nunca cambies una herramienta ni una prueba para que algo «pase».
@@ -35,7 +35,7 @@ Ayudas a una persona a aportar al repositorio público **CristianBTA/agente-soli
 
 Empieza tú, en un solo mensaje corto:
 
-1. **Una línea:** vas a ayudarle a aportar al repositorio CristianBTA/agente-solicitudes, y el aporte no le cuesta más que esta conversación.
+1. **Una línea:** vas a ayudarle a aportar al repositorio CristianBTA/subagentes-big-data, y el aporte no le cuesta más que esta conversación.
 2. **Pregúntale su idea**, con ejemplos:
    - «la IA leyó montos con punto de miles como decimales»;
    - «este código debería bloquearse»;
@@ -45,14 +45,14 @@ Empieza tú, en un solo mensaje corto:
    - «esta palabra del negocio significa…».
 3. **Elige tu modo tú mismo; no le preguntes cuál prefiere.** Si no tienes terminal, eres B:
    - **A**, si puedes usar una terminal con git: sigue el paso 0.
-   - **B**, si eres un chat sin terminal: salta al paso 1 y entrega con el paso 4B. Si puedes abrir enlaces, lee solo el archivo que el paso nombra para su tipo, en `https://raw.githubusercontent.com/CristianBTA/agente-solicitudes/main/<ruta>`. No puedes correr pruebas: dilo, y deja la comprobación al filtro del dueño.
+   - **B**, si eres un chat sin terminal: salta al paso 1 y entrega con el paso 4B. Si puedes abrir enlaces, lee solo el archivo que el paso nombra para su tipo, en `https://raw.githubusercontent.com/CristianBTA/subagentes-big-data/main/<ruta>`. No puedes correr pruebas: dilo, y deja la comprobación al filtro del dueño.
 
 Si ya trajo su idea, no se la vuelvas a pedir: sigue con el paso 1.
 
 ### Paso 0 · Preparar (una sola vez)
 
 ```bash
-gh repo fork CristianBTA/agente-solicitudes --clone && cd agente-solicitudes   # origin = su fork; upstream = el original
+gh repo fork CristianBTA/subagentes-big-data --clone && cd subagentes-big-data   # origin = su fork; upstream = el original
 USUARIO=$(gh api user --jq .login)
 git fetch upstream main && git switch -c aporte/$USUARIO-<tema-corto> upstream/main
 python3 -m venv .venv && .venv/bin/pip install --require-hashes -r requirements.txt            # Python 3.11 a 3.13 (en Windows: py -3.13)
@@ -151,7 +151,7 @@ Si al probar encuentras **otro** hueco distinto del que trajo la persona, no lo 
 git add <solo los archivos del aporte>          # nunca git add -A
 git commit -m "Aporte: <qué agrega, en una frase>"
 git push -u origin aporte/$USUARIO-<tema-corto>
-gh pr create --repo CristianBTA/agente-solicitudes --base main --title "Aporte: <qué agrega>" --body-file PR.md
+gh pr create --repo CristianBTA/subagentes-big-data --base main --title "Aporte: <qué agrega>" --body-file PR.md
 ```
 `PR.md` es la plantilla de `.github/PULL_REQUEST_TEMPLATE.md`, llena con:
 - qué aporta y su tipo;
@@ -161,7 +161,7 @@ gh pr create --repo CristianBTA/agente-solicitudes --base main --title "Aporte: 
 - la lista de chequeo.
 La casilla de consentimiento la marca la persona. `PR.md` no va en el commit.
 
-**B · Sin git:** entrega el texto listo para pegar en el formulario «Proponer un aporte» (https://github.com/CristianBTA/agente-solicitudes/issues/new?template=aporte.yml), un bloque por campo: tipo, qué aporta, evidencia y cómo se prueba. Agrega el contenido de cada archivo en bloques de código. Solo hace falta una cuenta gratuita de GitHub.
+**B · Sin git:** entrega el texto listo para pegar en el formulario «Proponer un aporte» (https://github.com/CristianBTA/subagentes-big-data/issues/new?template=aporte.yml), un bloque por campo: tipo, qué aporta, evidencia y cómo se prueba. Agrega el contenido de cada archivo en bloques de código. Solo hace falta una cuenta gratuita de GitHub.
 
 ### Paso 5 · Lo que le dices a la persona
 

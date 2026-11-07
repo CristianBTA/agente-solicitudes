@@ -1,19 +1,35 @@
-# Pipeline de datos con IA: la IA propone, una prueba sin IA comprueba
+# Subagentes para procesamiento de big data: la IA propone, una prueba sin IA comprueba
 
 Un análisis de datos hecho con IA, de la pregunta al informe, en las cinco etapas del ciclo del dato. En cada etapa la IA hace el trabajo y una prueba que no es IA lo comprueba. Quien pide el análisis no lee código: lee un informe de una página con la cifra, lo que se entendió, los supuestos, las preguntas abiertas y qué pasó cada prueba.
 
 Quién analiza: las personas, en las dos herramientas. En el pipeline de esta versión, la IA ya no propone ni prueba hipótesis: el documentador resume lo desarrollado en un whitepaper sin conclusiones, una prueba sin IA lo comprueba y las personas escriben su hipótesis antes de mirar (`plantillas/analisis_humano.md`). En el [agente masivo](#agente-masivo-de-datos-públicos) y en su whitepaper, igual: la IA deja preguntas y un resumen, sin conclusiones.
 
-Material aplicado del curso **«Big Data con IA»** (NODO · Universidad EAFIT, noviembre de 2026), con datos abiertos de Colombia (SECOP II).
+Material aplicado del curso **«Big Data con IA»** (NODO · Universidad EAFIT, noviembre de 2026). Sirve para cualquier fuente pública de datos masivos o para un archivo propio: **ningún subagente trae un conjunto de datos por defecto.** La fuente se declara en cada corrida (`fuente` o `datos`), y al agente masivo se le puede sugerir de qué se va a tratar (`--tema`). Las corridas de ejemplo se midieron con SECOP II (contratos públicos de datos.gov.co) y con ventas sintéticas.
+
+## Grill-me con su IA: el harness y el pipeline
+
+Los dos grill-me del curso se hacen con la IA que ya usa cada persona, desde este repositorio. Cópiele uno de estos textos:
+
+```text
+Conéctate al repositorio https://github.com/CristianBTA/subagentes-big-data y sigue su guía GENERAR-HARNESS.md. Quiero generar el harness.
+```
+
+```text
+Conéctate al repositorio https://github.com/CristianBTA/subagentes-big-data y sigue su guía GRILL-ME-DEL-PIPELINE.md. Quiero hacer el grill-me del pipeline.
+```
+
+La IA hace las preguntas una a la vez, repregunta cuando la respuesta queda vaga y, al final, hace el *fork* y guarda el resultado en el fork de la persona (`harness/<usuario>.md` o `grill-me/<usuario>.md`). No gasta tokens del curso y no hace falta *pull request*: el dueño recoge los archivos de los forks con `herramientas/recoger_grill.py`.
+
+**Para la IA que llega aquí:** si la persona dice «Quiero generar el harness», sigue [`GENERAR-HARNESS.md`](GENERAR-HARNESS.md) (enlace directo: https://raw.githubusercontent.com/CristianBTA/subagentes-big-data/main/GENERAR-HARNESS.md). Si dice «Quiero hacer el grill-me del pipeline», sigue [`GRILL-ME-DEL-PIPELINE.md`](GRILL-ME-DEL-PIPELINE.md) (https://raw.githubusercontent.com/CristianBTA/subagentes-big-data/main/GRILL-ME-DEL-PIPELINE.md). Primero las preguntas; el fork, al final.
 
 ## Versión para la clase y versión final
 
 - **Para la clase** (6 y 7 de noviembre de 2026) se usa la etiqueta fija **`clase-2026-11-06`**: una versión probada que no cambia aunque `main` siga avanzando.
   ```bash
-  git clone --branch clase-2026-11-06 https://github.com/CristianBTA/agente-solicitudes
+  git clone --branch clase-2026-11-06 https://github.com/CristianBTA/subagentes-big-data
   ```
   La etiqueta se rehízo una sola vez: el 6 de noviembre a las 15:50 pasó de `7d2fa19` a `42576ec`. Si la descargaste antes, `git pull` no la actualiza: vuelve a clonar, o corre `git fetch --tags --force` y después `git checkout clase-2026-11-06`. Otra versión para la clase llevaría una etiqueta nueva.
-- **La versión final está en `main`** ([v1.8](CHANGELOG.md)). Junta los arreglos de la revisión ciega de analista senior y de la revisión del pipeline, el filtro de aportes que toma su juez de la rama base y el cambio por el que el análisis lo hacen las personas: la IA documenta lo desarrollado en un whitepaper, que también sale en tres hojas carta, y la presentación dice lo medido, sin recomendar ni pedir decisiones. Hoy tiene 11 subagentes, 10 baterías, 38 pruebas de blindaje (B00 de control y 37 ataques) y 113 lecciones. La etiqueta `clase-2026-11-06` no se mueve: sigue en la versión de la clase.
+- **La versión final está en `main`** ([v1.8](CHANGELOG.md)). Junta los arreglos de la revisión ciega de analista senior y de la revisión del pipeline, el filtro de aportes que toma su juez de la rama base y el cambio por el que el análisis lo hacen las personas: la IA documenta lo desarrollado en un whitepaper, que también sale en tres hojas carta, y la presentación dice lo medido, sin recomendar ni pedir decisiones. Hoy tiene 11 subagentes, 10 baterías, 39 pruebas de blindaje (B00 de control y 38 ataques) y 125 lecciones. La etiqueta `clase-2026-11-06` no se mueve: sigue en la versión de la clase.
 - **Los aportes de los participantes** van siempre contra `main`, como dice [`APORTAR-CON-TU-AGENTE.md`](APORTAR-CON-TU-AGENTE.md).
 
 ## Conectar la IA
@@ -21,10 +37,10 @@ Material aplicado del curso **«Big Data con IA»** (NODO · Universidad EAFIT, 
 Para aportar con la IA que ya usas (ChatGPT, Gemini, Claude, Copilot u otra), cópiale este texto:
 
 ```text
-Lee https://raw.githubusercontent.com/CristianBTA/agente-solicitudes/main/APORTAR-CON-TU-AGENTE.md, sigue sus «Instrucciones para el agente» y empieza mi aporte al repositorio CristianBTA/agente-solicitudes.
+Lee https://raw.githubusercontent.com/CristianBTA/subagentes-big-data/main/APORTAR-CON-TU-AGENTE.md, sigue sus «Instrucciones para el agente» y empieza mi aporte al repositorio CristianBTA/subagentes-big-data.
 ```
 
-- **La IA te pregunta tu idea y arma el aporte.** Si trabaja con archivos y terminal (Claude Code, Codex, Copilot en VS Code, Cursor), deja listo el *pull request*. Si es un chat, te entrega el texto para el formulario [«Proponer un aporte»](https://github.com/CristianBTA/agente-solicitudes/issues/new?template=aporte.yml).
+- **La IA te pregunta tu idea y arma el aporte.** Si trabaja con archivos y terminal (Claude Code, Codex, Copilot en VS Code, Cursor), deja listo el *pull request*. Si es un chat, te entrega el texto para el formulario [«Proponer un aporte»](https://github.com/CristianBTA/subagentes-big-data/issues/new?template=aporte.yml).
 - **No gasta tu cuota más allá de esa conversación:** el filtro del repositorio no usa IA, y la prueba con IA la paga el dueño.
 - Si tu IA no puede abrir enlaces, pégale el archivo [`APORTAR-CON-TU-AGENTE.md`](APORTAR-CON-TU-AGENTE.md) completo.
 
@@ -43,7 +59,7 @@ Lee https://raw.githubusercontent.com/CristianBTA/agente-solicitudes/main/APORTA
 
 ## Aportar
 
-Cualquiera con cuenta de GitHub puede hacer [fork](https://github.com/CristianBTA/agente-solicitudes/fork) y proponer una lección, un caso de prueba o una regla, sin invitación y **sin gastar su cuota de IA**. El flujo `abierta-a-aportes` comprueba cada día que el repositorio siga abierto: público, con fork y pull requests para cualquiera, y con el formulario y el instructivo publicados. Todo pasa por un embudo antes de entrar:
+Cualquiera con cuenta de GitHub puede hacer [fork](https://github.com/CristianBTA/subagentes-big-data/fork) y proponer una lección, un caso de prueba o una regla, sin invitación y **sin gastar su cuota de IA**. El flujo `abierta-a-aportes` comprueba cada día que el repositorio siga abierto: público, con fork y pull requests para cualquiera, y con el formulario y el instructivo publicados. Todo pasa por un embudo antes de entrar:
 
 1. un filtro automático sin IA (`validar-aporte`): datos personales, seguridad del código y que no rompa nada;
 2. la revisión del dueño;
@@ -54,10 +70,11 @@ Cualquiera con cuenta de GitHub puede hacer [fork](https://github.com/CristianBT
 
 ## Agente masivo de datos públicos
 
-Recorre un catálogo completo de datos abiertos (datos.gov.co tiene 8.470 conjuntos), mide sin IA qué conjuntos son big data de verdad y cuáles permiten decir «este contrato está así, aquí, y tiene tal impacto». A los mejores les pide a la IA una **ficha de oportunidad** (preguntas de costo, calidad e impacto para que las personas analicen) y la valida sin IA contra la fuente real:
+Recorre un catálogo completo de datos abiertos (datos.gov.co tiene 8.470 conjuntos), mide sin IA qué conjuntos son big data de verdad y cuáles permiten decir «esta unidad está así, aquí, y tiene tal impacto» (un contrato, un caso de salud, un trámite). A los mejores les pide a la IA una **ficha de oportunidad** (preguntas de costo, calidad e impacto para que las personas analicen) y la valida sin IA contra la fuente real:
 
 ```bash
-.venv/bin/python herramientas/agente_masivo.py www.datos.gov.co --trabajo fuentes/fichas/mi-corrida --conjuntos jbjy-vk9h --motor claude   # solo las fuentes que autorizas; o agy, codex, ninguno
+.venv/bin/python herramientas/agente_masivo.py www.datos.gov.co --trabajo fuentes/fichas/mi-corrida --descubrir --tema "salud"   # sugiere conjuntos de ese tema; no se conecta a ninguno
+.venv/bin/python herramientas/agente_masivo.py www.datos.gov.co --trabajo fuentes/fichas/mi-corrida --conjuntos <los que autorizas> --motor claude   # o agy, codex, ninguno
 ```
 
 Cómo invocarlo desde la terminal, con agy o con cualquier IA de terminal, y el texto listo para pegar: [`AGENTE-MASIVO.md`](AGENTE-MASIVO.md).
@@ -89,7 +106,7 @@ Las herramientas de `herramientas/` son Python sin IA y se pueden correr solas. 
 }
 ```
 
-Con archivos locales, `datos` reemplaza a `fuente`: `{"ventas": "<ruta>/ventas.csv", "clientes": "<ruta>/clientes.csv"}`.
+Es la corrida de ejemplo, medida con SECOP II. Con otra fuente cambian la petición, el glosario (o ninguno: lo que no se sabe va como pregunta) y `fuente`, que es obligatoria: sin `fuente` ni `datos`, el flujo no arranca. Con archivos locales, `datos` reemplaza a `fuente`: `{"ventas": "<ruta>/ventas.csv", "clientes": "<ruta>/clientes.csv"}`.
 
 ### Con agy o con Codex
 

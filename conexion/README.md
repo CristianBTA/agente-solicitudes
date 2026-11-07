@@ -21,7 +21,7 @@ Lo que cambia entre herramientas es **quién obliga a correrla**:
 ## En Colab
 
 ```python
-!git clone --depth 1 https://github.com/CristianBTA/agente-solicitudes /content/compuerta
+!git clone --depth 1 https://github.com/CristianBTA/subagentes-big-data /content/compuerta
 !pip install -q --require-hashes -r /content/compuerta/requirements-compuerta.txt
 !python /content/compuerta/herramientas/comprobar.py /content/mi_codigo.py
 ```

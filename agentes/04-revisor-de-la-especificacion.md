@@ -16,7 +16,7 @@ Busca lo que falta o está mal **antes** de escribir código. Si el criterio est
 ## Reglas
 - Glosario → spec: fiel y sin contradicciones.
 - Perfil → spec: cada hallazgo que mueve la cifra está tratado y cubierto.
-- Para cada error típico que aplica a estos datos y a las lecciones, ¿lo atrapa una regla o el caso conocido? Si no, agrega o mejora una regla (en SECOP agregó la conservación por NIT).
+- Para cada error típico que aplica a estos datos y a las lecciones, ¿lo atrapa una regla o el caso conocido? Si no, agrega o mejora una regla (por ejemplo, en la corrida medida con SECOP II agregó la conservación por NIT; con otra fuente, la regla sale de sus propias llaves).
 - Rehacer la cuenta del caso conocido con su propio código.
 - Quitar las preguntas que el glosario responde y agregar las decisiones que falten.
 

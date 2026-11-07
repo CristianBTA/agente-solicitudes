@@ -2,6 +2,18 @@
 
 Cada aporte aceptado queda aquí, con el usuario de GitHub de quien lo propuso (si aceptó aparecer).
 
+## Ningún conjunto de datos por defecto · 7 de noviembre de 2026
+
+- Ningún subagente trae un conjunto por defecto, ni SECOP ni otro. El pipeline (`flujo.js` y `orquestar.mjs`) no arranca sin `fuente` o `datos`, y el agente masivo no se conecta a nada que no se declare.
+- **Se le puede sugerir de qué se va a tratar:** `agente_masivo.py --descubrir --tema "salud"` propone los conjuntos grandes de ese tema.
+- **Sin tema, sugerencias de varios publicadores,** con un tope de 2 por publicador. Medido en el catálogo de datos.gov.co (8.470 conjuntos): la regla anterior exigía estado, lugar e impacto, y de los conjuntos de 1.000.000 de filas o más solo pasaban 5, todos de SECOP. Ahora pide dos de los tres.
+- Los mensajes, el README y `AGENTE-MASIVO.md` ya no ponen a SECOP II como el ejemplo único: queda como la fuente con que se midieron las corridas de ejemplo. Seis casos nuevos en la autoprueba del agente masivo.
+
+## Grill-me con la IA de cada persona · 7 de noviembre de 2026
+
+- `GENERAR-HARNESS.md` (10 preguntas) y `GRILL-ME-DEL-PIPELINE.md` (15 preguntas): la persona le dice a su IA «Conéctate al repositorio… Quiero generar el harness» (o «…el grill-me del pipeline»); la IA hace las preguntas una a la vez, repregunta, arma el archivo con lo que la persona dijo y, al final, hace el fork y lo guarda en `harness/<usuario>.md` o `grill-me/<usuario>.md`. Reemplazan las páginas del sitio del curso que revisaban con la IA del sitio: no gastan tokens del curso.
+- `herramientas/revisar_grill.py`: revisión sin IA del archivo (secciones, datos personales, texto con forma de orden, HTML activo). `herramientas/recoger_grill.py`: el dueño recoge los archivos de los forks y los revisa.
+
 ## v1 · 6 de noviembre de 2026 · semilla
 
 - Pipeline de cinco etapas con once subagentes, herramientas sin IA, directrices, baterías (seguridad, privacidad, FAILFAST y lecciones), dos corridas selladas y evidencia de los experimentos.

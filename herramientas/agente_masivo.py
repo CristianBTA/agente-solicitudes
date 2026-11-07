@@ -4,19 +4,24 @@
 Uso:
   python herramientas/agente_masivo.py <dominio> --trabajo <carpeta> --conjuntos <id,id,…> [--motor claude|agy|codex|ninguno]
   python herramientas/agente_masivo.py <dominio> --trabajo <carpeta> --fuentes <fuentes.json> [--motor …]
-  python herramientas/agente_masivo.py <dominio> --trabajo <carpeta> --descubrir [--top 8] [--min-filas 1000000] [--actualizar]
+  python herramientas/agente_masivo.py <dominio> --trabajo <carpeta> --descubrir [--tema "salud"] [--top 8] [--min-filas 1000000]
+                                       [--por-publicador 2] [--actualizar]
   python herramientas/agente_masivo.py <dominio> --trabajo <carpeta> --solo-validar
 
-FUENTES AUTORIZADAS: el agente solo se conecta a los conjuntos que el dueño declara (--conjuntos, o --fuentes con
-{"dominio": "…", "conjuntos": ["…"], "nota": "por qué"}); por ejemplo, SECOP II Contratos por su API: --conjuntos jbjy-vk9h.
-Sin fuentes declaradas no se conecta a ningún conjunto. --descubrir recorre el catálogo del portal (con permiso explícito)
-solo para SUGERIR candidatos y el comando para autorizarlos; no trabaja con ninguno hasta que se autorice. La lista queda
-en <trabajo>/fuentes_autorizadas.json, el encargo le prohíbe a la IA consultar otros y validar_ficha.py lo comprueba (V0).
+FUENTES AUTORIZADAS: el agente NO trae ningún conjunto por defecto (ni SECOP ni otro). Solo se conecta a los que el dueño
+declara (--conjuntos <id,id>, cada id de Socrata con la forma abcd-1234, o --fuentes con {"dominio": "…", "conjuntos": ["…"],
+"nota": "por qué"}). Sin fuentes declaradas no se conecta a ninguno. --descubrir recorre el catálogo del portal (con permiso
+explícito) solo para SUGERIR candidatos y el comando para autorizarlos; no trabaja con ninguno hasta que se autorice. Se le
+puede sugerir de qué se va a tratar con --tema («salud», «movilidad», «clima», «educación»…): propone los conjuntos grandes
+de ese tema. Sin tema, propone de varios publicadores (--por-publicador, 2 por defecto), para que una sola fuente no llene la
+lista. La lista autorizada queda en <trabajo>/fuentes_autorizadas.json, el encargo le prohíbe a la IA consultar otros y
+validar_ficha.py lo comprueba (V0).
 
 La IA propone y una prueba sin IA comprueba. Los pasos sin IA corren solos; el de IA lo hace el motor que se tenga:
   1. catálogo: explorador_catalogo.py mide todos los conjuntos (reanudable con la caché de --catalogo);
   2. relevancia: relevancia_catalogo.py ordena por si permiten decir estado, lugar e impacto, y por tamaño;
-  3. candidatos: los --top mejores con al menos --min-filas y estado, lugar e impacto;
+  3. candidatos (solo con --descubrir): los --top mejores con al menos --min-filas; con --tema, los de ese tema; sin tema,
+     los que dicen al menos dos de estado, lugar e impacto, con tope por publicador. Quedan en <trabajo>/sugerencias.json;
   4. dictamen medido: dictamen_bigdata.py por candidato (<trabajo>/fichas/<id>.dictamen.json): la IA no lo escribe;
   5. encargo: <trabajo>/ENCARGO.md, desde plantillas/encargo_fichas.md, con los candidatos;
   6. IA: con --motor claude, agy o codex se lanza esa CLI sin interacción con el encargo (binarios: CLAUDE_BIN, AGY_BIN y
@@ -52,10 +57,12 @@ RAIZ = AQUI.parent
 PY = sys.executable
 sys.path.insert(0, str(AQUI))
 
-SIN_FUENTES = ("No hay fuentes autorizadas: el agente no se conecta a ningún conjunto que no declares.\n"
-               "  Declara las fuentes, por ejemplo SECOP II Contratos por su API:  --conjuntos jbjy-vk9h\n"
-               "  o un archivo:  --fuentes fuentes.json   ({\"dominio\": \"www.datos.gov.co\", \"conjuntos\": [\"jbjy-vk9h\"], \"nota\": \"…\"})\n"
-               "  Para que el agente sugiera candidatos recorriendo el catálogo (con tu permiso):  --descubrir")
+SIN_FUENTES = ("No hay fuentes autorizadas, y el agente no trae ninguna por defecto (ni SECOP ni otra): no se conecta a ningún "
+               "conjunto que no declares.\n"
+               "  Declara los conjuntos que elijas:  --conjuntos <id,id>   (cada id de Socrata tiene la forma abcd-1234)\n"
+               "  o un archivo:  --fuentes fuentes.json   ({\"dominio\": \"…\", \"conjuntos\": [\"…\"], \"nota\": \"por qué se autoriza\"})\n"
+               "  ¿Aún no sabes cuáles? Sugiérele de qué se va a tratar y te propone candidatos de ese portal (con tu permiso):\n"
+               "    --descubrir --tema \"salud\"      (o «movilidad», «clima», «educación»…; sin --tema propone de varios publicadores)")
 
 
 def fuentes_autorizadas(argv, dominio, trabajo):
@@ -72,7 +79,7 @@ def fuentes_autorizadas(argv, dominio, trabajo):
     archivo = trabajo / "fuentes_autorizadas.json"
     if ids:
         if not all(re.fullmatch(r"[a-z0-9]{4}-[a-z0-9]{4}", x) for x in ids):
-            raise SystemExit("Cada conjunto autorizado es un id de Socrata como jbjy-vk9h.")
+            raise SystemExit("Cada conjunto autorizado es un id de Socrata de la forma abcd-1234 (cuatro letras o números, guion, cuatro).")
         archivo.write_text(json.dumps({"dominio": dominio, "conjuntos": ids, "nota": nota,
                                        "autorizado_el": datetime.now().isoformat(timespec="seconds")}, ensure_ascii=False, indent=1),
                            encoding="utf-8")
@@ -94,6 +101,70 @@ def inventario_autorizado(dominio, ids, destino):
                     "tipos": [str(c.get("dataTypeName", "")).lower() for c in cols]})
     destino.write_text(json.dumps(inv, ensure_ascii=False), encoding="utf-8")
     return inv
+
+
+VACIAS = {"de", "del", "la", "las", "los", "el", "en", "y", "o", "u", "para", "por", "con", "sin", "un", "una", "unos", "unas",
+          "al", "su", "sus", "que", "como", "se", "sobre", "entre", "datos", "dato", "conjunto", "conjuntos", "base", "bases",
+          "abiertos", "abierto", "publicos", "publico", "publica", "publicas", "colombia", "tema", "vamos", "tratar", "trabajar"}
+
+
+def palabras_tema(tema):
+    """Las palabras con que la persona sugiere el tema, sin tildes ni palabras vacías («la salud en Colombia» → salud)."""
+    from relevancia_catalogo import normal
+    return [w for w in dict.fromkeys(normal(tema).split()) if len(w) >= 3 and w not in VACIAS]
+
+
+def _toca(palabra, tokens):
+    """La palabra o su raíz está entre los tokens: «vacunas» encuentra «vacunacion»."""
+    raiz = palabra[:max(4, len(palabra) - 2)]
+    return any(t.startswith(raiz) for t in tokens)
+
+
+def sugerir(rel, inventario=(), tema=None, top=8, min_filas=1_000_000, por_publicador=2):
+    """Candidatos de --descubrir, sin ningún conjunto por defecto.
+    Con tema: los de ese tema, por el nombre y la categoría (pesan el doble), el publicador y las columnas.
+    Sin tema: los que dicen al menos dos de estado, lugar e impacto (exigir los tres dejaba solo conjuntos de contratos).
+    En los dos casos, a lo más por_publicador por publicador (0 = sin tope), para que una sola fuente no llene la lista.
+    Devuelve (candidatos, palabras, grandes); grandes es False si ninguno del tema llega a min_filas: entonces la lista trae
+    los más grandes del tema, y la persona decide."""
+    from relevancia_catalogo import normal
+    cols = {x["id"]: " ".join([str(v) for v in (x.get("campos") or [])] + [str(v) for v in (x.get("visibles") or [])])
+            for x in inventario}
+    palabras = palabras_tema(tema) if tema else []
+    if tema and not palabras:
+        raise SystemExit(f"El tema «{tema}» no trae palabras para buscar: usa palabras como «salud», «movilidad» o «clima».")
+
+    def n3(r):
+        return sum(bool(r.get(k)) for k in ("dice_estado", "dice_lugar", "dice_impacto"))
+
+    elegibles = []
+    for r in rel:
+        if palabras:
+            fuerte = normal(f"{r.get('nombre') or ''} {r.get('categoria') or ''}").split()
+            debil = normal(f"{r.get('publicador') or ''} {cols.get(r.get('id'), '')}").split()
+            pesos = [2 if _toca(w, fuerte) else 1 if _toca(w, debil) else 0 for w in palabras]
+            if any(pesos):
+                elegibles.append((sum(1 for x in pesos if x), sum(pesos), r))   # primero, cuántas palabras del tema toca
+        elif n3(r) >= 2:
+            elegibles.append((0, 0, r))
+    grandes = [x for x in elegibles if (x[2].get("filas") or 0) >= min_filas]
+    hay_grandes = bool(grandes) or not palabras
+    if hay_grandes:
+        lista = sorted(grandes, key=lambda x: (-x[0], -x[1], -n3(x[2]), -(x[2].get("puntaje") or 0), -(x[2].get("filas") or 0)))
+    else:
+        lista = sorted(elegibles, key=lambda x: (-x[0], -(x[2].get("filas") or 0)))
+    out, cuenta = [], {}
+    for _, puntos, r in lista:
+        # el mismo publicador se escribe de varias formas («…Pública - Colombia Compra Eficiente, Bogotá D.C.» y «…Pública
+        # Colombia Compra Eficiente CCE, Bogotá, D.C»): se compara sin la ciudad y por sus cuatro primeras palabras
+        pub = " ".join([w for w in normal((r.get("publicador") or "").split(",")[0]).split() if len(w) >= 3][:4]) or "—"
+        if por_publicador and cuenta.get(pub, 0) >= por_publicador:
+            continue
+        cuenta[pub] = cuenta.get(pub, 0) + 1
+        out.append(dict(r, coincide_tema=puntos))
+        if len(out) >= top:
+            break
+    return out, palabras, hay_grandes
 
 
 def correr(*args, salida=None):
@@ -170,6 +241,34 @@ def autoprueba():
     casos.append(("una carpeta de trabajo que Git versionaría se rechaza", not fuera_de_git(repo / "fichas-hoy", repo)))
     casos.append(("dentro de fuentes/ (ignorada) o fuera del repositorio se acepta",
                   fuera_de_git(repo / "fuentes" / "fichas" / "mi-corrida", repo) and fuera_de_git(d / "afuera", repo)))
+    # ningún conjunto por defecto: sin fuentes declaradas no hay ninguna, y descubrir no deja que una sola fuente llene la lista
+    casos.append(("sin fuentes declaradas no hay ningún conjunto por defecto", fuentes_autorizadas([], "x.invalid", d) is None))
+    def c(i, nombre, cat, pub, filas, pts, e, l, im):
+        return {"id": i, "nombre": nombre, "categoria": cat, "publicador": pub, "filas": filas, "puntaje": pts,
+                "dice_estado": e, "dice_lugar": l, "dice_impacto": im}
+    rel = [c(f"aaaa-000{k}", f"Contratos {k}", "Compras", "Agencia Alfa", 5_000_000, 15, True, True, True) for k in range(1, 6)]
+    rel += [c("aaaa-0009", "Contratos históricos", "Compras", "Agencia Alfa, Bogotá D.C.", 6_000_000, 15, True, True, True)]
+    rel += [c("bbbb-0001", "Casos de dengue por municipio", "Salud y Protección Social", "Instituto Beta", 2_000_000, 11, True, True, False),
+            c("cccc-0001", "Estaciones de calidad del aire", "Ambiente", "Ministerio Gama", 3_000_000, 10, False, True, True),
+            c("dddd-0001", "Cobertura de vacunación", "Salud y Protección Social", "Unidad Delta", 40_000, 9, False, True, True),
+            c("eeee-0001", "Tasas de interés", "Economía", "Banco Épsilon", 9_000_000, 12, False, False, False)]
+    inv = [{"id": "cccc-0001", "campos": ["municipio", "pm10", "ozono"], "visibles": ["Municipio", "PM10", "Ozono"]}]
+    sug, _, _ = sugerir(rel, inv)
+    pubs = [x["publicador"] for x in sug]
+    casos.append(("sin tema: un publicador no pasa del tope y entran los de otros",
+                  sum(x.startswith("Agencia Alfa") for x in pubs) == 2 and {"Instituto Beta", "Ministerio Gama"} <= set(pubs) and "eeee-0001" not in
+                  [x["id"] for x in sug]))
+    sug, pal, gr = sugerir(rel, inv, tema="la salud en Colombia")
+    casos.append(("con tema: solo los de ese tema, y los grandes primero", pal == ["salud"] and gr and [x["id"] for x in sug] == ["bbbb-0001"]))
+    sug, _, gr = sugerir(rel, inv, tema="vacunas")
+    casos.append(("la raíz encuentra la palabra y, si ninguno es grande, lo dice", not gr and [x["id"] for x in sug] == ["dddd-0001"]))
+    sug, _, _ = sugerir(rel, inv, tema="ozono")
+    casos.append(("las columnas también cuentan para el tema", [x["id"] for x in sug] == ["cccc-0001"]))
+    try:
+        sugerir(rel, inv, tema="de la")
+        casos.append(("un tema sin palabras se rechaza", False))
+    except SystemExit:
+        casos.append(("un tema sin palabras se rechaza", True))
     shutil.rmtree(d, ignore_errors=True)
     for nombre, ok in casos:
         print(f"  {'✓' if ok else '✗'} {nombre}")
@@ -221,11 +320,35 @@ def main(argv):
                 correr(AQUI / "explorador_catalogo.py", dominio, "--salida", catalogo, "--hilos", 4, "--min-filas", min_filas)
             correr(AQUI / "relevancia_catalogo.py", dominio, "--catalogo", catalogo, "--top", 0)
             rel = json.loads((catalogo / f"relevancia_{nombre}.json").read_text(encoding="utf-8"))
-            sug = [r for r in rel if (r.get("filas") or 0) >= min_filas and r["dice_estado"] and r["dice_lugar"] and r["dice_impacto"]][:top]
+            inv_cat = catalogo / f"inventario_{nombre}.json"
+            inv = json.loads(inv_cat.read_text(encoding="utf-8")) if inv_cat.exists() else []
+            tema, por_pub = g("--tema"), int(g("--por-publicador", 2))
+            sug, palabras, grandes = sugerir(rel, inv, tema, top, min_filas, por_pub)
+            if tema:
+                print(f"Tema que sugeriste: «{tema}» (se busca: {', '.join(palabras)}).")
+                if not grandes:
+                    print(f"   Ninguno de ese tema llega a {num_txt(min_filas)} filas; estos son los más grandes, y decides tú:")
+            else:
+                temas = {}
+                for r in rel:
+                    if (r.get("filas") or 0) >= min_filas and r.get("categoria"):
+                        temas[r["categoria"]] = temas.get(r["categoria"], 0) + 1
+                print("Sin tema: candidatos de varios publicadores (ninguno viene por defecto). Para sugerirle de qué se va a tratar, "
+                      "agrega --tema. Temas con conjuntos de " + num_txt(min_filas) + " filas o más en este portal: " +
+                      ", ".join(f"{k} ({n})" for k, n in sorted(temas.items(), key=lambda x: -x[1])[:8]) + ".")
             for r in sug:
-                print(f"   {r['id']}  {num_txt(r.get('filas'))} filas  {r['nombre'][:70]}")
+                print(f"   {r['id']}  {num_txt(r.get('filas'))} filas  {(r.get('nombre') or '')[:64]}  · {(r.get('publicador') or '—')[:36]}")
+            (trabajo / "sugerencias.json").write_text(json.dumps(
+                {"tema": tema, "palabras": palabras, "min_filas": min_filas, "llegan_al_tamano": grandes, "por_publicador": por_pub,
+                 "candidatos": [{k: r.get(k) for k in ("id", "nombre", "filas", "categoria", "publicador", "coincide_tema", "url")}
+                                for r in sug]}, ensure_ascii=False, indent=1), encoding="utf-8")
+            if not sug:
+                print("   (ninguno: prueba con otras palabras o con --min-filas más bajo)")
+                return 0
             print("Para trabajar con los que elijas, autorízalos:  --conjuntos " + ",".join(r["id"] for r in sug))
             return 0
+        if g("--tema"):
+            print("   (--tema solo sirve con --descubrir: el agente trabaja con las fuentes autorizadas)", flush=True)
         print(f"1. fuentes autorizadas: {', '.join(autorizados)} (solo con estas se conecta el agente)", flush=True)
         inv = inventario_autorizado(dominio, autorizados, inventario)
         cand = [{"id": x["id"], "nombre": x["nombre"]} for x in inv]
