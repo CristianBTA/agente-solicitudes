@@ -1612,7 +1612,7 @@ def b39():
                         "«rechazada» y retira la capa limpia")
 
 
-@prueba("B40", "aportes → filtro", "un aporte trae datos personales, órdenes a los agentes, un extracto o la ruta de un equipo donde el barrido no leía: un .md en UTF-16, un .rst, un .tsv, un .svg, un archivo sin extensión, un correo con entidades HTML o con «\\u0040» en un JSON, un PDF, los metadatos de un PNG, un JSON de filas en datos/")
+@prueba("B40", "aportes → filtro", "un aporte trae datos personales, órdenes a los agentes, un extracto o la ruta de un equipo donde el barrido no leía: un .md en UTF-16, un .rst, un .tsv, un .svg, un archivo sin extensión, un correo con entidades HTML o con «\\u0040» en un JSON, un PDF, los metadatos de un PNG, un JSON de filas en datos/, o una tabla con celdas que una hoja de cálculo ejecuta como fórmula")
 def b40():
     import validar_aporte as va
     if not all(hasattr(va, n) for n in ("revisar_contenido", "muestra_pdf", "muestra_png")):
@@ -1644,14 +1644,20 @@ def b40():
              ("clase/foto.webp", b"RIFF\x00\x00\x00\x00WEBP"), ("clase/falso.png", f"{correo}\n"),
              ("corridas/x/datos/muestra.json", json.dumps([{"entidad": "Entidad Uno", "valor": 1}] * 3)),
              ("corridas/x/limpio/t.json", "[]"), ("corridas/x/muestra.json", json.dumps([{"id_contrato": i} for i in ids])),
-             ("corridas/x/spec.json", json.dumps({"datos": {"t": ruta}}))]
+             ("corridas/x/spec.json", json.dumps({"datos": {"t": ruta}})),
+             # celdas que Excel o LibreOffice ejecutan al abrir la tabla, fuera de baterias/failfast/ (L115)
+             ("baterias/cruces/formulas.csv", 'id,soporte\n1,"=HYPERLINK(""https://ejemplo.invalid/x"",""ver"")"\n2,ok\n3,ok\n'),
+             ("corridas/x/caso_conocido/p.csv", "id,entidad\n1,+1+cmd|x\n2,Entidad Dos\n3,Entidad Tres\n"),
+             ("baterias/limpieza/f.tsv", "id\tnota\n1\t@SUM(A1)*cmd|x\n")]
     buenos = [("ejemplo/notas.rst", "Notas\n=====\n\nResumen de la corrida.\n"), ("ejemplo/LEEME", "Notas sin extensión.\n"),
               ("ejemplo/bom.md", "﻿# Con BOM de UTF-8\n"), ("clase/figura.svg", '<svg><text>Valor &amp; mes</text></svg>\n'),
               ("clase/resumen.pdf", va.muestra_pdf("Resumen de la corrida 2025")), ("clase/foto.png", va.muestra_png("Software: prueba")),
               ("ejemplo/filas.json", json.dumps([{"entidad": f"Entidad {i}", "valor": i} for i in range(10)])),
               ("corridas/x/datos/procedencia_t.json", json.dumps({"tabla": "t", "filas": 10})),
               ("baterias/privacidad/caso.md", "Contacto: persona.ficticia" + "@" + "ejemplo.invalid\n"),
-              ("corridas/x/caso_conocido/contratos.json", json.dumps([{"id_contrato": i} for i in ids]))]
+              ("corridas/x/caso_conocido/contratos.json", json.dumps([{"id_contrato": i} for i in ids])),
+              ("baterias/cruces/negativos.csv", "id,valor,saldo\n1,-5,+3\n2,-1.5,-0.25\n3,-,x\n"),
+              ("baterias/failfast/formula_nueva.csv", "a,b\n1,=DAY(B2)\n2,x\n")]
     d = Path(tempfile.mkdtemp(prefix="blindaje-contenido-")).resolve()
     try:
         def revisar(r_, x):
@@ -1669,8 +1675,9 @@ def b40():
         return r("CEDE", f"pasan {len(pasan)} de {len(malos)}: {pasan[:8]}; falsas alarmas: {falsas[:4]}")
     return r("RESISTE", f"los {len(malos)} archivos (otra codificación o un NUL, extensiones que no se barrían, entidades HTML, "
                         "etiquetas que parten un correo, «\\u0040», PDF comprimido, sin comprimir, con file://, sin mapa a Unicode o "
-                        "con texto después de %%EOF, metadatos y bytes de más de un PNG, un WebP, datos/ y limpio/, 25 ids de SECOP "
-                        f"y la ruta de un equipo) son falla o los decide el dueño; {len(buenos)} legítimos pasan (control positivo)")
+                        "con texto después de %%EOF, metadatos y bytes de más de un PNG, un WebP, datos/ y limpio/, 25 ids de SECOP, "
+                        "la ruta de un equipo y celdas con =HYPERLINK, «+…cmd|» o «@SUM(…)») son falla o los decide el dueño; "
+                        f"{len(buenos)} legítimos pasan, también números con signo y una fórmula en baterias/failfast/ (control positivo)")
 
 
 def main(argv):

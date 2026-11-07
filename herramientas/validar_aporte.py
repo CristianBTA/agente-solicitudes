@@ -32,7 +32,10 @@ Revisa:
      de un PDF el texto de sus páginas, sus metadatos y sus enlaces (un enlace file:// es falla) y de un PNG o un JPEG sus
      metadatos. Lo que no sabe leer (un PDF cifrado, con adjuntos, código o fuentes sin mapa a Unicode; un GIF, un WebP o
      un ICO; bytes de más al final) y una ruta nueva del equipo de alguien (/Users/<usuario>/…, R07) quedan como
-     «requiere decisión del dueño». Límites: lo que una imagen o un PDF traen dibujado sin texto no se lee, y un nombre
+     «requiere decisión del dueño». En toda tabla delimitada, un .csv o un .tsv, una celda que empieza con = + - @, un
+     tabulador o un retorno y no es un número es falla: una hoja de cálculo la ejecuta como fórmula al abrir el archivo
+     (salvo en baterias/failfast/, donde son casos a propósito, L115). Límites: lo que una imagen o un PDF traen dibujado
+     sin texto no se lee, y un nombre
      sin tratamiento («Firmó Juana Pérez») o una cédula sin contexto no tienen forma que el barrido reconozca.
   3. Seguridad de todo código Python agregado o cambiado (compuertas: librerías permitidas, reglas propias y
      Bandit; los cuadernos .ipynb, con el comando de la compuerta). La excepción son las muestras de
@@ -119,6 +122,11 @@ CADENA_DEL_FILTRO = re.compile(r"^(herramientas/(validar_aporte|rutas_protegidas
 MUESTRAS_MALAS = ("baterias/seguridad/malos/", "baterias/seguridad/malos_usuario/")
 CSV_PERMITIDOS = re.compile(r"^(ejemplo/datos/|baterias/|corridas/[^/]+/caso_conocido/)")
 MAX_CSV = 200_000
+# Una celda que una hoja de cálculo ejecuta como fórmula al abrir la tabla (=HYPERLINK, una carga DDE «@SUM(…)*cmd|…»):
+# empieza con = + - @, tabulador o retorno y no es un número. En baterias/failfast/ son casos a propósito (L115).
+INICIO_FORMULA = ("=", "+", "-", "@", "\t", "\r")
+NUMERO_CON_SIGNO = re.compile(r"[+-]?(?:\d+(?:[.,]\d+)*|[.,]\d+)(?:[eE][+-]?\d+)?")
+FORMULAS_A_PROPOSITO = ("baterias/failfast/",)
 # Datos por su contenido, no por su extensión (un .tsv, un .json o un .txt también pueden traer el extracto)
 MAX_BYTES = 1_000_000            # cualquier archivo; hoy el más grande, fuera del gráfico, pesa 124 KB
 MAX_BYTES_GRAFICO = 6_000_000    # corridas/*/grafico.html trae el paquete de Plotly (4,8 MB); sin él, rige MAX_BYTES
@@ -984,6 +992,22 @@ def tabla_por_contenido(p, texto):
     return "delimitado", filas[0], filas[1:]
 
 
+def celdas_formula(p, texto, tabla):
+    """Las celdas de una tabla delimitada (o de un .csv o un .tsv, aunque no lo parezca) que empiezan con = + - @, tabulador
+    o retorno y no son un número («-5», «+1,5»): Excel y LibreOffice las ejecutan al abrir el archivo (L115)."""
+    if tabla and tabla[0] == "delimitado":
+        filas = [tabla[1], *tabla[2]]
+    elif p.suffix.lower() in (".csv", ".tsv", ".tab"):
+        try:
+            filas = list(csv.reader(io.StringIO(texto), delimiter="," if p.suffix.lower() == ".csv" else "\t"))
+        except csv.Error:
+            return []
+    else:
+        return []
+    return [v for f in filas for v in f
+            if len(v) > 1 and v.startswith(INICIO_FORMULA) and not NUMERO_CON_SIGNO.fullmatch(v.strip())]
+
+
 def es_ficticio(valor):
     """La forma ficticia que pide APORTAR-CON-TU-AGENTE.md: «Persona Ficticia Uno», 000.000.001, un correo en
     ejemplo.invalid (o en otro dominio reservado), 399 000 000x. En un texto con letras, también un número de
@@ -1037,6 +1061,12 @@ def revisar_datos(ruta, p, textos=None):
                       f"{tope_ids - 1:,}; los datos de SECOP no se publican): {ruta}".replace(",", "."))
     tabla = tabla_por_contenido(p, texto)
     privacidad = ruta.startswith("baterias/privacidad/")
+    if not ruta.startswith(FORMULAS_A_PROPOSITO):
+        formulas = celdas_formula(p, texto, tabla)
+        if formulas:
+            n = f"{len(formulas):,}".replace(",", ".")
+            fallas.append(f"{n} celda(s) que una hoja de cálculo ejecuta como fórmula al abrir la tabla (empiezan con = + - @, "
+                          f"tabulador o retorno y no son un número), como {formulas[0][:12]!r}…: {ruta}")
     if tabla:
         tipo, cols, filas = tabla
         if tipo != "json" and not CSV_PERMITIDOS.match(ruta) and p.suffix.lower() != ".csv":   # el CSV ya tiene su regla
@@ -1662,6 +1692,14 @@ CONTENIDO_LEGIBLE = {
     "clase/foto.png": lambda: muestra_png("Software: prueba"),
     "ejemplo/filas.json": lambda: json.dumps([{"entidad": f"Entidad {i}", "valor": i} for i in range(10)]),
     "corridas/2026-11-07-x/datos/procedencia_t.json": lambda: json.dumps({"tabla": "t", "filas": 10}),
+    "baterias/cruces/negativos.csv": lambda: "id,valor,saldo\n1,-5,+3\n2,-1.5,-0.25\n3,-,x\n",   # números con signo (L115)
+}
+# L115: celdas que una hoja de cálculo ejecuta como fórmula, donde la batería FAILFAST no las ve
+FORMULAS_EN_TABLAS = {
+    "baterias/cruces/proveedores_extra.csv": lambda: ('id,entidad,soporte\n1,Entidad Uno,"=HYPERLINK(""https://ejemplo.invalid/x"",""ver"")"\n'
+                                                      "2,Entidad Dos,@SUM(1+1)*cmd|' /C calc'!A0\n3,Entidad Tres,ok\n"),
+    "corridas/2026-11-07-nueva/caso_conocido/proveedores.csv": lambda: "id,entidad,soporte\n1,Entidad Uno,+1+cmd|x\n2,Entidad Dos,ok\n3,Entidad Tres,ok\n",
+    "baterias/limpieza/c8_formula.tsv": lambda: "id\tnota\n1\t-2+3+cmd|x\n2\tok\n3\tok\n",
 }
 
 
@@ -1672,6 +1710,11 @@ def _contenido_sin_barrer(d):
 
 def _contenido_legible(d):
     for r, f in CONTENIDO_LEGIBLE.items():
+        _escribir(d, r, f())
+
+
+def _formulas_en_tablas(d):
+    for r, f in FORMULAS_EN_TABLAS.items():
         _escribir(d, r, f())
 
 
@@ -1704,6 +1747,7 @@ CASOS = {
     "contenido_sin_barrer": (_contenido_sin_barrer, 1, [*CONTENIDO_SIN_BARRER, *CONTENIDO_PARA_EL_DUENO, "lo que el filtro no lee",
                                                         "rutas locales"], [], None),
     "contenido_legible": (_contenido_legible, 0, [], [], None),
+    "formulas_en_tablas": (_formulas_en_tablas, 1, list(FORMULAS_EN_TABLAS), [], None),
 }
 
 

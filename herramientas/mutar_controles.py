@@ -100,6 +100,9 @@ MUTANTES = [
      "    if \"baterias/privacidad/\" not in ruta:\n        hall = datos_no_ficticios_en(textos)\n",
      "    if Path(ruta).suffix in (\".md\", \".json\", \".csv\", \".txt\") and \"baterias/privacidad/\" not in ruta:\n"
      "        hall = datos_no_ficticios_en(textos)\n", "B40"),
+    ("M33", "las celdas que una hoja de cálculo ejecuta como fórmula pasan en las tablas del aporte", "herramientas/validar_aporte.py",
+     "    if not ruta.startswith(FORMULAS_A_PROPOSITO):\n        formulas = celdas_formula(p, texto, tabla)\n",
+     "    if False:\n        formulas = celdas_formula(p, texto, tabla)\n", "B40"),
 ]
 
 
