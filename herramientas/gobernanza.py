@@ -11,11 +11,13 @@ Qué hace:
      ingesta además les pide base legal. Una clave publicada que identifica a personas es un problema, con o sin k.
   2. Barre el texto libre con expresiones regulares (cédulas con contexto, correos, celulares,
      nombres con tratamiento) y entrega SOLO conteos y ejemplos enmascarados, nunca valores.
-  3. Barre las salidas que se van a publicar (informe, resultado, gráfico): deben salir en cero.
+  3. Barre las salidas que se van a publicar (informe, resultado, gráfico, whitepaper y presentación, también en su
+     versión impresa): deben salir en cero, y ninguna trae un texto con forma de instrucción para una IA.
   4. Calcula el k-anonimato del resultado si publica columnas de personas.
   5. Compara la clasificación de la IA (custodio.json) con la del barrido: lo que la IA no vio.
 """
 import csv
+import html
 import json
 import re
 import sys
@@ -159,34 +161,44 @@ def barrer_tabla(ruta):
     return res
 
 
+# Lo que se publica de una corrida. El whitepaper y la presentación ya los revisan W5 (validar_whitepaper.py) y
+# verificar_presentacion.py; aquí se barren igual, con las mismas reglas que el resto, para que gobernanza.json diga
+# de todas las salidas y no dependa de que esos dos se hayan corrido (L87).
+SALIDAS = ("informe.md", "informe_final.md", "informe_final.html", "grafico.html", "presentacion.html", "informe.json",
+           "hipotesis_resultado.json", "whitepaper.md", "WHITEPAPER.html", "presentacion.json")
+CON_INSTRUCCIONES = ("informe.md", "informe_final.md", "whitepaper.md", "WHITEPAPER.html", "presentacion.json",
+                     "presentacion.html")
+
+
+def texto_publicado(p):
+    """El texto que se publica de una salida: las cadenas de un JSON (no los números: un valor en pesos no es un dato
+    personal; de informe.json, solo el resultado oficial); de un HTML, sin el paquete de Plotly y con las entidades
+    resueltas (un «&#64;» no esconde un correo)."""
+    texto = p.read_text(encoding="utf-8", errors="ignore")
+    if p.suffix == ".json":
+        def cadenas(x):
+            if isinstance(x, dict):
+                return " ".join(cadenas(v) for v in x.values())
+            if isinstance(x, list):
+                return " ".join(cadenas(v) for v in x)
+            return x if isinstance(x, str) else ""
+        try:
+            datos = json.loads(texto)
+            texto = cadenas(datos.get("resultado_oficial") if p.name == "informe.json" else datos)
+        except Exception:
+            pass
+    if p.name == "grafico.html":
+        texto = re.sub(r"<script[^>]*plotly[^>]*>.*?</script>", " ", texto, flags=re.S)[:2_000_000]
+    if p.suffix == ".html":
+        texto = html.unescape(texto)
+    return texto
+
+
 def barrer_salidas(c):
-    archivos = [p for p in [c / "informe.md", c / "informe_final.md", c / "informe_final.html", c / "grafico.html",
-                            c / "presentacion.html", c / "informe.json", c / "hipotesis_resultado.json"] if p.exists()]
+    archivos = [c / n for n in SALIDAS if (c / n).exists()]
     out = {}
     for p in archivos:
-        texto = p.read_text(encoding="utf-8", errors="ignore")
-        if p.suffix == ".json":
-            # solo el texto que se publica: las cadenas, no los números (un valor en pesos no es un dato personal)
-            def cadenas(x):
-                if isinstance(x, dict):
-                    return " ".join(cadenas(v) for v in x.values())
-                if isinstance(x, list):
-                    return " ".join(cadenas(v) for v in x)
-                return x if isinstance(x, str) else ""
-            try:
-                datos = json.loads(texto)
-                texto = cadenas(datos.get("resultado_oficial") if p.name == "informe.json" else datos)
-            except Exception:
-                pass
-        if False:
-            # solo lo que se publica: el resultado oficial
-            try:
-                texto = json.dumps(json.loads(texto).get("resultado_oficial"), ensure_ascii=False)
-            except Exception:
-                pass
-        if p.name == "grafico.html":
-            texto = re.sub(r"<script[^>]*plotly[^>]*>.*?</script>", " ", texto, flags=re.S)[:2_000_000]
-        out[p.name] = escanear_texto(texto)
+        out[p.name] = escanear_texto(texto_publicado(p))
     return out
 
 
@@ -231,8 +243,8 @@ def gobernar(c):
     k = k_anonimato(inf.get("resultado_oficial") or [], spec["salida"]["claves"])
     custodio = comparar_custodio(c, tablas)
     problemas = [f"{n}: {h}" for n, h in salidas.items() if h]
-    for p in [c / "informe.md", c / "informe_final.md"]:
-        if p.exists() and parece_instruccion(re.sub(r"(?s)<!--.*?-->", "", p.read_text(encoding="utf-8", errors="ignore"))):
+    for p in [c / n for n in CON_INSTRUCCIONES]:
+        if p.exists() and parece_instruccion(re.sub(r"(?s)<!--.*?-->", "", texto_publicado(p))):
             problemas.append(f"{p.name}: trae un texto con forma de instrucción para una IA (posible inyección en los datos)")
     if k.get("aplica") and not k.get("ok"):
         problemas.append(f"k-anonimato {k['k']} < {K_MINIMO} en {k['columnas']}")

@@ -74,7 +74,8 @@
    ],
    "pruebas": [
     "bateria:privacidad",
-    "B26"
+    "B26",
+    "B27"
    ]
   },
   {

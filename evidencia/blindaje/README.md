@@ -36,8 +36,9 @@ El patrón del generador y el validador, aplicado al pipeline entero: **un ataca
 | B24 | caja de arena | La implementación bajo prueba lee el `esperado.json` del caso conocido junto a sus datos o por su ruta real (SEG-4 de la revisión ciega) | **Cede** | Resiste |
 | B25 | verificador | `conciliar()` declara 1.000 filas leídas de un archivo de 2 y la cuenta interna cierra (1.000 = 1.000 + 0) (PIP-3) | **Cede** | Resiste |
 | B26 | salidas | El error de una implementación copia al informe el texto de una celda sin comillas (SEG-3) | **Cede** | Resiste |
+| B27 | salidas | Un dato personal o una instrucción llega al whitepaper, a su versión impresa (`WHITEPAPER.html`, con entidades HTML) o a `presentacion.json`, y `gobernanza.py` aprueba sin mirarlos (L87) | **Cede** | Resiste |
 
-**De 5 de 14 a 25 de 25.** La línea base fueron los 14 ataques de B01 a B15; hoy el banco tiene 25 pruebas: B00 de control y 24 ataques. B17 salió de las pruebas con IA, y B18 a B26, de revisiones posteriores; cada una entró con su hueco ya cerrado. El número B06 no se usó, y B16 es la auditoría de independencia, que corre aparte. En Linux, B01, B11, B12 y B24 salen «NO APLICA», porque no existe `sandbox-exec` (allí la defensa es la compuerta y, en B24, la copia de la entrada), y el resumen del banco lo dice (`caja_de_arena: false`): por eso el filtro de aportes corre en macOS (L42).
+**De 5 de 14 a 26 de 26.** La línea base fueron los 14 ataques de B01 a B15; hoy el banco tiene 26 pruebas: B00 de control y 25 ataques. B17 salió de las pruebas con IA, y B18 a B27, de revisiones posteriores; cada una entró con su hueco ya cerrado. El número B06 no se usó, y B16 es la auditoría de independencia, que corre aparte. En Linux, B01, B11, B12 y B24 salen «NO APLICA», porque no existe `sandbox-exec` (allí la defensa es la compuerta y, en B24, la copia de la entrada), y el resumen del banco lo dice (`caja_de_arena: false`): por eso el filtro de aportes corre en macOS (L42).
 
 ## Lecciones de método
 

@@ -516,6 +516,12 @@
       "leccion": "La lista de rutas que un aporte no puede tocar sin el dueño (rutas_protegidas.py, el chequeo que en GitHub corre desde main) se había quedado atrás de la del filtro: faltaban seguridad_cwe.py y comprobar.py, que el filtro importa; rutas.py, que importa gobernanza; el gancho de la compuerta, permitidas_usuario.json, requirements-compuerta.txt y .githooks/. Un tercero podía cambiarlos sin que ese chequeo lo frenara. Ahora están, y la autoprueba calcula con ast todo lo que importa el filtro, directo o indirecto, y lee su lista: si algo queda fuera, falla (con control positivo: con la lista de antes, encuentra lo que faltaba). Dos listas que deben decir lo mismo se comprueban entre sí, no a ojo.",
       "origen": "revisión de la versión final: huecos señalados al integrar el filtro de aportes (GOB-1), 6-nov-2026",
       "prueba": "herramientas/rutas_protegidas.py --autoprueba"
+    },
+    {
+      "id": "L87",
+      "leccion": "gobernanza.py barría el informe, el resultado, el gráfico y la presentación en HTML, pero no el whitepaper (whitepaper.md), su versión impresa (WHITEPAPER.html) ni presentacion.json: gobernanza.json decía «aprobado» sobre salidas que no había mirado, y su protección dependía de que validar_whitepaper.py (W5) y verificar_presentacion.py se hubieran corrido. Ahora barre las diez salidas con las mismas reglas (datos personales y textos con forma de instrucción), lee de un JSON solo sus cadenas y de un HTML el texto con las entidades resueltas (un «&#64;» no esconde un correo). Cuando el pipeline publica una salida nueva, entra también en el barrido de gobernanza.",
+      "origen": "revisión de la versión final: huecos señalados al integrar el whitepaper en hojas carta y el presentador con D15, 6-nov-2026",
+      "prueba": "herramientas/blindaje.py --solo B27"
     }
   ]
 }

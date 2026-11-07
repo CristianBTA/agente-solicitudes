@@ -209,7 +209,7 @@ prev. = preventivo, det. = detectivo, corr. = correctivo.
 |---|---|---|---|---|---|
 | CT01 | Minimización en el contrato de datos (D7) | preventivo | C | A.5.34, A.8.12 | bateria:privacidad |
 | CT02 | Datos fuera del repositorio público: .gitignore y archivos prohibidos en el filtro | preventivo | C | A.8.12, A.5.14 | sgsi:restringidos |
-| CT03 | Barrido determinista de datos personales en datos y salidas, con k-anonimato (D18) | preventivo | C | A.8.11, A.8.12, A.5.34 | bateria:privacidad, B26 |
+| CT03 | Barrido determinista de datos personales en datos y salidas, con k-anonimato (D18) | preventivo | C | A.8.11, A.8.12, A.5.34 | bateria:privacidad, B26, B27 |
 | CT04 | Nunca filas a la IA: el perfil y el custodio trabajan con nombres, tipos y conteos (D3, D18) | preventivo | C·I | A.8.3, A.5.34 | bateria:privacidad, B04 |
 | CT05 | Separación de funciones entre subagentes: quién puede ver qué | preventivo | C·I | A.5.3, A.5.15, A.8.3 | B24 |
 | CT06 | Auditoría de independencia sobre las transcripciones reales (DB9) | detectivo | C·I | A.8.15, A.8.16, A.5.36 | evidencia documental |

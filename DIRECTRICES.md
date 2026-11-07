@@ -196,7 +196,7 @@ Desde el 6-nov-2026 la IA no propone ni prueba hipótesis ni da el análisis. El
 ## F · Gobernanza
 
 **D18 · Nunca filas a la IA; el texto libre es un dato personal en potencia.**
-La IA trabaja con nombres, tipos y conteos. Antes de publicar, un barrido determinista busca cédulas con contexto, correos, celulares y nombres con tratamiento en los datos y en todo lo que se publica. Si se publican personas, se exige k-anonimato (k ≥ 5). Los mensajes de error que llegan al informe tapan lo que va entre comillas, las cifras largas y toda palabra que aparezca en una celda de la entrada (B26, L83).
+La IA trabaja con nombres, tipos y conteos. Antes de publicar, un barrido determinista busca cédulas con contexto, correos, celulares y nombres con tratamiento en los datos y en todo lo que se publica: informe, resultado, gráfico, whitepaper (también en hojas carta) y presentación (B27, L87). Si se publican personas, se exige k-anonimato (k ≥ 5). Los mensajes de error que llegan al informe tapan lo que va entre comillas, las cifras largas y toda palabra que aparezca en una celda de la entrada (B26, L83).
 *Dónde:* `herramientas/gobernanza.py`. La IA (custodio) clasifica todas las columnas de la fuente y el código compara su clasificación con la propia.
 *Por qué:* además de proteger a las personas, la IA no puede seguir una instrucción escondida en un texto que nunca lee.
 
