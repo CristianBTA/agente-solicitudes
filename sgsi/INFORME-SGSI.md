@@ -211,15 +211,15 @@ prev. = preventivo, det. = detectivo, corr. = correctivo.
 | CT02 | Datos fuera del repositorio público: .gitignore y archivos prohibidos en el filtro | preventivo | C | A.8.12, A.5.14 | sgsi:restringidos |
 | CT03 | Barrido determinista de datos personales en datos y salidas, con k-anonimato (D18) | preventivo | C | A.8.11, A.8.12, A.5.34 | bateria:privacidad, B26, B27 |
 | CT04 | Nunca filas a la IA: el perfil y el custodio trabajan con nombres, tipos y conteos (D3, D18) | preventivo | C·I | A.8.3, A.5.34 | bateria:privacidad, B04 |
-| CT05 | Separación de funciones entre subagentes: quién puede ver qué | preventivo | C·I | A.5.3, A.5.15, A.8.3 | B24, B28 |
+| CT05 | Separación de funciones entre subagentes: quién puede ver qué | preventivo | C·I | A.5.3, A.5.15, A.8.3 | B24, B28, B29 |
 | CT06 | Auditoría de independencia sobre las transcripciones reales (DB9) | detectivo | C·I | A.8.15, A.8.16, A.5.36 | autoprueba:auditar_independencia |
-| CT07 | Criterio e hipótesis sellados con SHA-256 antes del código (D8, D15) | detectivo | I | A.8.24, A.5.33 | corrida-sintetica |
+| CT07 | Criterio e hipótesis sellados con SHA-256 antes del código (D8, D15) | detectivo | I | A.8.24, A.5.33 | corrida-sintetica, B29 |
 | CT08 | Manifiesto de integridad de herramientas, fichas y baterías durante la corrida (DB3) | detectivo | I | A.8.9, A.8.32 | B02 |
 | CT09 | Verificación sin IA del resultado: dos implementaciones, caso conocido, conservación, conciliación y repetibilidad (D9–D13) | detectivo | I | A.8.29, A.8.30 | corrida-sintetica, B05, B25 |
 | CT10 | Probar al probador con mutantes (D14) | detectivo | I | A.8.29 | mutantes |
 | CT11 | FAILFAST, perfil y limpieza declarada: lo que no cumple el contrato se detiene, se explica o se marca (D3, D5, DL3–DL6) | preventivo | I | A.8.26, A.8.27 | bateria:failfast, bateria:cruces, bateria:fechas, bateria:repetidos, bateria:factor, B09, B19 |
 | CT12 | Compuerta estática (reglas propias y Bandit) y lista cerrada de librerías (D21, D22) | preventivo | C·I·D | A.8.28, A.8.7, A.8.19, A.8.30 | bateria:seguridad, B15, B28 |
-| CT13 | Caja de arena: sin red, sin escritura, sin la carpeta personal, entorno mínimo y topes de tiempo y memoria (D23, DB2) | preventivo | C·I·D | A.8.22, A.8.31, A.8.6, A.8.1 | B00, B01, B10, B11, B12, B13, B14, B23, B24 |
+| CT13 | Caja de arena: sin red, sin escritura, sin la carpeta personal, entorno mínimo y topes de tiempo y memoria (D23, DB2) | preventivo | C·I·D | A.8.22, A.8.31, A.8.6, A.8.1 | B00, B01, B10, B11, B12, B13, B14, B23, B24, B29 |
 | CT14 | Cadena de suministro fijada: dependencias con huella y acciones fijadas a su commit (DB7) | preventivo | I | A.5.21, A.8.19 | B08, sgsi:permisos |
 | CT15 | Vigilancia diaria de vulnerabilidades conocidas en las dependencias fijadas (OSV) | detectivo | C·I·D | A.8.8, A.5.7 | red:vulnerabilidades |
 | CT16 | Cuarentena de instrucciones: los datos y los aportes son datos, nunca órdenes (DB4) | preventivo | I | A.8.26, A.8.27 | bateria:inyeccion, B04, B07 |

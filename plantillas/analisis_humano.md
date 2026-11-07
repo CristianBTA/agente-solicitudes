@@ -27,12 +27,12 @@ Escríbanla antes de consultar los datos: mover el umbral después de ver el res
 
 La consulta o el archivo, y sobre qué datos corre (el dato crudo, la capa limpia o el resultado aprobado).
 
-Pueden usar `herramientas/verificar_hipotesis.py`, que deja la hipótesis registrada antes de mirar. Trabajen sobre una copia de la carpeta de la corrida dentro del repositorio (por ejemplo, `analisis/<su-nombre>/`): así no tocan la corrida sellada y la caja de arena puede leer su consulta.
+Pueden usar `herramientas/verificar_hipotesis.py`, que deja la hipótesis registrada antes de mirar. Trabajen sobre una copia de la carpeta de la corrida (por ejemplo, `analisis/<su-nombre>/`): así no tocan la corrida sellada. La consulta corre en la caja de arena aislada, sobre una copia de su código y de sus tablas: lee solo lo que recibe en `datos`, nunca la corrida, el `hipotesis.json` sellado ni el caso conocido.
 
 1. Escriban `hipotesis.json` en la copia: una lista con `id`, `enunciado`, `medida`, `umbral` (`operador` y `valor`), `linea_base` y `por_que_importa`.
 2. Séllenla antes de cualquier consulta: `python herramientas/verificar_hipotesis.py <copia> --sellar`.
 3. Escriban la consulta en `hipotesis.py`, una función `@hipotesis("H1")` por hipótesis que devuelve `valor`, `linea_base` y `detalle`, calculada desde los CSV que recibe en `datos`.
-4. Córranla: `python herramientas/verificar_hipotesis.py <copia>`. La herramienta comprueba el sello, pasa la consulta por las compuertas de seguridad, la corre en la caja de arena y da el veredicto contra el umbral.
+4. Córranla: `python herramientas/verificar_hipotesis.py <copia>`. La herramienta comprueba el sello, pasa la consulta por las mismas compuertas de seguridad que el código de la IA, la corre en la caja de arena aislada y da el veredicto contra el umbral.
 
 ## 4. Lo que encontraron
 

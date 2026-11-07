@@ -8,8 +8,9 @@ Lo que el código de la IA NO puede hacer aquí:
   - importar un módulo de la carpeta desde donde se lanza (python -P): solo la biblioteca estándar y las permitidas;
   - pasar de un tope de tiempo y de memoria (un vigilante lo detiene).
 
-Con aislar=True (así corre el verificador las implementaciones bajo prueba), tampoco puede ver el oráculo ni el
-criterio (hallazgo SEG-4 de la revisión ciega):
+Con aislar=True (así corren las implementaciones bajo prueba, el gráfico y las hipótesis: verificar.py,
+verificar_grafico.py y verificar_hipotesis.py; B24, B29), tampoco puede ver el oráculo ni el criterio (hallazgo SEG-4 de
+la revisión ciega):
   - no lee el repositorio, la carpeta personal, los discos externos ni las carpetas temporales (allí copian la corrida
     validar_aporte.py y sgsi.py); solo su carpeta temporal, el intérprete y lo que recibe en `lecturas`;
   - no lee lo que recibe en `negar`, aunque esté dentro de una lectura permitida;

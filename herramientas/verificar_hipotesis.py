@@ -17,17 +17,25 @@ hipotesis.py    (la consulta de cada hipótesis; calcula desde los CSV que recib
   from reglas_base import hipotesis
   @hipotesis("H1")
   def h1(datos): return {"valor": 0.42, "linea_base": 0.2, "detalle": "..."}
+
+hipotesis.py puede escribirlo una persona con ayuda de una IA, y el de las corridas anteriores lo escribió la IA: pasa
+por la misma compuerta que reglas.py y las implementaciones (verificar.compuertas) y corre en la misma caja aislada que
+las implementaciones bajo prueba (SEG-4), sobre una copia de su código, de cada tabla y de reglas_base.py, sin leer el
+repositorio, la corrida, las tablas originales ni ningún archivo con nombre de oráculo o de criterio: ni el
+hipotesis.json sellado (el umbral que tendría que alcanzar) ni el esperado.json del caso conocido (B29, L91).
 """
 import hashlib
 import json
+import shutil
 import sys
 from pathlib import Path
 
 AQUI = Path(__file__).resolve().parent
 sys.path.insert(0, str(AQUI))
 import caja  # noqa: E402
-import dependencias  # noqa: E402
-import seguridad  # noqa: E402
+import verificar  # noqa: E402
+
+TIEMPO = 300
 
 RUNNER = r'''
 import importlib.util, json, math, sys
@@ -47,6 +55,21 @@ for hid, fn in reglas_base.HIPOTESIS.items():
         out[hid] = {"error": f"{type(e).__name__}: {e}"}
 print("MARCA" + json.dumps(out, ensure_ascii=False, default=str))
 '''.replace("MARCA", caja.MARCA)
+
+
+def ejecutar(hp, datos):
+    """Corre las pruebas de hipotesis.py en la caja aislada, la misma de las implementaciones bajo prueba (SEG-4): una
+    carpeta temporal nueva con una copia de su código, una de cada tabla (caja.copiar_entrada) y una de reglas_base.py,
+    que es lo único que importa de herramientas/; se le niegan la corrida (la carpeta de hipotesis.py) y la carpeta de
+    cada tabla original. Devuelve ({id: resultado}, error)."""
+    originales = [Path(hp).resolve().parent] + [Path(str(v)).resolve().parent for v in datos.values()]
+    with caja.copiar_entrada(hp, datos) as (carpeta, codigo, copias):
+        herr = carpeta / "herramientas"
+        herr.mkdir()
+        shutil.copyfile(AQUI / "reglas_base.py", herr / "reglas_base.py")
+        negar = [o for o in dict.fromkeys(originales) if not carpeta.is_relative_to(o)]
+        return caja.correr(RUNNER, str(codigo), json.dumps(copias), str(herr), tiempo=TIEMPO, lecturas=[carpeta],
+                           aislar=True, negar=negar)
 
 
 def evaluar(umbral, valor):
@@ -90,17 +113,14 @@ def main(argv):
     elif json.loads(sello.read_text())["sha256"] != hashlib.sha256(hj.read_bytes()).hexdigest():
         problemas.append("las hipótesis cambiaron después de sellarse")
     hp = c / "hipotesis.py"
-    dep = dependencias.revisar(hp)
-    seg, aviso_seg = seguridad.revisar([hp])
-    if aviso_seg:
-        problemas.append(f"no se pudo revisar la seguridad: {aviso_seg}")   # falla cerrada
-    bloqueos = (dep.get("no_permitidas") or []) + (dep.get("intenta_instalar") or []) + [h["regla"] for h in seg[0]["bloquean"]]
+    # la misma compuerta de reglas.py y de las implementaciones; falla cerrada (sin Bandit o con una caída, no pasa)
+    bloqueos = verificar.compuertas(hp)
     if bloqueos:
         problemas.append(f"hipotesis.py no pasa las compuertas: {bloqueos}")
         salida = {}
     else:
         datos_h = spec.get("datos_crudos") or spec["datos"]   # el dato crudo, igual que las reglas
-        salida, err = caja.correr(RUNNER, str(hp), json.dumps(datos_h), str(AQUI))
+        salida, err = ejecutar(hp, datos_h)
         if err:
             problemas.append(f"hipotesis.py falló: {err}")
             salida = {}

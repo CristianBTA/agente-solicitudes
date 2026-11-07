@@ -676,8 +676,8 @@ def b28():
         for p in todas:
             dep = dependencias.revisar(p)
             bloq[p.name] = bloq.get(p.name) or bool(dep.get("no_permitidas") or dep.get("intenta_instalar"))
-        # control positivo (L27): sin la compuerta, en la caja sin aislar (así corren las reglas, el gráfico y las
-        # hipótesis), cada variante llega al oráculo; el control no
+        # control positivo (L27): sin la compuerta, en la caja sin aislar (así corren las reglas; el gráfico y las
+        # hipótesis, en la aislada desde B29), cada variante llega al oráculo; el control no
         vistos, err = caja.correr(RUNNER_VARIANTES.replace("MARCA", caja.MARCA), json.dumps({"t": str(datos)}),
                                   *map(str, todas), tiempo=120, lecturas=[d])
     finally:
@@ -697,6 +697,136 @@ def b28():
         return r("CEDE", f"{len(pasan)} de {len(rutas)} variantes pasan la compuerta y, sin ella, llegan al oráculo: {pasan}")
     return r("RESISTE", f"sin la compuerta, las {len(rutas)} variantes nombran o leen el esperado.json desde la caja sin aislar; "
                         "la compuerta las bloquea todas y deja pasar el mismo código sin el listado")
+
+
+
+def _ruta_en_partes(p):
+    """La ruta real como lista de partes: «/private/...» entero sería una ruta fija que la compuerta bloquea; en partes
+    pasa, como la ruta armada como texto de m13 (L89). Así lo que se prueba es la caja, no la compuerta."""
+    return repr(str(p).split("/"))
+
+
+# Lo común a los dos atacantes de B29: leer junto a lo que recibe (armado como texto, sin .parent ni dirname) y por la
+# ruta real, como si la conociera. Si no puede, deja el nombre del error: así se ve que corrió y que la lectura se negó.
+LEE_FUERA = """
+
+
+def _leer(partes):
+    try:
+        with open("/".join(partes), encoding="utf-8") as fh:
+            return fh.read()
+    except OSError as e:
+        return type(e).__name__
+
+
+def _vistos(corrida):
+    return " | ".join(_leer(p) for p in (corrida + ["caso_conocido", "esperado.json"],
+                                         corrida[:-1] + ["otra", "datos", "t.csv"], ORACULO_REAL, AJENO_REAL))
+"""
+
+
+@prueba("B29", "caja de arena", "el código del gráfico o de las hipótesis lee el oráculo (esperado.json), el criterio sellado (hipotesis.json) o los datos de otra corrida y los publica en la figura o en el veredicto")
+def b29():
+    import contextlib
+    import hashlib
+    import io
+    import verificar_grafico
+    import verificar_hipotesis
+    d = Path(tempfile.mkdtemp(prefix="blindaje-graf-hip-")).resolve()
+    oraculo, ajeno = f"ORACULO-{uuid.uuid4().hex[:10]}", f"AJENO-{uuid.uuid4().hex[:10]}"
+    try:
+        c = d / "corridas" / "c"
+        for carpeta in (c / "datos", c / "caso_conocido", d / "corridas" / "otra" / "datos"):
+            carpeta.mkdir(parents=True)
+        tabla = c / "datos" / "t.csv"
+        tabla.write_text("entidad,valor\nUno,10\nDos,5\n", encoding="utf-8")
+        (c / "caso_conocido" / "esperado.json").write_text(json.dumps([{"x": oraculo}]), encoding="utf-8")
+        otra = d / "corridas" / "otra" / "datos" / "t.csv"
+        otra.write_text(f"entidad,valor\n{ajeno},1\n", encoding="utf-8")
+        (c / "spec.json").write_text(json.dumps({"datos": {"t": str(tabla)}, "salida": {"claves": ["entidad"], "valores": ["valor"]}}),
+                                     encoding="utf-8")
+        # la procedencia de la ingesta trae «archivo», la ruta de su tabla: el gráfico la recibe y arma desde ahí la corrida
+        (c / "datos" / "procedencia_t.json").write_text(json.dumps({
+            "tabla": "t", "archivo": str(tabla), "estado": "aprobada", "fuente": {"titulo": "SECOP II"},
+            "consultado": "2026-11-06T04:29:00"}), encoding="utf-8")
+        filas = [{"entidad": "Uno", "valor": 10}, {"entidad": "Dos", "valor": 5}]
+        (c / "informe.json").write_text(json.dumps({"resultado_oficial": filas}), encoding="utf-8")
+        (c / "grafico.json").write_text(json.dumps({"medida": "valor", "categoria": "entidad", "periodo": "2025",
+                                                    "periodo_incompleto": False}), encoding="utf-8")
+        (c / "hipotesis.json").write_text(json.dumps([{
+            "id": "H1", "enunciado": "Uno pesa más que Dos", "medida": "parte del valor de Uno", "linea_base": "la mitad",
+            "umbral": {"operador": ">=", "valor": 0.9}, "por_que_importa": "prueba del banco de blindaje"}]), encoding="utf-8")
+        (c / "sellos_hipotesis.json").write_text(json.dumps({"sha256": hashlib.sha256((c / "hipotesis.json").read_bytes()).hexdigest()}),
+                                                 encoding="utf-8")
+        reales = (f"ORACULO_REAL = {_ruta_en_partes(c / 'caso_conocido' / 'esperado.json')}\n"
+                  f"AJENO_REAL = {_ruta_en_partes(otra)}\nCRITERIO_REAL = {_ruta_en_partes(c / 'hipotesis.json')}")
+        gp = c / "grafico.py"
+        gp.write_text(
+            f"import plotly.graph_objects as go\n\n{reales}{LEE_FUERA}\n\n"
+            "def graficar(resultado, procedencia):\n"
+            "    vistos = _vistos(str(procedencia.get('archivo', '')).split('/')[:-2])\n"
+            "    f = go.Figure(go.Bar(x=[r['entidad'] for r in resultado], y=[r['valor'] for r in resultado], customdata=[vistos] * len(resultado)))\n"
+            "    fecha = procedencia['consultado'][:10].split('-')\n"
+            "    f.update_layout(title='Valor por entidad, 2025', yaxis=dict(title='Pesos'), annotations=[dict(\n"
+            "        text='Fuente: ' + procedencia['fuente']['titulo'] + ', consultado el ' + '-'.join(fecha[::-1]),\n"
+            "        showarrow=False, x=0, y=-0.2, xref='paper', yref='paper')])\n"
+            "    return f\n", encoding="utf-8")
+        hp = c / "hipotesis.py"
+        hp.write_text(
+            f"import json\n\nfrom reglas_base import hipotesis\n\n{reales}{LEE_FUERA}\n\n"
+            "def _umbral(*rutas):\n"
+            "    for partes in rutas:\n"
+            "        try:\n"
+            "            return json.loads(_leer(partes))[0]['umbral']['valor']   # el umbral sellado: «se sostiene» siempre\n"
+            "        except ValueError:\n"
+            "            continue\n"
+            "    return 0.0\n\n\n"
+            "@hipotesis('H1')\n"
+            "def h1(datos):\n"
+            "    corrida = str(datos['t']).split('/')[:-2]\n"
+            "    with open(datos['t'], encoding='utf-8') as fh:\n"
+            "        filas = sum(1 for _ in fh) - 1\n"
+            "    return {'valor': _umbral(corrida + ['hipotesis.json'], CRITERIO_REAL), 'linea_base': 0.5,\n"
+            "            'detalle': f'filas {filas} · ' + _vistos(corrida)}\n", encoding="utf-8")
+        bloqueos = {"grafico.py": verificar.compuertas(gp), "hipotesis.py": verificar.compuertas(hp)}
+        proc = verificar_grafico.procedencia_de(c, json.loads((c / "spec.json").read_text(encoding="utf-8")))
+        # control positivo (L27): como corrían antes, en la caja sin aislar y sobre su código y sus datos originales,
+        # los dos atacantes llegan al oráculo, al criterio y a la otra corrida
+        fig_antes, err_g_antes = caja.correr(verificar_grafico.RUNNER, str(gp), json.dumps(filas), json.dumps(proc))
+        hip_antes, err_h_antes = caja.correr(verificar_hipotesis.RUNNER, str(hp), json.dumps({"t": str(tabla)}), str(AQUI))
+        checks, fig = verificar_grafico.comprobar(c)
+        with contextlib.redirect_stdout(io.StringIO()):
+            verificar_hipotesis.main([str(c)])
+        hip = json.loads((c / "hipotesis_resultado.json").read_text(encoding="utf-8"))["hipotesis"][0]
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+    if any(bloqueos.values()):
+        return r("CEDE", f"prueba inválida: la compuerta bloquea al atacante ({bloqueos}); así no se prueba la caja (L32)")
+    llega = lambda texto: oraculo in texto and ajeno in texto   # noqa: E731
+    h1_antes = (hip_antes or {}).get("H1") or {}
+    if not (fig_antes and llega(json.dumps(fig_antes)) and h1_antes.get("valor") == 0.9 and llega(str(h1_antes.get("detalle")))):
+        return r("CEDE", "prueba inválida: sin aislar, el ataque no llegó al oráculo, al criterio y a la otra corrida "
+                         f"({str(err_g_antes or err_h_antes or h1_antes)[:120]}); un «resiste» así no prueba nada (L27)")
+    if fig is None or "filas 2" not in str(hip.get("detalle")):
+        corre = next((x["detalle"] for x in checks if x["comprobacion"] == "el código del gráfico corre"), "no llegó a correr")
+        return r("CEDE", f"prueba inválida: el gráfico o las hipótesis no corrieron en la caja aislada ({corre[:80]} · "
+                         f"{str(hip.get('detalle'))[:80]})")
+    if not caja.CAJA:
+        return r("NO APLICA", "sin sandbox-exec (Linux): la copia de la entrada deja el oráculo y el criterio fuera de la "
+                              "carpeta de su código y sus datos, pero por su ruta real no hay negación de lectura")
+    vistos_fig, vistos_hip = json.dumps(fig), str(hip.get("detalle"))
+    problemas = ([f"el gráfico publica {'el esperado.json' if oraculo in vistos_fig else 'los datos de otra corrida'}"]
+                 if oraculo in vistos_fig or ajeno in vistos_fig else []) \
+        + (["la hipótesis publica el esperado.json o los datos de otra corrida"] if oraculo in vistos_hip or ajeno in vistos_hip else []) \
+        + (["la hipótesis lee su umbral sellado y «se sostiene»"] if hip.get("veredicto") == "se sostiene" else [])
+    if problemas:
+        return r("CEDE", "; ".join(problemas))
+    errores = lambda texto: ", ".join(f"{texto.count(e)} {e}" for e in ("PermissionError", "FileNotFoundError") if e in texto)  # noqa: E731
+    return r("RESISTE", "sin aislar, el gráfico publicaba el esperado.json y los datos de otra corrida, y la hipótesis leía su "
+                        "umbral sellado y «se sostenía»; en la caja aislada corren sobre una copia y sus 4 lecturas fallan "
+                        f"(gráfico: {errores(str((((fig.get('data') or [{}])[0]).get('customdata') or [''])[0])) or 'ninguna'}; "
+                        f"hipótesis: {errores(vistos_hip) or 'ninguna'}) "
+                        f"y la hipótesis da «{hip.get('veredicto')}»")
 
 
 def main(argv):

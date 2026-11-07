@@ -71,7 +71,7 @@ El validador (`herramientas/validar_ficha.py`, V1 a V16) mide la forma: columnas
 ```bash
 python3.13 -m venv .venv && .venv/bin/pip install --require-hashes -r requirements.txt
 .venv/bin/python herramientas/baterias.py      # debe dar todas las baterías en ✓ (hoy 10)
-.venv/bin/python herramientas/blindaje.py      # cada ataque al pipeline debe salir en RESISTE (hoy 27 pruebas, con el control B00)
+.venv/bin/python herramientas/blindaje.py      # cada ataque al pipeline debe salir en RESISTE (hoy 28 pruebas, con el control B00)
 ```
 
 Las herramientas de `herramientas/` son Python sin IA y se pueden correr solas. La orquestación de agentes (`flujo.js`) se ejecuta como flujo de trabajo de Claude Code (herramienta *Workflow*) con estos argumentos:
@@ -115,10 +115,10 @@ node orquestar.mjs --motor agy --comprobar                        # dos llamadas
 | `herramientas/limpieza.py` | Ejecuta el plan de limpieza: capa limpia con marcas `calidad_*`, sin borrar filas, con calidad antes y después y umbrales |
 | `herramientas/perfilar.py` | Perfil determinista: formatos, fechas ambiguas y con hora, repetidos, variantes, códigos que no cruzan y códigos con varios nombres; nunca muestra valores personales |
 | `herramientas/verificar.py` | Compuertas, caja de arena, reglas, caso conocido, A = B, conciliación, repetibilidad, tiempos y anticipo; `--autoprueba` y `--sellar` |
-| `herramientas/verificar_hipotesis.py` | Sella las hipótesis y las prueba contra su umbral y su línea base; desde el 6-nov la usan las personas, no la IA |
+| `herramientas/verificar_hipotesis.py` | Sella las hipótesis y las prueba contra su umbral y su línea base, con `hipotesis.py` en la caja aislada (sin leer el umbral sellado); desde el 6-nov la usan las personas, no la IA |
 | `herramientas/validar_whitepaper.py` | Valida el whitepaper del documentador: secciones, cada cifra en los artefactos verificados, sin conclusiones ni recomendaciones, preguntas de costo, calidad e impacto y sin texto oculto; `--autoprueba` |
 | `herramientas/whitepaper_corrida.py`, `carta.py` | Maqueta el whitepaper validado en tres hojas carta (`WHITEPAPER.pdf` y `WHITEPAPER.html`) sin cambiar una palabra, solo si su huella es la validada y sin enlaces en el PDF; `carta.py` es el armador común con `whitepaper_fichas.py` |
-| `herramientas/verificar_grafico.py` | Lista de comprobación del gráfico, con color y forma (`color.py`: contraste WCAG y simulación de daltonismo); escribe el HTML |
+| `herramientas/verificar_grafico.py` | Lista de comprobación del gráfico, con color y forma (`color.py`: contraste WCAG y simulación de daltonismo), con `grafico.py` en la caja aislada; escribe el HTML |
 | `herramientas/verificar_presentacion.py` | Calcula y escribe cada cifra de la presentación desde los datos aprobados (la IA solo pone marcadores), comprueba su estructura y escribe las láminas si todo aprueba; `--autoprueba` con mutantes |
 | `herramientas/gobernanza.py` | Datos personales e instrucciones en los datos y en todas las salidas (informe, resultado, gráfico, whitepaper y presentación), k-anonimato y comparación con la clasificación de la IA |
 | `herramientas/seguridad.py`, `dependencias.py`, `caja.py` | Análisis estático (reglas propias y Bandit), librerías permitidas y caja de arena |

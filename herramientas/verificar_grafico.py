@@ -30,6 +30,12 @@ Forma y color (comprobar_forma_y_color: solo lee el JSON de la figura; la prueba
 Los colores se toman de la figura (marker.color, line.color, marker.colors) o, si no los trae, de la paleta
 (colorway) de la figura o de su plantilla, en el orden de las trazas. Ver herramientas/color.py.
 El HTML lo escribe este verificador, no el código de la IA (que corre en la caja de arena y no escribe).
+
+grafico.py pasa por la misma compuerta que reglas.py y las implementaciones (verificar.compuertas: seguridad del perfil
+pura, Bandit y librerías) y corre en la misma caja aislada que las implementaciones bajo prueba (SEG-4): sobre una copia
+de su código en una carpeta temporal nueva, sin leer el repositorio, la corrida, sus datos, las carpetas temporales ni
+ningún archivo con nombre de oráculo o de criterio (esperado.json, caso_conocido/, reglas.py, sellos*.json, hipotesis*).
+No necesita ningún archivo: el resultado aprobado y la procedencia le llegan como texto (B29, L91).
 """
 import json
 import re
@@ -41,9 +47,10 @@ AQUI = Path(__file__).resolve().parent
 sys.path.insert(0, str(AQUI))
 import caja  # noqa: E402
 import color  # noqa: E402
-import dependencias  # noqa: E402
-import seguridad  # noqa: E402
+import verificar  # noqa: E402
 from gobernanza import escanear_texto, parece_instruccion  # noqa: E402
+
+TIEMPO = 300
 
 RUNNER = r'''
 import importlib.util, json, sys
@@ -54,6 +61,27 @@ exec(compile(open(ruta, encoding="utf-8").read(), ruta, "exec"), m.__dict__)   #
 fig = m.graficar(resultado, procedencia)
 print("MARCA" + fig.to_json())
 '''.replace("MARCA", caja.MARCA)
+
+
+def ejecutar(gp, resultado, procedencia, negar=()):
+    """Corre graficar(resultado, procedencia) en la caja aislada, la misma de las implementaciones bajo prueba (SEG-4):
+    sobre una copia de su código en una carpeta temporal nueva (caja.copiar_entrada, sin tablas: no las necesita), con
+    su carpeta temporal como carpeta de trabajo y sin leer el repositorio, las zonas personales y temporales, la corrida
+    (la carpeta de grafico.py), lo que recibe en `negar` (las carpetas de los datos) ni ningún archivo con nombre de
+    oráculo o de criterio (caja.ORACULO). Devuelve (figura en JSON, error)."""
+    originales = [Path(gp).resolve().parent] + [Path(str(o)).resolve() for o in negar]
+    with caja.copiar_entrada(gp, {}) as (carpeta, codigo, _):
+        # una carpeta que contiene la copia (la temporal del sistema) la cubren igual las zonas negadas de la caja
+        negadas = [o for o in dict.fromkeys(originales) if not carpeta.is_relative_to(o)]
+        return caja.correr(RUNNER, str(codigo), json.dumps(resultado, ensure_ascii=False),
+                           json.dumps(procedencia, ensure_ascii=False), tiempo=TIEMPO, lecturas=[carpeta], aislar=True,
+                           negar=negadas)
+
+
+def carpetas_de_datos(spec):
+    """Las carpetas de cada tabla de la spec (capa limpia y crudo): el gráfico no lee ninguna."""
+    rutas = list((spec.get("datos") or {}).values()) + list((spec.get("datos_crudos") or {}).values())
+    return [Path(str(r)).resolve().parent for r in rutas if r]
 
 
 def procedencia_de(c, spec):
@@ -378,13 +406,13 @@ def comprobar(c):
         checks.append({"comprobacion": "procedencia aprobada de cada tabla", "ok": not faltan,
                        "detalle": "cada tabla tiene su procedencia aprobada" if not faltan else f"sin procedencia aprobada: {faltan}"})
     gp = c / "grafico.py"
-    dep = dependencias.revisar(gp)
-    seg, aviso_seg = seguridad.revisar([gp])
-    bloqueos = (dep.get("no_permitidas") or []) + (dep.get("intenta_instalar") or []) + [h["regla"] for h in seg[0]["bloquean"]] + ([f"no se pudo revisar: {aviso_seg}"] if aviso_seg else [])   # falla cerrada
+    # la misma compuerta de reglas.py y de las implementaciones; falla cerrada (sin Bandit o con una caída, no pasa)
+    bloqueos = verificar.compuertas(gp)
     checks.append({"comprobacion": "compuertas de seguridad y librerías", "ok": not bloqueos, "detalle": str(bloqueos or "sin hallazgos")})
     if bloqueos:
         return checks, None
-    fig_json, err = caja.correr(RUNNER, str(gp), json.dumps(resultado, ensure_ascii=False), json.dumps(proc, ensure_ascii=False))
+    negar = carpetas_de_datos(spec)
+    fig_json, err = ejecutar(gp, resultado, proc, negar)
     checks.append({"comprobacion": "el código del gráfico corre", "ok": err is None, "detalle": err or "devolvió una figura"})
     if err:
         return checks, None
@@ -448,7 +476,7 @@ def comprobar(c):
     # procedencia: con una procedencia falsa, el gráfico debe mostrar ESA fuente y ESA fecha (nada escrito a mano)
     falsa = dict(proc or {})
     falsa.update({"fuente": {**(proc.get("fuente") or {}), "titulo": "FUENTE-DE-CONTROL"}, "consultado": "2000-01-02T00:00:00"})
-    fig_f, err_f = caja.correr(RUNNER, str(gp), json.dumps(resultado, ensure_ascii=False), json.dumps(falsa, ensure_ascii=False))
+    fig_f, err_f = ejecutar(gp, resultado, falsa, negar)
     if fig_f is not None:
         tf = " ".join(textos(fig_f))
         sigue = any(f in tf for f in fechas_posibles(proc.get("consultado", "")))
