@@ -63,17 +63,23 @@ const S_FINAL = S({ procesamiento: str, analisis: str, whitepaper_carta: str, vi
 // ---------------- 1 · Ingesta ----------------
 const fuenteTxt = A.fuente
   ? `FUENTE: Socrata ${JSON.stringify(A.fuente)}. Metadatos de columnas: https://${A.fuente.dominio}/api/views/${A.fuente.conjunto}.json; conteo: https://${A.fuente.dominio}/resource/${A.fuente.conjunto}.json?$select=count(*)&$where=...`
-  : `FUENTE: archivos locales ${JSON.stringify(A.datos)} (un contrato por tabla, con fuente {"tipo": "local", "ruta": ..., "titulo", "licencia", "atribucion", "unidad"}).`
+  : `FUENTE: archivos locales ${JSON.stringify(A.datos)} (un contrato por tabla, con fuente {"tipo": "local", "ruta": ..., "titulo", "licencia", "atribucion", "unidad"} y "conteo" solo si quien entrega el archivo declara cuántos registros trae).`
 const pLector = `Eres el LECTOR (etapa 1 · Ingesta). La IA escribe el lector y el código sin IA lo prueba: tú escribes el contrato de datos y ${H}/ingesta.py lo ejecuta con las pruebas de carga del curso.
 
 ${contextoBase}
 ${fuenteTxt}
 ${reglasComunes}
 
-1. Primer acercamiento ANTES de escribir nada: lee ${H}/ingesta.py (formato del contrato) y conoce la fuente sin ver filas (nombres, tipos y descripciones de las columnas; conteos con la API o con ${H}/perfilar.py).
-2. Escribe ${C}/contrato_<tabla>.json: solo las columnas que la petición necesita (minimización) más la llave; tipos declarados (los identificadores, como NIT o códigos, van como texto); filtro en la fuente que solo traiga lo necesario, con su filtro_legible; dominios y rangos duros solo para lo que el filtro garantiza; avisos para valores imposibles que se cuentan pero no se corrigen (R7). Ninguna columna personal.
+Sigue tu ficha: ${RAIZ}/agentes/01-lector.md (léela completa: formato del contrato, llave compuesta, modo de agregados y pruebas de la carga).
+1. Primer acercamiento ANTES de escribir nada: lee el encabezado de ${H}/ingesta.py (formato del contrato) y conoce la fuente sin ver filas (nombres, tipos y descripciones de las columnas; conteos con la API o con ${H}/perfilar.py, que lee con el lector estricto común: un CSV mal formado lo detiene con su línea, y nunca muestra valores de columnas personales, de texto libre ni sensibles).
+2. Escribe ${C}/contrato_<tabla>.json con fuente, tabla, columnas, llave, dominios, rangos y avisos:
+   - solo las columnas que la petición necesita (minimización) más la llave, con su tipo (texto, entero, decimal o fecha; los identificadores, como NIT o códigos, van como texto). Ninguna columna personal, tampoco dentro de un agregado; una cuasi-identificadora o de texto libre solo si la petición no se responde sin ella, con su motivo en personales_justificadas, y un dato sensible, además, con su base legal en base_legal_sensibles;
+   - llave: una columna o, si la unidad es una combinación (estación y fecha), una lista (llave compuesta): la combinación no se repite y ninguna parte viene vacía;
+   - filtro en la fuente que solo traiga lo necesario, con su filtro_legible; dominios y rangos duros solo para lo que el filtro garantiza; avisos para valores imposibles que se cuentan pero no se corrigen (R7);
+   - en Socrata, si el conjunto no cabe en memoria (nivel 3) o la unidad se repite, agregado: {select, group, k_minimo}, con count(*) y sin having, order ni limit; con un group por una columna cuasi-identificadora o un dato sensible, k_minimo de 10 o más;
+   - en un CSV local, fuente.conteo solo si quien entrega el archivo declara cuántos registros trae.
 3. Corre: ${PY} ${H}/ingesta.py ${C}/contrato_<tabla>.json --salida ${C}/datos --repetir
-   Si se rechaza, lee el motivo, corrige el contrato y repite (máximo 3 veces). Nunca relajes una prueba para que pase: si un dato real viola un rango, el rango era un supuesto equivocado; pásalo a aviso y anótalo en la bitácora.
+   Si se rechaza, lee el motivo (la regla y, en un CSV local, la línea), corrige el contrato y repite (máximo 3 veces); nunca edites el archivo de la fuente. Nunca relajes una prueba para que pase: si un dato real viola un rango, el rango era un supuesto equivocado; pásalo a aviso y anótalo en la bitácora.
 ${bit('1-ingesta', 'Ingesta')}
 Devuelve ok, tablas ({tabla: ruta absoluta del CSV ingerido en ${C}/datos}), filas y notas.`
 
@@ -128,11 +134,12 @@ const pLimpiar = `Eres el LIMPIADOR (etapa 2 · Procesamiento: la IA limpia). Pr
 ${contexto}
 ${reglasComunes}
 
-Lee ${C}/spec.json (tratamiento_de_datos), ${C}/perfil.json, el formato de plan en ${H}/limpieza.py y las lecciones. Para cada tabla escribe ${C}/plan_limpieza_<tabla>.json con entrada (el CSV crudo ingerido), salida "limpio/<tabla>.csv", llave, operaciones y umbrales:
-- cada hallazgo del perfil y cada tratamiento de la spec que sea limpieza (espacios e invisibles, normalización Unicode, mayúsculas, nulos disfrazados como «No Definido», mapas de variantes, fechas, números, valores imposibles, atípicos, repetidos, comparaciones entre columnas) se vuelve una operación;
+Sigue tu ficha: ${RAIZ}/agentes/03-limpiador.md (léela completa: operaciones, umbrales y lo que detiene la limpieza).
+Lee ${C}/spec.json (tratamiento_de_datos), ${C}/perfil.json, el formato de plan en el encabezado de ${H}/limpieza.py y las lecciones. Si perfil.json trae failfast en lugar del perfil, el CSV crudo no se pudo leer y no hay plan que lo arregle: anótalo en la bitácora y devuelve ok en false. Para cada tabla escribe ${C}/plan_limpieza_<tabla>.json con tabla, entrada (el CSV crudo ingerido), salida "limpio/<tabla>.csv", llave (una columna o, si es compuesta, una lista), operaciones y umbrales:
+- cada hallazgo del perfil y cada tratamiento de la spec que sea limpieza se vuelve una operación: texto (espacios, invisibles, normalización Unicode, mayúsculas), reemplazar, nulos_disfrazados (como «No Definido»), mapear (variantes), fecha, numero (con su decimal declarado), rango (valores imposibles), atipicos, repetidos (con desempate) y comparar (entre columnas);
 - limpiar es marcar (R14): nada se borra; cada problema queda en una columna calidad_<marca>, y lo que se excluye del análisis lo decide la spec con esas marcas;
 - los mapas de variantes van completos, como lista cerrada; lo que quede fuera se marca;
-- umbrales: completitud y validez mínimas de las columnas que usa el análisis, unicidad de la llave y un máximo de filas marcadas donde el perfil diga que no debería haber.
+- umbrales (completitud_minima, validez_minima, unicidad, marcadas_maximo y vacios_maximo) justificados sobre el dato real, no sobre el caso conocido: lo que no debería faltar va en vacios_maximo, en conteos absolutos, y la holgura del informe dice cuánto más puede perder el dato antes de bloquear. El caso conocido pasa por el mismo plan con estos mismos umbrales (verificar.py no aplica umbrales_caso): si los incumple a propósito, primero un conteo absoluto que cumplan los dos. Un umbral mal escrito (un nombre desconocido, una columna o una marca que no existen) detiene la limpieza.
 Corre ${PY} ${H}/limpieza.py ${C}/plan_limpieza_<tabla>.json y corrige el PLAN (nunca el dato crudo) hasta que apruebe. Si un umbral falla porque el dato real es así, el umbral era un supuesto equivocado: ajústalo y anótalo.
 Luego actualiza ${C}/spec.json: "datos_crudos" = las rutas crudas actuales; "datos" = las rutas absolutas de la capa limpia (${C}/limpio/<tabla>.csv); "capa_limpia": {tabla: {marca: "qué significa y si la fila se excluye o solo se avisa"}}. Ajusta columnas_usadas si hace falta y corre ${PY} ${H}/verificar.py ${C} --autoprueba (las reglas siguen calculando desde el dato crudo).
 ${bit('2-procesamiento-limpieza', 'Procesamiento')}`

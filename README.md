@@ -13,7 +13,7 @@ Material aplicado del curso **«Big Data con IA»** (NODO · Universidad EAFIT, 
   git clone --branch clase-2026-11-06 https://github.com/CristianBTA/agente-solicitudes
   ```
   La etiqueta se rehízo una sola vez: el 6 de noviembre a las 15:50 pasó de `7d2fa19` a `42576ec`. Si la descargaste antes, `git pull` no la actualiza: vuelve a clonar, o corre `git fetch --tags --force` y después `git checkout clase-2026-11-06`. Otra versión para la clase llevaría una etiqueta nueva.
-- **La versión final está en `main`** ([v1.8](CHANGELOG.md)). Junta los arreglos de la revisión ciega de analista senior y de la revisión del pipeline, el filtro de aportes que toma su juez de la rama base y el cambio por el que el análisis lo hacen las personas: la IA documenta lo desarrollado en un whitepaper, que también sale en tres hojas carta, y la presentación dice lo medido, sin recomendar ni pedir decisiones. Hoy tiene 11 subagentes, 10 baterías, 26 pruebas de blindaje (B00 de control y 25 ataques) y 88 lecciones. La etiqueta `clase-2026-11-06` no se mueve: sigue en la versión de la clase.
+- **La versión final está en `main`** ([v1.8](CHANGELOG.md)). Junta los arreglos de la revisión ciega de analista senior y de la revisión del pipeline, el filtro de aportes que toma su juez de la rama base y el cambio por el que el análisis lo hacen las personas: la IA documenta lo desarrollado en un whitepaper, que también sale en tres hojas carta, y la presentación dice lo medido, sin recomendar ni pedir decisiones. Hoy tiene 11 subagentes, 10 baterías, 33 pruebas de blindaje (B00 de control y 32 ataques) y 95 lecciones. La etiqueta `clase-2026-11-06` no se mueve: sigue en la versión de la clase.
 - **Los aportes de los participantes** van siempre contra `main`, como dice [`APORTAR-CON-TU-AGENTE.md`](APORTAR-CON-TU-AGENTE.md).
 
 ## Conectar la IA
@@ -71,7 +71,7 @@ El validador (`herramientas/validar_ficha.py`, V1 a V16) mide la forma: columnas
 ```bash
 python3.13 -m venv .venv && .venv/bin/pip install --require-hashes -r requirements.txt
 .venv/bin/python herramientas/baterias.py      # debe dar todas las baterías en ✓ (hoy 10)
-.venv/bin/python herramientas/blindaje.py      # cada ataque al pipeline debe salir en RESISTE (hoy 32 pruebas, con el control B00)
+.venv/bin/python herramientas/blindaje.py      # cada ataque al pipeline debe salir en RESISTE (hoy 33 pruebas, con el control B00)
 ```
 
 Las herramientas de `herramientas/` son Python sin IA y se pueden correr solas. La orquestación de agentes (`flujo.js`) se ejecuta como flujo de trabajo de Claude Code (herramienta *Workflow*) con estos argumentos:
@@ -126,7 +126,7 @@ node orquestar.mjs --motor agy --comprobar                        # dos llamadas
 | `herramientas/comprobar.py`, `gancho_compuerta.py`, `medir_real.py` | La compuerta como un solo comando (`.py` y `.ipynb`), su conexión con Claude Code y la medida con código generado de verdad y jurado a ciegas |
 | `herramientas/baterias.py` | Baterías de seguridad, privacidad, FAILFAST, inyección, cruces, fechas, repetidos, factor de expansión, gráfico y lecciones; `--agregar-malo` y `--leccion` para que lo que falló no se repita |
 | `herramientas/validar_aporte.py`, `rutas_protegidas.py` | Filtro automático de aportes, sin IA: archivos prohibidos, datos personales, seguridad y que no rompa nada; y las rutas que solo cambia el dueño (el filtro, lo que importa, la compuerta y los flujos y ganchos de git) |
-| `herramientas/blindaje.py`, `mutar_controles.py` | Banco de ataques al pipeline: caja de arena, compuerta, perfil, salidas, integridad, dependencias, generalización, baterías y filtro de aportes (con control positivo, B00); `mutar_controles.py` quita cada control en una copia y exige que su prueba del banco ceda |
+| `herramientas/blindaje.py`, `mutar_controles.py` | Banco de ataques al pipeline: caja de arena, compuerta, perfil, salidas, integridad, dependencias, generalización, baterías, filtro de aportes y fichas (con control positivo, B00); `mutar_controles.py` quita cada control en una copia y exige que su prueba del banco ceda |
 | `herramientas/integridad.py` | Manifiesto de integridad: sella herramientas, fichas y baterías al inicio y lo comprueba al final |
 | `herramientas/informe_final.py` | Informe de las cinco etapas en Markdown y HTML, con todo el texto escapado |
 | `herramientas/sgsi.py` | SGSI sin IA: inventario C·I·D, riesgos con la regla de la tríada, Declaración de Aplicabilidad, etiqueta C·I·D de cada corrida; `--efectividad` y `--autoprueba` |

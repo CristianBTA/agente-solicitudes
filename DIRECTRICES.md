@@ -35,7 +35,7 @@ cmp /tmp/datos-prueba/ventas.csv ejemplo/datos/ventas.csv && echo "datos idénti
 # 5. Gobernanza de una corrida (la copia del paso 2): datos personales, salidas limpias, k-anonimato
 .venv/bin/python herramientas/gobernanza.py "$T"/2026-11-06-ventas-semestre
 
-# 5b. Blindaje: se ataca cada capa a propósito (caja de arena, compuerta, perfil, salidas, integridad, dependencias)
+# 5b. Blindaje: se ataca cada capa a propósito (caja de arena, compuerta, perfil, salidas, integridad, dependencias, fichas)
 .venv/bin/python herramientas/blindaje.py
 # y cada control con su prueba: se quita en una copia y la prueba que lo cubre debe ceder (12 mutantes)
 .venv/bin/python herramientas/mutar_controles.py
@@ -64,7 +64,7 @@ SECOP II se actualiza a diario. Si el recorte de hoy no es idéntico al del 6-no
 
 Si corriste los pasos sobre `corridas/` directamente (como decía una versión anterior de esta guía), `git status` muestra `informe.json`, `informe.md` y `gobernanza.json` modificados, con el tiempo medido y la ruta de tu carpeta; `git restore corridas/` los deja como estaban. Nunca entran en un aporte.
 
-Lo que debe salir: todas las baterías en ✓ (hoy son 10), el blindaje con todas sus pruebas en «RESISTE» (hoy son 32, con el control B00; en Linux no hay sandbox-exec: B01, B11, B12, B24 y B29 salen «NO APLICA» y el banco lo dice, porque ahí el código de la IA tendría red y escritura; por eso el filtro de aportes corre en macOS) y sus 12 mutantes de los controles muertos, la corrida en «aprobado», la referencia `m00` sin fallas y las mutantes `m01` a `m13` con al menos una falla cada una, los datos idénticos, la gobernanza aprobada, el SGSI sin fallas, con sus 21 mutantes atrapados, las autopruebas de la presentación y del whitepaper sin fallas ni errores, y `git status` sin ningún archivo. Si algo no sale así, el repositorio no cumple lo que dice.
+Lo que debe salir: todas las baterías en ✓ (hoy son 10), el blindaje con todas sus pruebas en «RESISTE» (hoy son 33, con el control B00; en Linux no hay sandbox-exec: B01, B11, B12, B24 y B29 salen «NO APLICA» y el banco lo dice, porque ahí el código de la IA tendría red y escritura; por eso el filtro de aportes corre en macOS) y sus 12 mutantes de los controles muertos, la corrida en «aprobado», la referencia `m00` sin fallas y las mutantes `m01` a `m13` con al menos una falla cada una, los datos idénticos, la gobernanza aprobada, el SGSI sin fallas, con sus 21 mutantes atrapados, las autopruebas de la presentación y del whitepaper sin fallas ni errores, y `git status` sin ningún archivo. Si algo no sale así, el repositorio no cumple lo que dice.
 
 ---
 
@@ -95,12 +95,14 @@ Un rango de magnitud, escrito antes de tener la cifra.
 ## B · Ingesta
 
 **D5 · Contrato de datos: columnas mínimas, tipos declarados, llave, dominios y rangos.**
-Los identificadores van como texto. Lo que no cumple el tipo rechaza la carga (FAILFAST).
-*Dónde:* `contrato_<tabla>.json` (lo escribe la IA) y `herramientas/ingesta.py` (lo ejecuta).
-*Cómo se comprueba:* una columna que no existe en la fuente o una columna personal sin justificar rechazan la carga antes de descargar.
+Los identificadores van como texto. Lo que no cumple el tipo rechaza la carga (FAILFAST). La llave es una columna o una lista de columnas (llave compuesta, como estación y fecha): la combinación no se repite y ninguna de sus partes viene vacía.
+Un CSV local se lee desde los bytes con el lector estricto común de las reglas, la limpieza y el perfil, y nada se rellena ni se recorta: un archivo que no está en UTF-8, con caracteres nulos o solo con el encabezado, otro separador, columnas repetidas, una comilla sin cerrar, una línea vacía, una fila con más o menos campos, una fórmula de Excel como texto o montos con punto de miles rechazan la carga con su número de línea (L70, L78).
+Para conjuntos de nivel 3 que no caben en memoria, el contrato pide la consulta agregada que calcula el servidor (`agregado`): con `count(*)`, sin `having`, `order` ni `limit`, y con `k_minimo` si se declara: ningún grupo con menos de k filas (L79).
+*Dónde:* `contrato_<tabla>.json` (lo escribe la IA con su ficha, [`agentes/01-lector.md`](agentes/01-lector.md)) y `herramientas/ingesta.py` (lo ejecuta).
+*Cómo se comprueba:* `herramientas/ingesta.py --autoprueba`, con casos ficticios y sin red, y la batería FAILFAST. Un contrato roto, una columna que no existe en la fuente o una columna personal sin justificar rechazan la carga antes de descargar filas. Los ejemplos de valores que no cumplen su tipo o su dominio salen enmascarados si la columna es personal, cuasi-identificadora, de texto libre o sensible.
 
 **D6 · Las cinco pruebas de cada carga, más repetibilidad y procedencia.**
-Conteo contra la fuente, llave única, llave sin nulos, rangos y dominios. Leer dos veces debe dar el mismo archivo, byte a byte. Queda una procedencia con fecha y zona horaria, la consulta exacta (en Socrata, con su orden y sus páginas), la versión de la fuente, filas, huella SHA-256 completa, licencia y atribución.
+Conteo contra la fuente, llave única, llave sin nulos, rangos y dominios. El conteo no lo da el mismo lector que se prueba: en Socrata es el `count(*)` de la API, igual antes y después de descargar; en un CSV local se cuenta aparte, por otro camino (los fines de línea fuera de comillas), y también contra el `fuente.conteo` del contrato, si quien entrega el archivo lo declara. En un agregado, la suma de `count(*)` de los grupos es el `count(*)` del servidor sin agrupar con el mismo filtro, `sum` y `count` se concilian igual, y `min` y `max` coinciden. Leer dos veces debe dar el mismo archivo, byte a byte. Queda una procedencia con fecha y zona horaria, la consulta exacta (en Socrata, con su orden y sus páginas; en un agregado, la consulta SoQL y el control sin agrupar), la versión de la fuente, filas, huella SHA-256 completa, licencia y atribución.
 Cada tabla tiene su procedencia, y la etapa se aprueba solo si todas lo están. Una carga rechazada no deja su CSV donde lo leen las etapas siguientes, y `verificar.py` comprueba que la huella del crudo sea la de su procedencia.
 *Dónde:* `procedencia_<tabla>.json`, que se publica (no trae filas).
 
@@ -151,15 +153,15 @@ La IA propone el plan de limpieza (`plan_limpieza_<tabla>.json`) y `herramientas
 **DL1 · Tres capas: cruda, limpia y respuesta.** El dato crudo no se toca y conserva su procedencia y su huella. La capa limpia (`limpio/<tabla>.csv`) se reconstruye desde el plan. La respuesta se calcula sobre la capa limpia.
 *Cómo se comprueba:* la limpieza verifica que la huella del crudo no cambió.
 
-**DL2 · Limpiar es marcar (R14).** La capa limpia tiene las mismas filas, en el mismo orden y con la misma llave. Cada problema queda en una columna `calidad_<marca>`, y `calidad_ok` dice si la fila está limpia. La spec decide qué marcas excluyen la fila del análisis y cuáles solo avisan, y la conciliación las cuenta.
+**DL2 · Limpiar es marcar (R14).** La capa limpia tiene las mismas filas, en el mismo orden y con la misma llave (una columna o, si es compuesta, la combinación). Cada problema queda en una columna `calidad_<marca>`, y `calidad_ok` dice si la fila está limpia. La spec decide qué marcas excluyen la fila del análisis y cuáles solo avisan, y la conciliación las cuenta.
 
-**DL3 · Reglas declaradas, no código suelto.** Cada operación (texto, invisibles y Unicode NFC, reemplazar, nulos disfrazados, mapear, fecha, número, rango, atípicos, repetidos, comparar entre columnas) informa cuántas filas cambió, cuántas marcó y un ejemplo; nunca de columnas privadas. Los mapas de variantes son listas cerradas y versionadas: lo que no está en el mapa se marca, no se adivina.
+**DL3 · Reglas declaradas, no código suelto.** Cada operación (texto, invisibles y Unicode NFC, reemplazar, nulos disfrazados, mapear, fecha, número, rango, atípicos, repetidos, comparar entre columnas) informa cuántas filas cambió, cuántas marcó y sus ejemplos: los de una columna personal, de texto libre o con un dato sensible salen enmascarados, y un valor con forma de instrucción se omite. Los mapas de variantes son listas cerradas y versionadas: lo que no está en el mapa se marca, no se adivina. El crudo se lee con el lector estricto común de la ingesta, las reglas y el perfil: un CSV mal formado detiene la limpieza con su número de línea, y una fórmula de Excel como texto no la detiene, se neutraliza y se marca (DB5).
 
 **DL4 · Lo disfrazado y lo invisible también se limpia.** «No Definido», «N/A» o «-» son nulos disfrazados. Los caracteres de control (en SECOP apareció un U+0096 dentro de un nombre) se quitan, y el texto se normaliza a NFC antes de comparar.
 
 **DL5 · Atípicos e imposibles se marcan con un método explícito.** El método es el rango intercuartílico sobre log10, para montos que abarcan varios órdenes de magnitud. Nada se corrige en silencio (R7). Los límites quedan en el informe, en pesos.
 
-**DL6 · Calidad medida antes y después, con umbrales que bloquean.** Completitud, validez y unicidad por columna. Un umbral que el dato real incumple no se relaja en silencio: o el umbral era un supuesto equivocado (se anota) o el dato no sirve para la pregunta.
+**DL6 · Calidad medida antes y después, con umbrales que bloquean.** Completitud, validez y unicidad por columna, filas marcadas por marca y celdas vacías en conteos absolutos (`vacios_maximo`). Los umbrales se justifican sobre el dato real: uno relativo pensado para el caso conocido dejaba perder 1.987 contratos en las 49.662 filas de SECOP sin que nada fallara, y el detalle de completitud y validez dice la holgura, cuántas filas más puede perder el dato antes de bloquear (L75). Un umbral mal escrito (un nombre desconocido, una columna o una marca que no existen) detiene la limpieza (L76). Los umbrales del caso conocido (`umbrales_caso`) nunca exigen más que los del dato real y solo se aplican si quien llama lo pide: `verificar.py` limpia el caso conocido con los del dato real. Un umbral que el dato real incumple no se relaja en silencio: o el umbral era un supuesto equivocado (se anota) o el dato no sirve para la pregunta.
 
 **DL7 · Una limpieza mal planteada también se atrapa.** Las reglas y el caso conocido calculan desde el dato **crudo**, y el caso conocido pasa por el **mismo** plan antes de la implementación. Una regla de limpieza mal escrita (por ejemplo, «IVA mayor que el subtotal», que marcó 1.150 filas en una prueba) aparece en el conteo de marcas y en la conservación.
 
@@ -271,6 +273,8 @@ El mismo patrón del generador y el validador, aplicado al pipeline entero: un a
 **DB9 · La independencia se audita, no se supone.** Se revisan las transcripciones reales: ningún agente puede haber abierto lo que su ficha le prohíbe (`evidencia/blindaje/auditar_independencia.py`: 16 agentes, 0 accesos prohibidos). Cada rol nuevo entra en la auditoría con lo que prohíbe su ficha: el documentador y el presentador desde el 6-nov-2026, con su `--autoprueba` (L88).
 
 **DB10 · Quien toca una herramienta corre el banco de blindaje.** El filtro de aportes lo corre si el aporte cambia `herramientas/`: debilitar una defensa hace fallar el aporte.
+
+**DB11 · La ficha dice lo que hace el motor que la comprueba.** Lo que admiten la ingesta y la limpieza (tipos y claves del contrato y del agregado, claves de la fuente, claves del plan, operaciones y umbrales) sale de su código, y la ficha del lector o del limpiador y su instrucción en `flujo.js` tienen que nombrarlo, y la instrucción, mandar a su ficha. Tras PIP-4 y PIP-5, el motor admitía llaves compuestas, agregados con `k_minimo`, `vacios_maximo` y `umbrales_caso`, y las fichas no los nombraban: faltaban 42 (B34, L95).
 
 ## J · SGSI: la tríada C·I·D aplicada al pipeline
 

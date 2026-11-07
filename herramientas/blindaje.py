@@ -1176,6 +1176,130 @@ def b33():
                         + "; ".join(f"{l} ({len(res['fallas'])} fallas)" for l, res, _ in resultados[1:]))
 
 
+# B34 (L95): el motor que comprueba a un subagente gana una opción o una protección (la llave compuesta, el modo de
+# agregados con k mínimo, vacios_maximo, umbrales_caso) y su ficha y su instrucción en flujo.js no la nombran: la IA
+# escribe el contrato o el plan con lo de antes y nada se pone rojo. Lo que admite el motor sale de su código, no de una
+# lista escrita a mano, que se quedaría atrás igual que la ficha.
+SEGURAS_DEL_MOTOR = {"lector": {"llave", "agregado", "k_minimo", "personales_justificadas", "base_legal_sensibles", "conteo"},
+                     "limpiador": {"llave", "umbrales", "umbrales_caso", "vacios_maximo", "repetidos", "numero"}}
+FICHAS_DEL_MOTOR = {"lector": ("agentes/01-lector.md", "pLector"), "limpiador": ("agentes/03-limpiador.md", "pLimpiar")}
+
+
+TUPLA_TIPOS = re.compile(r"^TIPOS = \(([^)]*)\)", re.M)
+CLAVE_DEL_CONTRATO = re.compile(r"""contrato(?:\.get\(|\[)(["']\w+["'])""")
+CLAVES_DEL_AGREGADO = re.compile(r"set\(ag\) - \{([^}]*)\}")
+CLAVE_DE_LA_FUENTE = re.compile(r"""fuente(?:\.get\(|\[)(["']\w+["'])""")
+CLAVE_DEL_PLAN = re.compile(r"""plan(?:\.get\(|\[)(["']\w+["'])""")
+OPERACION = re.compile(r'\bop == ("\w+")')
+TUPLA_UMBRALES = re.compile(r"^UMBRALES = \(([^)]*)\)", re.M)
+ENTRE_COMILLAS = re.compile(r"""["'](\w+)["']""")
+
+
+def _nombres(compilado, fuente):
+    return sorted({n for m in compilado.finditer(fuente) for n in ENTRE_COMILLAS.findall(m.group(1))})
+
+
+def opciones_del_motor(ingesta_py, limpieza_py):
+    """{subagente: (lo que nombran la ficha y la instrucción, lo que nombra solo la ficha)}, leído del código de
+    ingesta.py y limpieza.py: los tipos y las claves del contrato y del agregado, las claves de la fuente, las claves del
+    plan, sus operaciones y sus umbrales."""
+    contrato = (_nombres(TUPLA_TIPOS, ingesta_py) + _nombres(CLAVE_DEL_CONTRATO, ingesta_py)
+                + _nombres(CLAVES_DEL_AGREGADO, ingesta_py))
+    fuente = _nombres(CLAVE_DE_LA_FUENTE, ingesta_py)
+    plan = _nombres(CLAVE_DEL_PLAN, limpieza_py) + _nombres(OPERACION, limpieza_py) + _nombres(TUPLA_UMBRALES, limpieza_py)
+    return {"lector": (sorted(set(contrato)), sorted(set(fuente) - set(contrato))), "limpiador": (sorted(set(plan)), [])}
+
+
+def instruccion_de(flujo_js, nombre):
+    """El texto de `const <nombre> = `...`` en flujo.js (la plantilla entera, con sus ${...} sin evaluar)."""
+    i = flujo_js.find(f"const {nombre} = `")
+    if i < 0:
+        return None
+    i += len(f"const {nombre} = `")
+    hondo, j = 0, i
+    while j < len(flujo_js):
+        if flujo_js.startswith("${", j):
+            hondo, j = hondo + 1, j + 2
+            continue
+        c = flujo_js[j]
+        if c == "\\":
+            j += 2
+            continue
+        if c == "}" and hondo:
+            hondo -= 1
+        elif c == "`" and not hondo:
+            return flujo_js[i:j]
+        j += 1
+    return None
+
+
+def nombra(texto, termino):
+    return re.search(rf"(?<!\w){re.escape(termino)}(?!\w)", texto or "") is not None
+
+
+def faltan_en_fichas(opciones, leer):
+    """Lo que el motor admite y la ficha o la instrucción de flujo.js no nombran; leer(ruta) da el texto de un archivo
+    del repositorio. La instrucción también tiene que mandar al agente a su ficha."""
+    flujo_js = leer("flujo.js")
+    faltan = {}
+    for agente, (ambas, solo_ficha) in opciones.items():
+        ruta, variable = FICHAS_DEL_MOTOR[agente]
+        ficha, instruccion = leer(ruta), instruccion_de(flujo_js, variable)
+        f = [f"{ruta}: {t}" for t in ambas + solo_ficha if not nombra(ficha, t)]
+        if instruccion is None:
+            f.append(f"flujo.js: no está la instrucción {variable}")
+        else:
+            f += [f"flujo.js ({variable}): {t}" for t in ambas if not nombra(instruccion, t)]
+            if ruta not in instruccion:
+                f.append(f"flujo.js ({variable}): no manda al agente a su ficha ({ruta})")
+        if f:
+            faltan[agente] = f
+    return faltan
+
+
+@prueba("B34", "fichas → IA", "el motor de la ingesta o de la limpieza admite una opción o una protección (llave compuesta, agregado con k_minimo, vacios_maximo, umbrales_caso) que la ficha del lector o del limpiador y su instrucción en flujo.js no nombran: ¿lo nota alguien?")
+def b34():
+    def leer(ruta):   # solo archivos del repositorio
+        p = (RAIZ / ruta).resolve()
+        if not p.is_relative_to(RAIZ.resolve()):
+            raise ValueError(f"{ruta} está fuera del repositorio")
+        return p.read_text(encoding="utf-8")
+
+    ing, lim = leer("herramientas/ingesta.py"), leer("herramientas/limpieza.py")
+    opciones = opciones_del_motor(ing, lim)
+    for agente, seguras in SEGURAS_DEL_MOTOR.items():   # si no se leen del código, la prueba no prueba nada (L27)
+        sin_leer = sorted(seguras - set(sum(opciones[agente], [])))
+        if sin_leer:
+            return r("CEDE", f"prueba inválida: del código del motor no salen {sin_leer} ({agente}); el motor cambió de forma, "
+                             "rehacer la extracción")
+    # control positivo: con una opción nueva en cada motor (un tipo, una clave del agregado y un umbral), la comprobación
+    # tiene que echarla de menos en la ficha y en la instrucción; si no, no sigue al código
+    nuevas = {"lector": [("hora_del_dia", r"^TIPOS = \(", 'TIPOS = ("hora_del_dia", '),
+                         ("redondeo", r"set\(ag\) - \{", 'set(ag) - {"redondeo", ')],
+              "limpiador": [("filas_minimas", r"^UMBRALES = \(", 'UMBRALES = ("filas_minimas", ')]}
+    fuentes = {"lector": ing, "limpiador": lim}
+    for agente, cambios in nuevas.items():
+        for _, patron, por in cambios:
+            fuentes[agente], n = re.subn(patron, lambda _m, por=por: por, fuentes[agente], count=1, flags=re.M)
+            if n != 1:
+                return r("CEDE", f"prueba inválida: «{patron}» no está en el motor del {agente}; rehacer el control positivo")
+    control = faltan_en_fichas(opciones_del_motor(fuentes["lector"], fuentes["limpiador"]), leer)
+    no_vistas = [t for agente, cambios in nuevas.items() for t, *_ in cambios
+                 if f"{FICHAS_DEL_MOTOR[agente][0]}: {t}" not in control.get(agente, [])
+                 or f"flujo.js ({FICHAS_DEL_MOTOR[agente][1]}): {t}" not in control.get(agente, [])]
+    if no_vistas:
+        return r("CEDE", f"prueba inválida: con {no_vistas} nuevas en el motor, la comprobación no las echa de menos en la "
+                         "ficha y en la instrucción")
+    faltan = faltan_en_fichas(opciones, leer)
+    if faltan:
+        return r("CEDE", "lo que el motor admite y la ficha o la instrucción no nombran: "
+                         + "; ".join(f"{a}: {', '.join(f)}" for a, f in faltan.items())[:600])
+    return r("RESISTE", "cada opción del motor está en su ficha y en su instrucción de flujo.js, que manda a la ficha: "
+                        + "; ".join(f"{a}, {len(o[0])} en las dos y {len(o[1])} solo en la ficha" for a, o in opciones.items())
+                        + "; con una opción nueva en cada motor (hora_del_dia, redondeo, filas_minimas), la comprobación las "
+                          "echa de menos (control positivo)")
+
+
 def main(argv):
     solo = set(argv[argv.index("--solo") + 1].split(",")) if "--solo" in argv else None
     filas = []
