@@ -18,6 +18,9 @@ cerrar, una línea vacía, una fila con más o menos campos, otro separador, un 
 Excel para Mac, L107) o columnas crudas calidad_* detienen la limpieza; nunca se lee a medias. La op numero con
 decimal «.» se detiene ante montos con punto de miles mezclados con números sin separador (78.000 junto a 1628100),
 que leídos así se dividirían por mil (L46; si el punto ya es decimal en la columna, como 12.5, 1.250 es un decimal: L49).
+Con decimal «,», cada punto agrupa exactamente tres cifras (1.234,5 · 12.500.000 · 0,75); 12.5, 1.5 o 1,234.5 se marcan
+numero_invalido en vez de leerse como 125, 15 o 1.2345 (L108). Con los dos decimales, solo cifras ASCII: 1_000, «٣» o
+Infinity también se marcan, aunque float() los acepte.
 
 Operaciones (en orden):
   {"op": "texto", "columna", "recortar": true, "unicode": true, "invisibles": true, "espacios_internos": true}
@@ -25,7 +28,8 @@ Operaciones (en orden):
   {"op": "nulos_disfrazados", "columna", "valores": ["No Definido", "N/A", "-"], "marca"}
   {"op": "mapear", "columna", "mapa": {variante: oficial}, "normalizar_clave": true, "marca": "fuera_de_mapa"}
   {"op": "fecha", "columna", "formatos": ["%Y-%m-%d", "%d/%m/%Y"], "marca": "fecha_invalida"}   → aaaa-mm-dd (se guarda la hora aparte si viene)
-  {"op": "numero", "columna", "decimal": "." , "marca": "numero_invalido"}
+  {"op": "numero", "columna", "decimal": "." , "marca": "numero_invalido"}   decimal «.» o «,»; lo que no tiene la forma
+      de un número con ese decimal se marca (L108): con «,», 12.5 o 1,234.5 no se leen como 125 o 1.2345
   {"op": "rango", "columna", "min", "max", "marca"}                 marca, no corrige (R7)
   {"op": "atipicos", "columna", "k": 3, "marca"}                    rango intercuartílico sobre log10 de los positivos
   {"op": "repetidos", "columnas": [...] o "fila_completa", "marca": "repetido",
@@ -71,6 +75,9 @@ INVISIBLES = re.compile(r"[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f\u
 OPS = {"<": lambda a, b: a < b, "<=": lambda a, b: a <= b, ">": lambda a, b: a > b, ">=": lambda a, b: a >= b,
        "==": lambda a, b: a == b, "!=": lambda a, b: a != b}
 UMBRALES = ("completitud_minima", "validez_minima", "unicidad", "marcadas_maximo", "vacios_maximo")
+# la forma completa de un número con cada decimal, solo con cifras ASCII (float() acepta 1_000, «٣», Infinity y espacios)
+NUMERO = {".": re.compile(r"[-+]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][-+]?[0-9]+)?"),
+          ",": re.compile(r"[-+]?(?:[0-9]+|[1-9][0-9]{0,2}(?:\.[0-9]{3})+)(?:,[0-9]+)?")}   # 1.234,5 · 12.500.000 · 0,75
 MARCA_POR_DEFECTO = {"nulos_disfrazados": "nulo_disfrazado_{}", "mapear": "fuera_de_mapa_{}",
                      "fecha": "fecha_invalida_{}", "numero": "numero_invalido_{}", "repetidos": "repetido"}
 
@@ -120,10 +127,9 @@ def fecha_valida(v):
 
 
 def numero_valido(v):
-    try:
-        return math.isfinite(float(v))
-    except ValueError:
-        return False
+    """Un número con decimal «.», solo con cifras ASCII y finito (la validez se mide con la misma forma que la op numero)."""
+    v = v.strip()
+    return bool(NUMERO["."].fullmatch(v)) and math.isfinite(float(v))
 
 
 def metricas(filas, cols, tipos):
@@ -354,20 +360,25 @@ def limpiar(plan_ruta, entrada=None, salida=None, informe=True, caso=False):
                 for f in filas:
                     f.setdefault(hora, "")
         elif op == "numero":
-            if o.get("decimal") != ",":
+            decimal = o.get("decimal", ".")
+            if decimal not in NUMERO:
+                raise ValueError(f"FAILFAST: la operación numero de {col} declara el decimal {str(decimal)[:10]!r}: "
+                                 "se admite «.» o «,»")
+            if decimal == ".":
                 revisar_punto_de_miles(col, [f[col].strip() for f in filas], lineas, ent.name)
             for i, f in enumerate(filas):
                 v = f[col].strip()
                 if not v:
                     continue
-                if o.get("decimal") == ",":
+                # la forma completa, no lo que float() acepte: con «,», 12.5 se volvía 125 y 1,234.5, 1.2345 (L108)
+                if not NUMERO[decimal].fullmatch(v):
+                    marca(i, o.get("marca", f"numero_invalido_{col}"))
+                    continue
+                if decimal == ",":
                     v = v.replace(".", "").replace(",", ".")
-                try:
-                    x = float(v)
-                    if not math.isfinite(x):
-                        raise ValueError
+                if math.isfinite(float(v)):
                     cambia(i, v)
-                except ValueError:
+                else:
                     marca(i, o.get("marca", f"numero_invalido_{col}"))
         elif op == "rango":
             lo, hi = o.get("min"), o.get("max")
@@ -654,6 +665,26 @@ def autoprueba(mod=None):
           {"operaciones": [{"op": "numero", "columna": "valor"}]}, detiene)
     caso_("op numero con decimal «,»: 1.250,50 se convierte sin detenerse", "id,valor\n1,\"1.250,50\"\n2,1628100\n",
           {"operaciones": [{"op": "numero", "columna": "valor", "decimal": ","}]}, aprueba)
+    def valores(r, col="valor"):
+        with open(r["salida"], newline="", encoding="utf-8") as fh:
+            return [f[col] for f in csv.DictReader(fh)]
+
+    coma = "id,valor\n1,\"1.234,5\"\n2,12.5\n3,\"1,234.5\"\n4,1.5\n5,\"0,75\"\n6,12.500.000\n7,\"-3,25\"\n"
+    caso_("op numero con decimal «,»: 12.5, 1,234.5 y 1.5 se marcan, no se leen como 125, 1.2345 y 15 (L108)", coma,
+          {"operaciones": [{"op": "numero", "columna": "valor", "decimal": ","}],
+           "umbrales": {"marcadas_maximo": {"numero_invalido_valor": 0}}},
+          lambda r, e: rechaza("numero_invalido_valor")(r, e) and r["marcas"] == {"numero_invalido_valor": 3})
+    caso_("op numero con decimal «,»: 1.234,5, 0,75, 12.500.000 y -3,25 se convierten; lo marcado no cambia", coma,
+          {"operaciones": [{"op": "numero", "columna": "valor", "decimal": ","}]},
+          lambda r, e: aprueba(r, e) and valores(r) == ["1234.5", "12.5", "1,234.5", "1.5", "0.75", "12500000", "-3.25"])
+    caso_("op numero con decimal «.»: 1_000, «٣», Infinity y NaN se marcan aunque float() los acepte (L108)",
+          "id,valor\n1,1_000\n2,\u0663\n3,Infinity\n4,NaN\n5,10\n6,-2.5e3\n7,.5\n",
+          {"operaciones": [{"op": "numero", "columna": "valor"}]},
+          lambda r, e: aprueba(r, e) and r["marcas"] == {"numero_invalido_valor": 4}
+          and r["calidad_despues"]["valor"]["validez"] == round(3 / 7, 6))
+    caso_("op numero con un decimal que no es «.» ni «,» se detiene", "id,valor\n1,10\n",
+          {"operaciones": [{"op": "numero", "columna": "valor", "decimal": "coma"}]},
+          lambda r, e: isinstance(e, ValueError) and "FAILFAST" in str(e) and "decimal" in str(e))
     caso_("op numero con decimal «.»: con 12.5 en la columna, 1.250 es un decimal y no se detiene (L49)",
           "id,peso_kg\n1,12.5\n2,1.250\n3,1500\n", {"operaciones": [{"op": "numero", "columna": "peso_kg"}]}, aprueba)
     caso_("op texto: los ejemplos de una columna sensible salen enmascarados",
