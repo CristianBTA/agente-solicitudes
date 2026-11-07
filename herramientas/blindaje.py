@@ -1043,6 +1043,139 @@ def b31():
                         "hacen fallar su comprobación; sin venenos, la corrida y la presentación aprueban")
 
 
+# B32 (GOB-5 en el perfil): las mismas dos tablas dos veces. Con nombres neutros (control positivo, L27) el perfil
+# muestra esos valores; con los nombres que los marcan (dos datos sensibles, una fecha sensible, un documento y un
+# texto libre que comparten las dos tablas), ninguno puede llegar a la IA: ni como valor, ni como mínimo o máximo, ni
+# en el rango de fechas, ni entre los ejemplos que no cruzan. Los valores son ficticios y cambian en cada corrida.
+NEUTROS_PERFIL = ("grupo", "clase", "fecha_evento", "importe", "etiqueta")
+MARCADOS_PERFIL = ("etnia", "discapacidad", "fecha_diagnostico", "numero_documento", "observaciones")
+
+
+def _tablas_perfil(d, nombres, canario):
+    """Escribe t.csv (40 filas) y u.csv (comparte id y la última columna) con las columnas `nombres`; devuelve
+    {qué: [valores que solo pueden salir si la columna no está marcada]}."""
+    import datetime
+    g, c, f, n, x = nombres
+    base = 1000000000 + int(canario[:6], 16)    # diez cifras, distintas en cada corrida
+    grupos, clases, notas = [f"G{canario}{k}" for k in "ABC"], [f"K{canario}{k}" for k in "XY"], [f"N{canario}{k}" for k in "1234"]
+    fechas = [(datetime.date(2019, 1, 1) + datetime.timedelta(days=7 * i)).isoformat() for i in range(40)]
+    filas = [f"{i},{grupos[i % 3]},{clases[i % 2]},{fechas[i]},{base + 7919 * i},{notas[i % 4]}" for i in range(40)]
+    (d / "t.csv").write_text("\n".join([f"id,{g},{c},{f},{n},{x}", *filas]) + "\n", encoding="utf-8")
+    (d / "u.csv").write_text("\n".join([f"id,{x}", *(f"{i},otra" for i in range(5))]) + "\n", encoding="utf-8")
+    return {f"valores de {g}": grupos, f"valores de {c}": clases, f"rango de {f}": [fechas[0], fechas[-1]],
+            f"mínimo y máximo de {n}": [str(base), str(base + 7919 * 39)], f"{x} entre los que no cruzan": notas}
+
+
+@prueba("B32", "perfil → IA", "un dato sensible (etnia, discapacidad, la fecha de un diagnóstico), la cédula más baja y la más alta o un texto libre que no cruza entre dos tablas llegan a la IA por el perfil")
+def b32():
+    d = Path(tempfile.mkdtemp(prefix="blindaje-perfil-privado-"))
+    canario = uuid.uuid4().hex[:10].upper()
+    salidas = {}
+    try:
+        for clave, nombres in (("neutros", NEUTROS_PERFIL), ("marcados", MARCADOS_PERFIL)):
+            valores = _tablas_perfil(d, nombres, canario)
+            p = subprocess.run([PY, str(AQUI / "perfilar.py"), f"t={d / 't.csv'}", f"u={d / 'u.csv'}", "--json", str(d / "p.json")],
+                               capture_output=True, text=True, timeout=300)
+            texto = p.stdout + ((d / "p.json").read_text(encoding="utf-8") if p.returncode == 0 and (d / "p.json").exists() else "")
+            salidas[clave] = (p, valores, {k: [v for v in vs if v in texto] for k, vs in valores.items()})
+            (d / "p.json").unlink(missing_ok=True)
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+    p, valores, vistos = salidas["neutros"]
+    faltan = [k for k, vs in valores.items() if len(vistos[k]) != len(vs)]
+    if p.returncode != 0 or faltan:   # el perfil corre y muestra esos valores cuando nada los marca: si no, nada se prueba
+        return r("CEDE", f"prueba inválida: con nombres neutros el perfil (código {p.returncode}) no muestra {faltan or 'nada'}")
+    p, valores, vistos = salidas["marcados"]
+    if p.returncode != 0:
+        return r("CEDE", f"prueba inválida: el perfil de las columnas marcadas no corrió: {' '.join(p.stderr.split())[-120:]}")
+    fugas = [f"{k} ({len(vs)})" for k, vs in vistos.items() if vs]
+    if fugas:
+        return r("CEDE", f"el perfil le muestra a la IA {', '.join(fugas)}")
+    total = sum(len(vs) for vs in valores.values())
+    return r("RESISTE", f"con nombres neutros el perfil muestra los {total} valores (control); con {', '.join(MARCADOS_PERFIL)} no sale "
+                        "ninguno: ni valores, ni mínimo o máximo, ni rango de fechas, ni ejemplos que no cruzan")
+
+
+# B33 (PIP-4): una regresión en un lector que escribe o describe los datos del pipeline tiene que hacer caer la batería
+# FAILFAST, y con ella baterias.py y el filtro de aportes. Cada lector se afloja en una copia de herramientas/ con un
+# reemplazo exacto (si el texto ya no está, la prueba es inválida: el lector cambió y hay que rehacerla).
+def _lector_laxo(sangria, a, b, c):
+    """El lector de antes de PIP-4: rellena la fila corta, recorta la larga, salta la línea vacía y no ve la comilla."""
+    s = sangria
+    return (f"{s}_f = [f for f in __import__('csv').reader(__import__('io').StringIO(texto)) if f]\n"
+            f"{s}{a}, {b} = _f[0], [(f + [''] * len(_f[0]))[:len(_f[0])] for f in _f[1:]]\n"
+            f"{s}{c} = list(range(2, len({b}) + 2))\n")
+
+
+LECTORES_LAXOS = {
+    "ingesta: otra codificación sin avisar": ("herramientas/ingesta.py", 'texto = crudo.decode("utf-8-sig")',
+                                              'texto = crudo.decode("utf-8-sig", errors="replace")'),
+    "ingesta: fila corta rellenada y larga recortada": (
+        "herramientas/ingesta.py", '    cab, registros, lineas = leer_tabla(texto, f"de {nombre}", ver=ver_valor)\n',
+        _lector_laxo("    ", "cab", "registros", "lineas")),
+    "limpieza: fila corta rellenada y larga recortada": (
+        "herramientas/limpieza.py", '        cols, filas, lineas = leer_tabla(texto, f"de {ent.name}", miles=False, formulas=False)\n',
+        _lector_laxo("        ", "cols", "filas", "lineas")),
+    "perfil: fila corta rellenada y larga recortada": (
+        "herramientas/perfilar.py", '    cab, filas, _ = leer_tabla(texto, f"de {ruta.name}", ver=ver_valor)\n',
+        _lector_laxo("    ", "cab", "filas", "_")),
+}
+CORRER_FAILFAST = ("import json, sys\nsys.path.insert(0, sys.argv[1])\nimport baterias\n"
+                   "r = baterias.correr_bateria(baterias.bateria_failfast)\n"
+                   "print('RESUMEN ' + json.dumps({'casos': r['casos'], 'fallas': [f['falla'][:120] for f in r['fallas']]}, ensure_ascii=False))\n")
+
+
+def _failfast_con(lector):
+    """La batería FAILFAST en una copia de herramientas/, baterias/failfast y ejemplo/datos, con `lector` aflojado (o
+    sin tocar si es None). Devuelve (lector, RESUMEN o None, detalle)."""
+    import py_compile
+    d = Path(tempfile.mkdtemp(prefix="blindaje-lectores-")).resolve()
+    try:
+        shutil.copytree(AQUI, d / "herramientas", ignore=shutil.ignore_patterns("*.pyc"))
+        shutil.copytree(RAIZ / "baterias" / "failfast", d / "baterias" / "failfast")
+        shutil.copytree(RAIZ / "ejemplo" / "datos", d / "ejemplo" / "datos")
+        if lector:
+            archivo, viejo, nuevo = LECTORES_LAXOS[lector]
+            f = (d / archivo).resolve()
+            if not f.is_relative_to(d / "herramientas"):
+                return lector, None, f"{archivo} no está en herramientas/"
+            t = f.read_text(encoding="utf-8")
+            if t.count(viejo) != 1:
+                return lector, None, f"el texto del lector aparece {t.count(viejo)} veces en {archivo}: el lector cambió, rehacer la prueba"
+            f.write_text(t.replace(viejo, nuevo), encoding="utf-8")
+            try:
+                py_compile.compile(str(f), doraise=True, cfile=str(d / "compilado.pyc"))
+            except py_compile.PyCompileError as e:
+                return lector, None, f"el lector aflojado no compila: {str(e)[:120]}"
+        p = subprocess.run([PY, "-c", CORRER_FAILFAST, str(d / "herramientas")], cwd=d, capture_output=True, text=True, timeout=900)
+        linea = next((x for x in reversed(p.stdout.splitlines()) if x.startswith("RESUMEN ")), None)
+        res = json.loads(linea[len("RESUMEN "):]) if linea else None
+        if res and any(x.startswith("ERROR:") for x in res["fallas"]):   # se cayó: no prueba nada
+            return lector, None, f"la batería se cayó: {res['fallas'][0][:120]}"
+        return lector, res, " ".join((p.stderr or p.stdout).split())[-160:]
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+@prueba("B33", "baterías → filtro", "un lector de la ingesta, de la limpieza o del perfil se afloja (otra codificación sin avisar, la fila corta rellenada, la larga recortada): ¿cae la batería FAILFAST y con ella el filtro de aportes?")
+def b33():
+    import concurrent.futures
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(LECTORES_LAXOS) + 1) as ex:
+        resultados = list(ex.map(_failfast_con, [None, *LECTORES_LAXOS]))
+    _, control, detalle = resultados[0]
+    if control is None or control["fallas"]:   # control positivo (L27): sin aflojar nada, la batería pasa en la copia
+        return r("CEDE", f"prueba inválida: sin aflojar ningún lector, la batería FAILFAST no pasa en la copia "
+                         f"({(control or {}).get('fallas') or detalle})"[:300])
+    invalidas = [f"{l}: {det}" for l, res, det in resultados[1:] if res is None]
+    if invalidas:
+        return r("CEDE", f"prueba inválida: {'; '.join(invalidas)}"[:300])
+    pasan = [l for l, res, _ in resultados[1:] if not res["fallas"]]
+    if pasan:
+        return r("CEDE", f"la batería FAILFAST sale en ✓ con {len(pasan)} de {len(LECTORES_LAXOS)} lectores aflojados: {'; '.join(pasan)}")
+    return r("RESISTE", f"sin aflojar nada la batería pasa ({control['casos']} casos); cada lector aflojado la hace caer: "
+                        + "; ".join(f"{l} ({len(res['fallas'])} fallas)" for l, res, _ in resultados[1:]))
+
+
 def main(argv):
     solo = set(argv[argv.index("--solo") + 1].split(",")) if "--solo" in argv else None
     filas = []

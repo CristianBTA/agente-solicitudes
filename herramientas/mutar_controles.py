@@ -6,12 +6,12 @@ Uso: python herramientas/mutar_controles.py [--solo M01,M03]
 Un control que se puede borrar sin que ninguna prueba se ponga roja no se distingue de uno que no existe. La revisión
 ciega lo encontró en tres (SEG-3): al quitar las compuertas de reglas.py, la comprobación de valores finitos o el saneado
 de los mensajes, las baterías, el blindaje y la corrida seguían en verde. Aquí, por cada mutante:
-  1. se copia herramientas/ a una carpeta temporal (el repositorio no se toca);
+  1. se copia herramientas/ a una carpeta temporal, con los CSV que lee la batería FAILFAST (el repositorio no se toca);
   2. se quita el control con un reemplazo exacto: si el texto ya no está, el mutante falla, porque el control cambió y
      hay que rehacerlo (no se da por muerto un mutante que no se aplicó);
   3. se corre en la copia la prueba del blindaje que lo cubre y se exige que ceda por el ataque, no por un error ni por
      «prueba inválida».
-El control positivo (L27) es la copia sin mutar: ahí las mismas pruebas deben resistir. Lección L92.
+El control positivo (L27) es la copia sin mutar: ahí las mismas pruebas deben resistir. Lecciones L92, L93 y L94.
 """
 import concurrent.futures
 import json
@@ -43,12 +43,26 @@ MUTANTES = [
      "def sanear(t, datos=None):\n", "def sanear(t, datos=None):\n    return str(t)[:300]\n", "B26"),
     ("M07", "saneado sin las palabras de las celdas (solo comillas y cifras largas)", "herramientas/verificar.py",
      "    if datos:\n        palabras = palabras_de_celdas(datos)\n", "    if False:\n        palabras = palabras_de_celdas(datos)\n", "B26"),
+    ("M08", "el perfil sin los datos sensibles: muestra los valores de etnia o discapacidad", "herramientas/perfilar.py",
+     "    if es_sensible(nombre):\n        return SENSIBLE\n", "", "B32"),
+    ("M09", "el perfil muestra el texto libre que no cruza entre dos tablas", "herramientas/perfilar.py",
+     "                    elif col in privadas_de[x] or col in privadas_de[y]:   # texto libre, dato sensible o texto largo\n"
+     "                        sin_cruce_mostrar = [\"(omitidos: columna privada)\"]\n", "", "B32"),
+    ("M10", "el perfil muestra el mínimo y el máximo de una columna privada", "herramientas/perfilar.py",
+     'columna privada"} if privada else', 'columna privada"} if False else', "B32"),
+    ("M11", "el perfil muestra el rango de fechas de una columna privada", "herramientas/perfilar.py",
+     "    if fechas and privada:", "    if False:", "B32"),
+    ("M12", "la batería FAILFAST sin las autopruebas de la ingesta y de la limpieza", "herramientas/baterias.py",
+     "    for herramienta, minimo in AUTOPRUEBAS.items():", "    for herramienta, minimo in {}.items():", "B33"),
 ]
 
 
 def copia():
+    """herramientas/ y lo que la batería FAILFAST lee en B33 (sus CSV y los controles de ejemplo/datos)."""
     d = Path(tempfile.mkdtemp(prefix="mutar-controles-")).resolve()
     shutil.copytree(RAIZ / "herramientas", d / "herramientas", ignore=shutil.ignore_patterns("*.pyc"))
+    for x in ("baterias/failfast", "ejemplo/datos"):
+        shutil.copytree(RAIZ / x, d / x)
     return d
 
 

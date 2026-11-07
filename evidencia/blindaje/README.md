@@ -4,7 +4,7 @@ El patrón del generador y el validador, aplicado al pipeline entero: **un ataca
 
 - Banco sin IA (gratis y repetible): `.venv/bin/python herramientas/blindaje.py`, con el entorno de «Instalar» del README (sin él faltan pandas y plotly, y B05 y B17 ceden).
 - Auditoría de independencia sobre transcripciones reales: `evidencia/blindaje/auditar_independencia.py`.
-- Cada control con una prueba que muere al quitarlo: `.venv/bin/python herramientas/mutar_controles.py` quita cada control en una copia de `herramientas/` y exige que su prueba del banco ceda (SEG-3, L92).
+- Cada control con una prueba que muere al quitarlo: `.venv/bin/python herramientas/mutar_controles.py` quita cada control en una copia de `herramientas/` y exige que su prueba del banco ceda (SEG-3, L92 a L94).
 - Pruebas de inyección con IA: tres agentes con insumos envenenados, sin ningún aviso del ataque.
 
 ## Línea base y estado actual (6 de noviembre de 2026)
@@ -42,8 +42,10 @@ El patrón del generador y el validador, aplicado al pipeline entero: **un ataca
 | B29 | caja de arena | El código del gráfico y el de las hipótesis pasan la compuerta (arman las rutas como texto) y leen el `esperado.json` del caso conocido, los datos de otra corrida y el `hipotesis.json` sellado: el gráfico los publica en la figura y la hipótesis toma su umbral y «se sostiene». Corrían en la caja sin aislar; ahora, en la misma caja aislada que las implementaciones (SEG-4, L91) | **Cede** | Resiste |
 | B30 | compuerta | Una `reglas.py` que la compuerta bloquea: sin la compuerta, lista la carpeta de sus datos y publica en su mensaje un archivo que no recibió. La compuerta existía, pero ninguna prueba miraba que `cargar_reglas` la aplicara (B15 y B28 atacan `seguridad.revisar` por dentro): de punta a punta, por una corrida sellada, la corrida queda en «revisar» sin publicar nada de eso; la misma regla sin el listado se aprueba (SEG-3, L92) | Resiste, sin prueba: al quitarla, todo seguía en verde | Resiste |
 | B31 | verificador | Valores no finitos: seis venenos en una columna que la conservación no mira (`inf`, `-inf`, «NaN» y «1e400» en texto, un entero de 400 cifras, una suma que desborda), que pasan las reglas y la concordancia de A y B; y tres en las cifras de la presentación, uno por capa (un «NaN» que `max()` se traga, dos saldos finitos cuya diferencia desborda, un `Infinity` en `informe.json`) (SEG-3, L92) | Resiste, sin prueba: al quitarla, todo seguía en verde | Resiste |
+| B32 | perfil → IA | Las mismas dos tablas, dos veces: con nombres neutros el perfil muestra sus valores (control positivo); con `etnia`, `discapacidad`, `fecha_diagnostico`, `numero_documento` y `observaciones` (dos datos sensibles, una fecha sensible, un documento y un texto libre que comparten las dos tablas), ninguno puede llegar a la IA: ni como valor, ni como mínimo o máximo, ni en el rango de fechas, ni entre los ejemplos que no cruzan (GOB-5, L94) | **Cede** (salían los 13 valores) | Resiste |
+| B33 | baterías → filtro | Un lector se afloja en una copia de `herramientas/`: la ingesta que lee otra codificación sin avisar, y la ingesta, la limpieza y el perfil que rellenan la fila corta y recortan la larga (el lector de antes de PIP-4). La batería FAILFAST, y con ella `baterias.py` y el filtro de aportes, tiene que caer con cada uno; sin aflojar nada, pasa (PIP-4, L93) | **Cede** (3 de 4 pasaban en ✓) | Resiste |
 
-**De 5 de 14 a 30 de 30.** La línea base fueron los 14 ataques de B01 a B15; hoy el banco tiene 30 pruebas: B00 de control y 29 ataques. B17 salió de las pruebas con IA, y B18 a B31, de revisiones posteriores; cada una entró con su hueco ya cerrado, salvo B30 y B31, que dieron prueba a controles que ya existían. El número B06 no se usó, y B16 es la auditoría de independencia, que corre aparte. En Linux, B01, B11, B12, B24 y B29 salen «NO APLICA», porque no existe `sandbox-exec` (allí la defensa es la compuerta y, en B24, la copia de la entrada), y el resumen del banco lo dice (`caja_de_arena: false`): por eso el filtro de aportes corre en macOS (L42).
+**De 5 de 14 a 32 de 32.** La línea base fueron los 14 ataques de B01 a B15; hoy el banco tiene 32 pruebas: B00 de control y 31 ataques. B17 salió de las pruebas con IA, y B18 a B33, de revisiones posteriores; cada una entró con su hueco ya cerrado, salvo B30 y B31, que dieron prueba a controles que ya existían. El número B06 no se usó, y B16 es la auditoría de independencia, que corre aparte. En Linux, B01, B11, B12, B24 y B29 salen «NO APLICA», porque no existe `sandbox-exec` (allí la defensa es la compuerta y, en B24, la copia de la entrada), y el resumen del banco lo dice (`caja_de_arena: false`): por eso el filtro de aportes corre en macOS (L42).
 
 ## Lecciones de método
 
@@ -59,6 +61,7 @@ Estas lecciones valen más que cualquier arreglo puntual:
 4. **La independencia se audita, no se supone (DB9).** Los 16 agentes auditados respetaron lo que su ficha les prohíbe. Pero esa independencia descansa en la instrucción, y por eso se ataca directamente (IA-2).
 5. **Que no haya ninguna «✗» no quiere decir que todo pasó (L43, L67).** Un banco o una batería que se cae antes de terminar no escribe ninguna. Por eso el filtro exige la línea RESUMEN de cada herramienta.
 6. **Un control sin una prueba que muera al quitarlo no cuenta como control (SEG-3, L92).** La revisión ciega quitó tres controles en una copia (las compuertas de `reglas.py`, los valores finitos y el saneado) y todo siguió en verde. `mutar_controles.py` quita cada uno en una copia y exige que su prueba ceda por el ataque, no por un error; sin mutar, las mismas pruebas resisten. Cuando hay capas redundantes, cada una necesita un ataque que solo ella detiene: en las cifras de la presentación, un dato no finito, un cálculo que desborda y un JSON con `Infinity` son tres capas y tres venenos.
+7. **Una batería prueba solo los lectores que ejercita (PIP-4, L93).** La batería FAILFAST probaba los lectores de las reglas y la ingesta local; el perfil y la limpieza podían volver a rellenar la fila corta y nada se ponía rojo. Ahora corre todos los lectores y las autopruebas de la ingesta y de la limpieza, con un piso de casos, y B33 prueba a la batería misma: afloja cada lector en una copia y exige que caiga.
 
 | Mutante | Qué se quita | Prueba que cede |
 |---|---|---|
@@ -69,6 +72,11 @@ Estas lecciones valen más que cualquier arreglo puntual:
 | M05 | El rechazo de `NaN` e `Infinity` al leer `informe.json` en la presentación | B31 |
 | M06 | El saneado de los mensajes de error | B26 |
 | M07 | Del saneado, las palabras que aparecen en las celdas | B26 |
+| M08 | Del perfil, el dato sensible como columna privada | B32 |
+| M09 | Del perfil, los ejemplos que no cruzan de una columna privada (texto libre, dato sensible o texto largo) | B32 |
+| M10 | Del perfil, el mínimo, el máximo y la suma de una columna privada | B32 |
+| M11 | Del perfil, el rango de fechas de una columna privada | B32 |
+| M12 | De la batería FAILFAST, las autopruebas de la ingesta y de la limpieza | B33 |
 
 ## Pruebas de inyección con IA
 

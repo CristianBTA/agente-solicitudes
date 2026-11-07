@@ -11,7 +11,7 @@
    "id": "csv_malformado_se_lee_en_silencio",
    "severidad": "media",
    "archivo": "impl_b.py",
-   "control": "robustez.py (archivos rotos) + limpieza FAILFAST"
+   "control": "robustez.py (archivos rotos) + limpieza FAILFAST (sus lectores, en la batería failfast: B33, L93)"
   },
   {
    "id": "texto_del_csv_en_mensajes_de_error",
@@ -96,7 +96,7 @@
    "id": "csv_comilla_sin_cerrar",
    "severidad": "baja",
    "archivo": "impl_b.py",
-   "control": "robustez.py (comilla sin cerrar) + limpieza FAILFAST"
+   "control": "robustez.py (comilla sin cerrar) + limpieza FAILFAST (sus lectores, en la batería failfast: B33, L93)"
   },
   {
    "id": "pandas_indice_implicito",

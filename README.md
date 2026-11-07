@@ -71,7 +71,7 @@ El validador (`herramientas/validar_ficha.py`, V1 a V16) mide la forma: columnas
 ```bash
 python3.13 -m venv .venv && .venv/bin/pip install --require-hashes -r requirements.txt
 .venv/bin/python herramientas/baterias.py      # debe dar todas las baterías en ✓ (hoy 10)
-.venv/bin/python herramientas/blindaje.py      # cada ataque al pipeline debe salir en RESISTE (hoy 30 pruebas, con el control B00)
+.venv/bin/python herramientas/blindaje.py      # cada ataque al pipeline debe salir en RESISTE (hoy 32 pruebas, con el control B00)
 ```
 
 Las herramientas de `herramientas/` son Python sin IA y se pueden correr solas. La orquestación de agentes (`flujo.js`) se ejecuta como flujo de trabajo de Claude Code (herramienta *Workflow*) con estos argumentos:
@@ -113,7 +113,7 @@ node orquestar.mjs --motor agy --comprobar                        # dos llamadas
 |---|---|
 | `herramientas/ingesta.py` | Ejecuta el contrato de datos contra datos.gov.co (Socrata) o un CSV local, con las pruebas de carga y la procedencia |
 | `herramientas/limpieza.py` | Ejecuta el plan de limpieza: capa limpia con marcas `calidad_*`, sin borrar filas, con calidad antes y después y umbrales |
-| `herramientas/perfilar.py` | Perfil determinista: formatos, fechas ambiguas y con hora, repetidos, variantes, códigos que no cruzan y códigos con varios nombres; nunca muestra valores personales |
+| `herramientas/perfilar.py` | Perfil determinista: formatos, fechas ambiguas y con hora, repetidos, variantes, códigos que no cruzan y códigos con varios nombres; lee con el lector estricto común (un CSV mal formado lo detiene con su línea) y nunca muestra valores personales, de texto libre ni sensibles |
 | `herramientas/verificar.py` | Compuertas, caja de arena, reglas, caso conocido, A = B, conciliación, repetibilidad, tiempos y anticipo; `--autoprueba` y `--sellar` |
 | `herramientas/verificar_hipotesis.py` | Sella las hipótesis y las prueba contra su umbral y su línea base, con `hipotesis.py` en la caja aislada (sin leer el umbral sellado); desde el 6-nov la usan las personas, no la IA |
 | `herramientas/validar_whitepaper.py` | Valida el whitepaper del documentador: secciones, cada cifra en los artefactos verificados, sin conclusiones ni recomendaciones, preguntas de costo, calidad e impacto y sin texto oculto; `--autoprueba` |
@@ -126,7 +126,7 @@ node orquestar.mjs --motor agy --comprobar                        # dos llamadas
 | `herramientas/comprobar.py`, `gancho_compuerta.py`, `medir_real.py` | La compuerta como un solo comando (`.py` y `.ipynb`), su conexión con Claude Code y la medida con código generado de verdad y jurado a ciegas |
 | `herramientas/baterias.py` | Baterías de seguridad, privacidad, FAILFAST, inyección, cruces, fechas, repetidos, factor de expansión, gráfico y lecciones; `--agregar-malo` y `--leccion` para que lo que falló no se repita |
 | `herramientas/validar_aporte.py`, `rutas_protegidas.py` | Filtro automático de aportes, sin IA: archivos prohibidos, datos personales, seguridad y que no rompa nada; y las rutas que solo cambia el dueño (el filtro, lo que importa, la compuerta y los flujos y ganchos de git) |
-| `herramientas/blindaje.py`, `mutar_controles.py` | Banco de ataques al pipeline: caja de arena, compuerta, perfil, salidas, integridad, dependencias, generalización y filtro de aportes (con control positivo, B00); `mutar_controles.py` quita cada control en una copia y exige que su prueba del banco ceda |
+| `herramientas/blindaje.py`, `mutar_controles.py` | Banco de ataques al pipeline: caja de arena, compuerta, perfil, salidas, integridad, dependencias, generalización, baterías y filtro de aportes (con control positivo, B00); `mutar_controles.py` quita cada control en una copia y exige que su prueba del banco ceda |
 | `herramientas/integridad.py` | Manifiesto de integridad: sella herramientas, fichas y baterías al inicio y lo comprueba al final |
 | `herramientas/informe_final.py` | Informe de las cinco etapas en Markdown y HTML, con todo el texto escapado |
 | `herramientas/sgsi.py` | SGSI sin IA: inventario C·I·D, riesgos con la regla de la tríada, Declaración de Aplicabilidad, etiqueta C·I·D de cada corrida; `--efectividad` y `--autoprueba` |

@@ -9,8 +9,11 @@ Uso:
 1. Seguridad: todo lo de baterias/seguridad/malos debe quedar bloqueado y todo lo de buenos debe pasar
    (así también se prueba al probador: un falso positivo es una falla de la compuerta). Lo mismo con el perfil de
    usuario: malos_usuario se bloquea; buenos_usuario y buenos pasan.
-2. Privacidad: el perfil de un CSV con datos personales no puede mostrar ninguno de los valores de
-   no_deben_salir.txt, y el barrido de gobernanza tiene que encontrarlos.
+2. Privacidad: el perfil de dos CSV, uno con datos personales y otro con datos sensibles que comparte columnas con
+   el primero (hay cruces), no puede mostrar ninguno de los valores de no_deben_salir.txt, ni en su resumen ni en su
+   perfil.json, y el barrido de gobernanza tiene que encontrarlos.
+2b. FAILFAST: cada CSV de baterias/failfast detiene, con su línea, a los lectores de las reglas, al del perfil y a la
+   ingesta local, y corren las autopruebas de la ingesta y de la limpieza (B33).
 3. Lecciones: cada lección apunta a una prueba; si apunta a un archivo de la batería, el archivo existe.
 4. Cruces: el perfil explica por qué no cruza cada valor (baterias/cruces/esperado.json) y no explica un ausente.
 5. Fechas: el perfil cuenta aparte las fechas que no existen en el calendario (baterias/fechas/casos.json).
@@ -75,11 +78,22 @@ def bateria_seguridad():
 def bateria_privacidad():
     fallas = []
     csv_ = BAT / "privacidad" / "con_datos_personales.csv"
+    sensibles = BAT / "privacidad" / "con_datos_sensibles.csv"   # Ley 1581, art. 5; comparte columnas con la otra: hay cruces
     secretos = [s for s in (BAT / "privacidad" / "no_deben_salir.txt").read_text(encoding="utf-8").splitlines() if s]
-    p = subprocess.run([sys.executable, str(AQUI / "perfilar.py"), f"t={csv_}"], capture_output=True, text=True)  # nosec B603
+    tmp = Path(tempfile.mkdtemp(prefix="bateria-privacidad-"))
+    try:
+        p = subprocess.run([sys.executable, str(AQUI / "perfilar.py"), f"t={csv_}", f"s={sensibles}",  # nosec B603
+                            "--json", str(tmp / "perfil.json")], capture_output=True, text=True)
+        perfil = (tmp / "perfil.json").read_text(encoding="utf-8") if (tmp / "perfil.json").exists() else ""
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    # control positivo (L27): el perfil corrió y muestra lo que sí puede mostrar; un perfil que se cae no filtra nada
+    if p.returncode != 0 or not perfil or "('S1', 1)" not in p.stdout or '"P1"' not in perfil:
+        fallas.append(falla(sensibles.name, f"control positivo: el perfil de las dos tablas no corrió o no muestra los valores de "
+                                            f"id_contrato (código {p.returncode}): {' '.join((p.stderr or p.stdout).split())[-160:]}"))
     for s in secretos:
-        if s in p.stdout:
-            fallas.append(falla(s, f"el perfil muestra un dato personal: {s[:3]}…"))
+        if s in p.stdout or s in perfil:
+            fallas.append(falla(s, f"el perfil muestra un dato personal o sensible: {s[:3]}…"))
     from gobernanza import escanear_texto
     for t in (BAT / "privacidad" / "no_son_personales.txt").read_text(encoding="utf-8").splitlines():
         if t and escanear_texto(t):
@@ -107,7 +121,7 @@ def bateria_privacidad():
         if clase != x["clase"] or es_sensible(x["columna"], x["descripcion"]) != bool(x.get("sensible")):
             fallas.append(falla(x["columna"], f"columna mal clasificada por su descripción: {x['columna']} «{x['descripcion'][:50]}» → "
                                               f"{clase}{' (sensible)' if es_sensible(x['columna'], x['descripcion']) else ''} (se esperaba {x['clase']})"))
-    return {"bateria": "privacidad", "casos": len(secretos) + 3 + 6 + n_cols, "fallas": fallas}
+    return {"bateria": "privacidad", "casos": len(secretos) + 1 + 3 + 6 + n_cols, "fallas": fallas}
 
 
 def ingerir_local(p, carpeta):
@@ -126,15 +140,54 @@ def ingerir_local(p, carpeta):
     return json.loads(linea[len("RESUMEN "):]) if linea else {"estado": "sin RESUMEN", "salida": r.stderr[-160:]}
 
 
+# Las autopruebas de los lectores que escriben o describen los datos del pipeline: sus casos FAILFAST (UTF-8, carácter
+# nulo, solo el encabezado, la línea donde se abre una comilla, la fórmula que la limpieza neutraliza…) no viven en
+# baterias/failfast. Cada una con su piso de casos: una autoprueba que pierde casos también es una regresión (DB3).
+AUTOPRUEBAS = {"ingesta.py": 64, "limpieza.py": 35}
+
+
+def autoprueba(herramienta, minimo):
+    """Corre `herramienta --autoprueba` y devuelve (casos, fallas): cada «✗» es una falla con su caso (el nombre del CSV
+    si es uno de baterias/failfast, para que el filtro reconozca el hueco que encontró un caso nuevo); una autoprueba que
+    no termina, sale con error sin decir qué falló o corre menos casos que su piso también es falla (L67)."""
+    try:
+        r = subprocess.run([sys.executable, str(AQUI / herramienta), "--autoprueba"], capture_output=True,  # nosec B603
+                           text=True, timeout=900, cwd=RAIZ)
+    except subprocess.TimeoutExpired:
+        return 0, [falla(herramienta, f"{herramienta} --autoprueba no terminó en 15 minutos")]
+    linea = next((l for l in reversed(r.stdout.splitlines()) if l.startswith("RESUMEN ")), None)
+    try:
+        res = json.loads(linea[len("RESUMEN "):]) if linea else None
+    except ValueError:
+        res = None
+    fallas = []
+    for l in r.stdout.splitlines():
+        if l.startswith("✗ "):
+            nombre = l[2:].split(" · ")[0]
+            m = re.fullmatch(r"failfast (\S+\.csv)", nombre)
+            fallas.append(falla(m.group(1) if m else f"{herramienta}: {nombre}", f"{herramienta} --autoprueba: {l[2:][:240]}"))
+    casos = res.get("casos") if isinstance(res, dict) and isinstance(res.get("casos"), int) else 0
+    if not isinstance(res, dict) or ((r.returncode != 0 or res.get("fallas")) and not fallas):
+        fallas.append(falla(herramienta, f"{herramienta} --autoprueba no dejó su RESUMEN o salió con {r.returncode} sin decir "
+                                         f"qué falló: {' '.join((r.stderr or r.stdout).split())[-160:]}"))
+    elif casos < minimo:
+        fallas.append(falla(herramienta, f"{herramienta} --autoprueba corrió {casos} casos y su piso es {minimo}: las baterías solo crecen"))
+    return casos, fallas
+
+
 def bateria_failfast():
     """Un CSV mal formado detiene la lectura: nunca se lee a medias ni se rellena en silencio (FAILFAST). Se prueba con
-    los dos lectores de las reglas (leer_csv y recorrer_csv, que recorre fila por fila con las mismas detenciones) y
-    con la ingesta local, que es la que escribe los datos del pipeline: la ingesta debe rechazarlo y decir en qué
-    línea. Control positivo: los CSV bien formados de ejemplo/datos se leen completos, con los dos lectores y con la
-    ingesta."""
+    los dos lectores de las reglas (leer_csv y recorrer_csv, que recorre fila por fila con las mismas detenciones), con
+    el del perfil (perfilar.leer, y perfilar.py debe salir con 1 diciendo la línea, sin traceback) y con la ingesta
+    local, que es la que escribe los datos del pipeline: la ingesta debe rechazarlo y decir en qué línea. Además corren
+    las autopruebas de la ingesta y de la limpieza (AUTOPRUEBAS), que pasan estos mismos CSV y sus propios casos: una
+    regresión en cualquiera de los lectores hace caer esta batería y con ella el filtro de aportes (B33). Control
+    positivo: los CSV bien formados de ejemplo/datos se leen completos, con los tres lectores y con la ingesta."""
+    import perfilar
     from reglas_base import contar_registros, leer_csv, recorrer_csv
     fallas, casos = [], sorted((BAT / "failfast").glob("*.csv"))
-    lectores = (("leer_csv", leer_csv), ("recorrer_csv", lambda p: sum(1 for _ in recorrer_csv(p))))   # los dos, igual
+    lectores = (("leer_csv", lambda p: len(leer_csv(p))), ("recorrer_csv", lambda p: sum(1 for _ in recorrer_csv(p))),
+                ("perfilar", lambda p: len(perfilar.leer(p)[1])))   # los tres, igual
     buenos = sorted((BAT / "failfast" / "se_leen").glob("*.csv"))   # y lo legítimo de cualquier fuente se lee (sin falsas alarmas)
     controles = sorted((RAIZ / "ejemplo" / "datos").glob("*.csv"))
     tmp = Path(tempfile.mkdtemp(prefix="bateria-failfast-"))
@@ -149,6 +202,13 @@ def bateria_failfast():
             r = ingerir_local(p, tmp)
             if r.get("estado") != "rechazada" or not re.search(r"l[ií]nea \d+", str(r.get("motivo") or "")):
                 fallas.append(falla(p.name, f"la ingesta local no rechazó {p.name} diciendo la línea: {str(r)[:160]}"))
+            (tmp / "perfil.json").write_text('{"tablas": {}}', encoding="utf-8")   # el de una corrida anterior tampoco puede quedar
+            r = subprocess.run([sys.executable, str(AQUI / "perfilar.py"), f"t={p}", "--json", str(tmp / "perfil.json")],  # nosec B603
+                               capture_output=True, text=True)
+            quedo = (tmp / "perfil.json").read_text(encoding="utf-8") if (tmp / "perfil.json").exists() else ""
+            if r.returncode == 0 or "Traceback" in r.stderr or not re.search(r"l[ií]nea \d+", r.stderr) or '"tablas"' in quedo:
+                fallas.append(falla(p.name, f"perfilar.py no se detuvo en {p.name} con la línea y sin perfil (código {r.returncode}): "
+                                            f"{' '.join((r.stderr or r.stdout).split())[-160:]}"))
         for p in buenos:
             for nombre, leer in lectores:
                 try:
@@ -157,7 +217,7 @@ def bateria_failfast():
                     fallas.append(falla(p.name, f"falsa alarma con {nombre}: {p.name} se detuvo ({str(e)[:80]})"))
         for p in controles:
             esperado = contar_registros(p.read_text(encoding="utf-8-sig"))
-            for nombre, contar in (("leer_csv", lambda x: len(leer_csv(x))), ("recorrer_csv", lambda x: sum(1 for _ in recorrer_csv(x)))):
+            for nombre, contar in lectores:
                 try:
                     n = contar(p)
                 except Exception as e:
@@ -170,7 +230,12 @@ def bateria_failfast():
                 fallas.append(falla(p.name, f"control positivo: {p.name} bien formado no se leyó completo ({esperado} filas): {str(r)[:160]}"))
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
-    return {"bateria": "failfast", "casos": 3 * len(casos) + 2 * len(buenos) + 3 * len(controles), "fallas": fallas}
+    n_auto = 0
+    for herramienta, minimo in AUTOPRUEBAS.items():
+        n, f = autoprueba(herramienta, minimo)
+        n_auto += n
+        fallas += f
+    return {"bateria": "failfast", "casos": 5 * len(casos) + 3 * len(buenos) + 4 * len(controles) + n_auto, "fallas": fallas}
 
 
 def bateria_inyeccion():
