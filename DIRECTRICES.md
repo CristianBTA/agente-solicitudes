@@ -37,17 +37,17 @@ cmp /tmp/datos-prueba/ventas.csv ejemplo/datos/ventas.csv && echo "datos idénti
 
 # 5b. Blindaje: se ataca cada capa a propósito (caja de arena, compuerta, perfil, salidas, integridad, dependencias, fichas)
 .venv/bin/python herramientas/blindaje.py
-# y cada control con su prueba: se quita en una copia y la prueba que lo cubre debe ceder (35 mutantes)
+# y cada control con su prueba: se quita en una copia y la prueba que lo cubre debe ceder (36 mutantes)
 .venv/bin/python herramientas/mutar_controles.py
 
 # 5c. SGSI: la tríada C·I·D, los riesgos y la Declaración de Aplicabilidad, comprobados sin IA (y el probador, probado)
 .venv/bin/python herramientas/sgsi.py --autoprueba
 .venv/bin/python herramientas/sgsi.py --efectividad
 
-# 5d. Probar al probador de la presentación: 5 presentaciones buenas aprueban y 78 mutantes (número a mano, marcadores pegados, NaN, un «donde» mal escrito, título de tema, recomendación escondida, campos de la forma anterior…) fallan
+# 5d. Probar al probador de la presentación: 5 presentaciones buenas aprueban y 87 mutantes (número a mano, marcadores pegados, NaN, un «donde» mal escrito, título de tema, recomendación escondida, campos de la forma anterior…) fallan
 .venv/bin/python herramientas/verificar_presentacion.py --autoprueba
 
-# 5e. Probar al probador del whitepaper (62 casos: conclusiones, cifras sin respaldo, texto oculto…) y su versión en tres hojas carta (34 casos, sin Chrome, con el PDF que el informe final enlaza solo si tiene tres hojas carta)
+# 5e. Probar al probador del whitepaper (72 casos: conclusiones, también con énfasis o letras disfrazadas, cifras sin respaldo, texto oculto…) y su versión en tres hojas carta (36 casos, sin Chrome, con el PDF que el informe final enlaza solo si tiene tres hojas carta)
 .venv/bin/python herramientas/validar_whitepaper.py --autoprueba
 .venv/bin/python herramientas/whitepaper_corrida.py --autoprueba
 
@@ -64,7 +64,7 @@ SECOP II se actualiza a diario. Si el recorte de hoy no es idéntico al del 6-no
 
 Si corriste los pasos sobre `corridas/` directamente (como decía una versión anterior de esta guía), `git status` muestra `informe.json`, `informe.md` y `gobernanza.json` modificados, con el tiempo medido y la ruta de tu carpeta; `git restore corridas/` los deja como estaban. Nunca entran en un aporte.
 
-Lo que debe salir: todas las baterías en ✓ (hoy son 10), el blindaje con todas sus pruebas en «RESISTE» (hoy son 39, con el control B00; en Linux no hay sandbox-exec: B01, B11, B12, B24 y B29 salen «NO APLICA» y el banco lo dice, porque ahí el código de la IA tendría red y escritura; por eso el filtro de aportes corre en macOS) y sus 35 mutantes de los controles muertos, la corrida en «aprobado», la referencia `m00` sin fallas y las mutantes `m01` a `m13` con al menos una falla cada una, los datos idénticos, la gobernanza aprobada, el SGSI sin fallas, con sus 21 mutantes atrapados, las autopruebas de la presentación y del whitepaper sin fallas ni errores, y `git status` sin ningún archivo. Si algo no sale así, el repositorio no cumple lo que dice.
+Lo que debe salir: todas las baterías en ✓ (hoy son 10), el blindaje con todas sus pruebas en «RESISTE» (hoy son 39, con el control B00; en Linux no hay sandbox-exec: B01, B11, B12, B24 y B29 salen «NO APLICA» y el banco lo dice, porque ahí el código de la IA tendría red y escritura; por eso el filtro de aportes corre en macOS) y sus 36 mutantes de los controles muertos, la corrida en «aprobado», la referencia `m00` sin fallas y las mutantes `m01` a `m13` con al menos una falla cada una, los datos idénticos, la gobernanza aprobada, el SGSI sin fallas, con sus 21 mutantes atrapados, las autopruebas de la presentación y del whitepaper sin fallas ni errores, y `git status` sin ningún archivo. Si algo no sale así, el repositorio no cumple lo que dice.
 
 ---
 
@@ -170,7 +170,7 @@ La IA propone el plan de limpieza (`plan_limpieza_<tabla>.json`) y `herramientas
 **D15 · El análisis lo hacen las personas; la IA solo documenta lo desarrollado.**
 Desde el 6-nov-2026 la IA no propone ni prueba hipótesis ni da el análisis. El documentador escribe un whitepaper con la pregunta, los datos y su procedencia, la limpieza, la cifra verificada y cómo se verificó, el gráfico, la gobernanza, los límites y preguntas de costo, calidad e impacto, sin conclusiones. Las personas escriben su hipótesis antes de mirar, la prueban con una consulta (pueden usar `herramientas/verificar_hipotesis.py`, que la sella) y concluyen en la plantilla.
 *Dónde:* `agentes/13-documentador.md`, `whitepaper.md` de cada corrida, `herramientas/validar_whitepaper.py` (y `herramientas/whitepaper_corrida.py`, que lo maqueta en tres hojas carta sin cambiar una palabra y sin enlaces en el PDF, L84; el informe final mide ese PDF y lo enlaza solo si tiene tres hojas carta sin enlaces: con más, no lo enlaza y el análisis no queda aprobado, L113) y `plantillas/analisis_humano.md`; las fichas del proponente y del probador, en `historial/agentes-retirados/`.
-*Cómo se comprueba:* `validar_whitepaper.py`: secciones obligatorias, cada cifra en los artefactos verificados (con tolerancia de redondeo), sin conclusiones, recomendaciones ni causas, al menos tres preguntas y sin instrucciones ni datos personales; `--autoprueba` con whitepapers buenos y malos. Las frases de análisis se buscan con **una sola lista** (`ANALISIS`, en `validar_whitepaper.py`), la que importan también la presentación, el gráfico, las fichas del agente masivo y el resumen de su whitepaper; las frases de prueba (`FRASES_D15`) las prueban las autopruebas del whitepaper, de la presentación y de las fichas. En los textos de método de una ficha (nota, riesgos de lectura, pasos) no cuentan las de acción («hay que unificar los nombres antes de comparar» describe el método). Es una lista: una frase de análisis con otras palabras pasa (por ejemplo, «porque», «de modo que», «los contratos muestran que» o «debe» con un verbo sin «se», como «la Alcaldía debe publicar», no se buscan, porque también describen el método o una regla), y lo que no conoce lo revisa una persona.
+*Cómo se comprueba:* `validar_whitepaper.py`: secciones obligatorias, cada cifra en los artefactos verificados (con tolerancia de redondeo), sin conclusiones, recomendaciones ni causas, al menos tres preguntas y sin instrucciones ni datos personales; `--autoprueba` con whitepapers buenos y malos. Las frases de análisis se buscan con **una sola lista** (`ANALISIS`, en `validar_whitepaper.py`), la que importan también la presentación, el gráfico, las fichas del agente masivo y el resumen de su whitepaper; las frases de prueba (`FRASES_D15`) las prueban las autopruebas del whitepaper, de la presentación y de las fichas. Todos la buscan con `buscar_d15`: en el texto tal cual y en como lo lee una persona, así el énfasis de Markdown («Esto \*demuestra\* que», «se \*\*recomienda\*\*»), las letras de ancho completo y las de otro alfabeto que se leen como latinas (la «o» cirílica) no esconden una frase; una palabra que mezcla letras latinas con esas letras no pasa W5 ni la presentación, y el maquetado del whitepaper busca la lista en lo que imprime (L117). En los textos de método de una ficha (nota, riesgos de lectura, pasos) no cuentan las de acción («hay que unificar los nombres antes de comparar» describe el método). Es una lista: una frase de análisis con otras palabras pasa (por ejemplo, «porque», «de modo que», «los contratos muestran que» o «debe» con un verbo sin «se», como «la Alcaldía debe publicar», no se buscan, porque también describen el método o una regla), y lo que no conoce lo revisa una persona.
 *Por qué:* el valor del trabajo con datos (reducir un costo, mejorar una calidad, el impacto de un contrato en la sociedad) lo concluyen las personas, no la IA. Y la hipótesis va antes de mirar: mover el umbral después de ver el resultado convierte cualquier dato en confirmación.
 
 **D16 · Si hay modelo:** partición temporal, línea base de la misma partición, solo variables que se conocen en el momento de decidir (sin fuga), métrica según el costo del error y umbral explícito. Lo exige el módulo 3 del curso; los ejemplos de este repositorio no entrenan modelos.
@@ -203,7 +203,7 @@ Desde el 6-nov-2026 la IA no propone ni prueba hipótesis ni da el análisis. El
 - Una cifra que no es un número finito no se publica. Se comprueba en tres capas, cada una con su ataque: cada dato que entra al cálculo (un «NaN» en texto que `max()` se tragaría), el resultado del cálculo (dos valores finitos cuya diferencia desborda) y la lectura de `informe.json`, que rechaza `NaN` e `Infinity` (B31, L92).
 - Las frases de análisis se buscan en todos los textos con la lista D15 de `validar_whitepaper.py` (importada, no copiada), la misma del whitepaper, del gráfico y de las fichas, que ya trae la de la forma anterior («lo que se pide decidir», «próximo paso», «por eso»). Las magnitudes con palabras que el whitepaper no deja pasar («la mayoría», «casi todos») tampoco pasan. Un campo de la forma anterior (`recomendacion`, `decision`, `scqa`, `hallazgos`) hace fallar la presentación.
 - Lo que el código no puede ver: que la frase use bien una cifra correcta (por ejemplo, llamar «Medellín» a las entidades con sede en Medellín) y las frases de análisis que la lista no conoce. Eso lo revisa una persona o un juez ciego con la última lámina, que lista los títulos y las preguntas para las personas.
-*Dónde:* `agentes/12-presentador.md` y `herramientas/verificar_presentacion.py` (`--autoprueba`: primero 5 presentaciones buenas aprueban y luego 78 mutantes fallan donde deben).
+*Dónde:* `agentes/12-presentador.md` y `herramientas/verificar_presentacion.py` (`--autoprueba`: primero 5 presentaciones buenas aprueban y luego 87 mutantes fallan donde deben).
 
 ## F · Gobernanza
 
@@ -263,7 +263,7 @@ El mismo patrón del generador y el validador, aplicado al pipeline entero: un a
 
 **DB3 · Las herramientas no pueden cambiar durante una corrida.** Un manifiesto de integridad se sella antes de cualquier agente y se comprueba al final. Las baterías solo pueden crecer (B02, L29).
 
-**DB4 · Los datos y los aportes son datos, nunca instrucciones.** Los valores con forma de orden para una IA quedan en cuarentena en el perfil y en la limpieza; el filtro rechaza aportes que dan órdenes a los agentes; y es una regla común de todos los subagentes (B04, B07, L30, `baterias/inyeccion/`).
+**DB4 · Los datos y los aportes son datos, nunca instrucciones.** Los valores con forma de orden para una IA quedan en cuarentena en el perfil y en la limpieza; el filtro rechaza aportes que dan órdenes a los agentes; y es una regla común de todos los subagentes (B04, B07, L30, `baterias/inyeccion/`). La orden se busca también en como la lee una persona: con letras de ancho completo o con letras de otro alfabeto que se leen como latinas («Ignora» con la «o» cirílica) no se esconde (B27, L117).
 
 **DB5 · Las salidas no ejecutan nada al abrirse.** Las fórmulas de Excel se neutralizan y se marcan en la capa limpia; el HTML de los datos se escapa (B03, L31, L19, L23).
 

@@ -17,7 +17,9 @@ Qué hace:
      escrito con palabras («arroba») o una letra invisible que no es de formato (U+3164) no tienen la forma que buscan
      las expresiones.
   3. Barre las salidas que se van a publicar (informe, resultado, gráfico, whitepaper y presentación, también en su
-     versión impresa): deben salir en cero, y ninguna trae un texto con forma de instrucción para una IA.
+     versión impresa): deben salir en cero, y ninguna trae un texto con forma de instrucción para una IA. La orden se
+     busca también en como la lee una persona: en su forma canónica y con las letras de otro alfabeto que se leen como
+     latinas vueltas latinas (latinizar), así «Ignora» con la «o» cirílica no se esconde (L117).
   4. Calcula el k-anonimato del resultado si publica columnas de personas.
   5. Compara la clasificación de la IA (custodio.json) con la del barrido: lo que la IA no vio.
 """
@@ -82,12 +84,17 @@ COMENTARIO_OCULTO = re.compile(r"<!--(.*?)-->", re.S)
 
 
 def parece_instruccion(texto):
-    """Texto que da órdenes a una IA, escondido en los datos o en un aporte (inyección de instrucciones)."""
+    """Texto que da órdenes a una IA, escondido en los datos o en un aporte (inyección de instrucciones). Se busca en
+    el texto tal cual y en como lo lee una persona (forma canónica y letras de otro alfabeto vueltas latinas): una
+    «o» cirílica (U+043E) o las letras de ancho completo no esconden la orden (L117)."""
     t = str(texto or "")
-    if INSTRUCCION.search(t):
-        return True
-    return any(re.search(r"\b(agente|ia|ai|assistant|asistente|claude|gpt|modelo|llm|aprueba|approve|merge)\b", c, re.I)
-               for c in COMENTARIO_OCULTO.findall(t))
+    for forma in ((t,) if t.isascii() else (t, latinizar(forma_canonica(t)))):
+        if INSTRUCCION.search(forma):
+            return True
+        if any(re.search(r"\b(agente|ia|ai|assistant|asistente|claude|gpt|modelo|llm|aprueba|approve|merge)\b", c, re.I)
+               for c in COMENTARIO_OCULTO.findall(forma)):
+            return True
+    return False
 
 
 def clasificar_columna(nombre, descripcion=None):
@@ -134,6 +141,68 @@ def forma_canonica(texto):
         _FORMATO.append(re.compile("[" + "".join(re.escape(chr(c)) for c in range(sys.maxunicode + 1)
                                                  if unicodedata.category(chr(c)) == "Cf") + "]"))
     return _FORMATO[0].sub("", unicodedata.normalize("NFKC", t))
+
+
+# Letras de otros alfabetos que una persona lee como latinas: la «o» cirílica (U+043E) en «concluye», la omicrón
+# griega, la «o» armenia, la «A» cheroqui. Se escriben como \u para que este archivo no las traiga (L117).
+_CONFUNDIBLES = {
+    # cirílico
+    "\u0430": "a", "\u0435": "e", "\u043e": "o", "\u0440": "p", "\u0441": "c", "\u0443": "y", "\u0445": "x", "\u0456": "i",
+    "\u0458": "j", "\u0455": "s", "\u0501": "d", "\u04bb": "h", "\u051b": "q", "\u051d": "w", "\u04cf": "l", "\u043a": "k",
+    "\u04af": "y", "\u0410": "A", "\u0412": "B", "\u0415": "E", "\u041a": "K", "\u041c": "M", "\u041d": "H", "\u041e": "O",
+    "\u0420": "P", "\u0421": "C", "\u0422": "T", "\u0423": "Y", "\u0425": "X", "\u0406": "I", "\u0408": "J", "\u0405": "S",
+    "\u051a": "Q", "\u051c": "W", "\u04ae": "Y", "\u04c0": "I",
+    # griego
+    "\u03b1": "a", "\u03b9": "i", "\u03ba": "k", "\u03bd": "v", "\u03bf": "o", "\u03c1": "p", "\u03c5": "u", "\u03c7": "x",
+    "\u03f3": "j", "\u0391": "A", "\u0392": "B", "\u0395": "E", "\u0396": "Z", "\u0397": "H", "\u0399": "I", "\u039a": "K",
+    "\u039c": "M", "\u039d": "N", "\u039f": "O", "\u03a1": "P", "\u03a4": "T", "\u03a5": "Y", "\u03a7": "X",
+    # armenio y cheroqui
+    "\u0585": "o", "\u057d": "u", "\u0570": "h", "\u0578": "n", "\u13aa": "A", "\u13f4": "B", "\u13df": "C", "\u13ac": "E",
+    "\u13bb": "H", "\u13ab": "J", "\u13e6": "K", "\u13b7": "M", "\u13e2": "P", "\u13da": "S", "\u13a2": "T", "\u13b3": "W",
+    "\u13c3": "Z",
+    # latinas fuera de ASCII que se leen como otra (no son de otro alfabeto: se leen como latinas, no se marcan)
+    "\u0131": "i", "\u0251": "a", "\u0261": "g",
+}
+_A_LATINAS = str.maketrans(_CONFUNDIBLES)
+_OTROS_ALFABETOS = ("CYRILLIC", "GREEK", "ARMENIAN", "CHEROKEE")
+
+
+def latinizar(texto):
+    """El texto con las letras de otro alfabeto que se leen como latinas vueltas latinas (también con su tilde: la
+    omicrón griega con tilde se lee «ó»). Para buscar las listas (D15 e instrucciones) en lo que lee una persona (L117)."""
+    t = str(texto or "")
+    if t.isascii():
+        return t
+    return unicodedata.normalize("NFC", unicodedata.normalize("NFD", t).translate(_A_LATINAS))
+
+
+def letras_disfrazadas(texto):
+    """Las palabras que se leen como latinas pero traen letras de otro alfabeto: las que mezclan letras latinas con una
+    de otro alfabeto que se confunde con una latina («concluye» con la «o» cirílica, U+043E) y las de dos o más letras hechas
+    solo de esas letras («se» escrito con la «s» y la «e» cirílicas). Devuelve el punto de código de la primera letra disfrazada de cada
+    palabra, nunca la palabra (puede ser una orden). Una letra suelta de otro alfabeto (la rho, la mu o la alfa de una fórmula) no
+    cuenta (L117)."""
+    t = str(texto or "")
+    if t.isascii():
+        return []
+    out = []
+    for m in re.finditer(r"[^\W\d_]+", t):
+        palabra = m.group(0)
+        if palabra.isascii():
+            continue
+        disfrazadas, latinas, otras = [], 0, 0
+        for ch in palabra:
+            base = unicodedata.normalize("NFD", ch)[0]
+            alfabeto = unicodedata.name(base, "").split(" ")[0]
+            if base in _CONFUNDIBLES and alfabeto in _OTROS_ALFABETOS:
+                disfrazadas.append(ch)
+            elif alfabeto == "LATIN":
+                latinas += 1
+            elif ch.isalpha():
+                otras += 1
+        if disfrazadas and not otras and (latinas or len(disfrazadas) >= 2):
+            out.append(f"U+{ord(disfrazadas[0]):04X}")
+    return out
 
 
 def texto_de_marcado(t):

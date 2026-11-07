@@ -11,8 +11,9 @@ solo arma la versión impresa, y solo si:
   - la verificación existe, dice «aprobado» y todos sus chequeos pasaron;
   - su huella es la del whitepaper.md de hoy (un texto que cambió después de validarse no vale);
   - ni el whitepaper ni la verificación son enlaces simbólicos, el texto es UTF-8 y prosa breve (hasta 200 KB y
-    líneas de hasta 4.000 caracteres, como en la validación) y no trae caracteres invisibles ni bidireccionales
-    (W5 ya los rechaza: si aparecen, la verificación no es de este texto).
+    líneas de hasta 4.000 caracteres, como en la validación) y no trae caracteres invisibles ni bidireccionales ni
+    palabras disfrazadas con letras de otro alfabeto (W5 ya los rechaza: si aparecen, la verificación no es de este
+    texto).
 Si algo falla, falla cerrado: no arma nada, borra el WHITEPAPER.html y el WHITEPAPER.pdf anteriores (eran de otro texto),
 dice por qué y sale con 1.
 
@@ -24,7 +25,9 @@ que se comparte filtraría la ruta y el usuario de quien lo imprimió (L84). Los
 muestran como están escritos. Antes de imprimir comprueba, sin IA:
   - que cada palabra y cada cifra del texto validado está en el HTML (se cuentan una por una);
   - que el HTML solo trae las etiquetas y atributos del armador (nada de a, img, script, iframe ni eventos);
-  - el barrido de datos personales e instrucciones de gobernanza.py sobre el texto que se ve.
+  - el barrido de datos personales e instrucciones de gobernanza.py sobre el texto que se ve;
+  - la lista D15 (buscar_d15 de validar_whitepaper.py) sobre el texto que se ve: una verificación vieja que dejó pasar
+    «Esto *demuestra* que…» no imprime «Esto demuestra que…» (L117).
 Después de imprimir, comprueba que el PDF es carta (612 × 792 pt) y que no trae enlaces.
 
 Hoja 1: el título, el sello de la validación y Pregunta · Datos y procedencia · Limpieza. Hoja 2: Cifra verificada y
@@ -56,7 +59,8 @@ from pathlib import Path
 AQUI = Path(__file__).resolve().parent
 sys.path.insert(0, str(AQUI))
 import carta  # noqa: E402
-from gobernanza import escanear_texto, parece_instruccion  # noqa: E402
+from gobernanza import escanear_texto, letras_disfrazadas, parece_instruccion  # noqa: E402
+from validar_whitepaper import buscar_d15  # noqa: E402  D15: la lista única
 
 MAX_BYTES, LINEA_MAX = 200_000, 4_000          # los mismos topes de validar_whitepaper.py
 INVISIBLES = re.compile("[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f\u00ad\u200b-\u200f\u202a-\u202e"
@@ -343,6 +347,9 @@ def preparar(c):
         return motivos + ["whitepaper.md no es UTF-8"], None
     if INVISIBLES.search(texto):
         motivos.append("trae caracteres invisibles o bidireccionales: W5 no los deja pasar, la verificación no es de este texto")
+    if letras_disfrazadas(texto):
+        motivos.append("trae palabras con letras de otro alfabeto que se leen como latinas: W5 no las deja pasar, la "
+                       "verificación no es de este texto")
     if any(len(x) > LINEA_MAX for x in texto.splitlines()):
         motivos.append(f"trae líneas de más de {LINEA_MAX} caracteres: no es prosa")
     return motivos, {"texto": texto, "huella": huella, "wpv": wpv}
@@ -450,6 +457,10 @@ def armar_corrida(c, imprimir=True):
         motivos.append(f"el barrido de gobernanza.py encuentra posibles datos personales: {personales}")
     if parece_instruccion(visible):
         motivos.append("el barrido de gobernanza.py encuentra texto con forma de instrucción para agentes")
+    analisis = buscar_d15(visible)
+    if analisis:   # lo que se imprime, sin las marcas de Markdown: «Esto *demuestra* que» se lee «Esto demuestra que» (L117)
+        motivos.append("el texto que se imprime trae frases de conclusión, recomendación, causa o juicio (D15): "
+                       + ", ".join(f"«{x[:40]}»" for x in analisis[:4]))
     if motivos:
         return rechazar(c, motivos)
     borrar_salidas(h, pdf)                  # si eran enlaces simbólicos, se escribe un archivo nuevo, nunca a través de ellos
@@ -645,6 +656,12 @@ def autoprueba():
         correo = "ana.perez" + "@" + "ejemplo.invalid"
         rc, out, _ = _correr(_corrida(tmp, "personal", _con(BUENO, "Sin datos personales", f"Dudas a {correo}")))
         caso("dato personal (con una verificación que dice aprobado): el barrido no deja armar", rc == 1 and "datos personales" in out, out[-200:])
+        rc, out, _ = _correr(_corrida(tmp, "enfasis", _con(BUENO, "Sin datos personales", "Esto *demuestra* que no hay datos personales")))
+        caso("frase D15 con énfasis de Markdown (con una verificación vieja que dice aprobado): no arma",
+             rc == 1 and "(D15)" in out and "«demuestra que»" in out, out[-200:])
+        rc, out, _ = _correr(_corrida(tmp, "disfrazada", _con(BUENO, "Sin datos personales", "Sin datos pers\u043enales")))
+        caso("letra de otro alfabeto disfrazada de latina (con una verificación que dice aprobado): no arma",
+             rc == 1 and "otro alfabeto" in out, out[-200:])
 
         # el escape: el texto lo escribió una IA; aunque la verificación diga aprobado, nada se interpreta
         ataque = ("<script>alert(1)</script> <img src=x onerror=alert(2)> <iframe src=\"https://ejemplo.invalid\"></iframe> "

@@ -52,7 +52,7 @@ AQUI = Path(__file__).resolve().parent
 sys.path.insert(0, str(AQUI))
 from gobernanza import PATRONES, clasificar_columna, forma_canonica, parece_instruccion  # noqa: E402
 from explorador_catalogo import pedir  # noqa: E402
-from validar_whitepaper import ANALISIS, FRASES_D15, JUICIO  # noqa: E402  D15: la lista única, la misma del whitepaper (W3)
+from validar_whitepaper import ANALISIS, FRASES_D15, JUICIO, buscar_d15  # noqa: E402  D15: la lista única, la del whitepaper (W3)
 
 TIPOS_DECIR = {"estado", "lugar", "impacto", "dinero", "tiempo"}
 TIPOS_PREGUNTA = {"costo", "calidad", "impacto"}
@@ -352,9 +352,9 @@ def validar(ficha, inv, red=True, dictamen=None, autorizados=None):
             if re.search(r"\d", limpio):
                 cifras.append(f"{ruta}: «{t[:80]}»")
         if de_metodo or hoja in CAMPOS_DE_ANALISIS:
-            m = (ANALISIS if hoja in CAMPOS_DE_ANALISIS else JUICIO).search(" ".join(t.split()))
+            m = buscar_d15(t, ANALISIS if hoja in CAMPOS_DE_ANALISIS else JUICIO)   # también disfrazada (L117)
             if m:
-                conclusiones.append(f"{ruta}: «{' '.join(m.group(0).split())}»")
+                conclusiones.append(f"{ruta}: «{m[0]}»")
         if parece_instruccion(t):
             instrucciones.append(ruta)
         for nombre, pat in PATRONES.items():

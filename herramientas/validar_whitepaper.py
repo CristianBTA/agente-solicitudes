@@ -20,12 +20,17 @@ analicen, pero no da el análisis. El whitepaper pasa si:
   W3 no trae conclusiones, recomendaciones, causas ni juicios («se concluye», «demuestra que», «esto muestra que»,
      «se recomienda», «recomendación», «debería», «próximo paso», «por eso», «se ahorra», «la causa es», «se debe
      a»…), ni títulos de conclusiones, hallazgos o análisis. Es la lista D15 (ANALISIS), la misma que importan la
-     presentación, el gráfico, las fichas del agente masivo y el resumen de su whitepaper. Es una lista: una frase de
-     análisis con otras palabras pasa, y la revisa una persona;
+     presentación, el gráfico, las fichas del agente masivo y el resumen de su whitepaper. Se busca en el texto tal
+     cual y en como lo lee una persona (buscar_d15): el énfasis de Markdown («Esto *demuestra* que», «se
+     **recomienda**»), las letras de ancho completo y las de otro alfabeto que se leen como latinas (la «o»
+     cirílica) no esconden una frase (L117). Es una lista: una frase de análisis con otras palabras pasa, y la revisa
+     una persona;
   W4 la sección de preguntas trae al menos 3, cada una con «¿» y «?», y al menos una de costo, una de calidad y
      una de impacto (rótulo al inicio de cada pregunta);
   W5 no trae instrucciones para agentes, datos personales (los patrones de gobernanza.py) ni texto oculto
-     (comentarios HTML, marcado HTML, caracteres invisibles o bidireccionales).
+     (comentarios HTML, marcado HTML, caracteres invisibles o bidireccionales) ni palabras disfrazadas con letras de
+     otro alfabeto que se leen como latinas («concluye» con la «o» cirílica; una letra suelta, como la rho de una
+     fórmula, no cuenta).
 Un whitepaper es prosa breve: más de 200 KB, líneas de más de 4.000 caracteres o una validación de más de 60 s
 lo rechazan (falla cerrado; así un texto hecho para trabar las expresiones regulares no detiene el pipeline).
 Sale con 1 si algo falla. La salida guarda la huella del whitepaper validado y nunca copia un dato personal
@@ -44,7 +49,7 @@ from pathlib import Path
 
 AQUI = Path(__file__).resolve().parent
 sys.path.insert(0, str(AQUI))
-from gobernanza import PATRONES, enmascarar, forma_canonica, parece_instruccion  # noqa: E402
+from gobernanza import PATRONES, enmascarar, forma_canonica, latinizar, letras_disfrazadas, parece_instruccion  # noqa: E402
 
 SECCIONES = [  # (título, patrón sobre el título normalizado: minúsculas, sin tildes ni numeración)
     ("Pregunta", r"(la )?pregunta\b"),
@@ -174,8 +179,40 @@ FRASES_D15 = (
     "Hay ventas irregulares en el Sur.",
     "Con menos devoluciones se ahorra dinero.",
     "El Sur tiene sobrecostos en el transporte.",
+    # disfrazadas (L117): el énfasis de Markdown, las letras de ancho completo y una letra de otro alfabeto (la «o»
+    # cirílica, escrita como \u: este archivo no la trae) no esconden la frase
+    "Esto *demuestra* que el Norte vende mejor.",
+    "Se **recomienda** cerrar la región Centro.",
+    "Por lo _tanto_, el Norte es la región más rentable.",
+    "Los datos `revelan` que el Centro vende más en diciembre.",
+    "Ｓｅ ｃｏｎｃｌｕｙｅ que el Centro concentra las ventas.",
+    "Se c\u043encluye que el Centro concentra las ventas.",
 )
 TITULO_DE_ANALISIS = re.compile(r"(conclusion|recomendacion|hallazgo|analisis\b)")
+MARCAS_MARKDOWN = re.compile(r"\]\([^()\s]{0,2000}\)|[*_`~\\\[\]]")   # el destino de un enlace y las marcas que no se leen
+
+
+def para_d15(texto):
+    """El texto como lo lee una persona, para buscar la lista D15: en su forma canónica (NFKC y sin caracteres de
+    formato: las letras de ancho completo o matemáticas vuelven a su forma común), con las letras de otro alfabeto que
+    se leen como latinas vueltas latinas (la «o» cirílica) y sin las marcas de Markdown que no se ven al leer el texto
+    maquetado: el énfasis («Esto *demuestra* que», «se **recomienda**», «por lo _tanto_»), el código, el tachado, los
+    escapes y los corchetes y el destino de un enlace («[demuestra](x) que») (L117)."""
+    return " ".join(MARCAS_MARKDOWN.sub("", latinizar(forma_canonica(texto))).split())
+
+
+def buscar_d15(texto, lista=None):
+    """Las frases de la lista D15 (ANALISIS, o JUICIO para los textos de método de una ficha) en un texto, en
+    minúsculas y sin repetir: las del texto tal cual y las del texto como lo lee una persona (para_d15). Así un énfasis
+    de Markdown, una letra de ancho completo o una de otro alfabeto no esconden una frase, y nada que se atrapaba antes
+    deja de atraparse. La usan todos los que buscan la lista: W3, la presentación, el gráfico, las fichas y el resumen
+    del agente masivo (L117)."""
+    lista = lista or ANALISIS
+    t = str(texto or "")
+    hallados = []
+    for plano in (" ".join(t.split()), para_d15(t)):
+        hallados += [" ".join(m.group(0).lower().split()) for m in lista.finditer(plano)]
+    return list(dict.fromkeys(hallados))
 
 # W5 · lo que no se ve al leer
 INVISIBLES = re.compile("[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f-\u009f­​-‏‪-‮"
@@ -455,8 +492,8 @@ def validar(texto, artefactos, faltan=(), utf8=True):
 
     # W3
     plano = re.sub(r"\s+", " ", texto)
-    frases = sorted({re.sub(r"\s+", " ", m.group(0).lower()) for m in ANALISIS.finditer(plano)})
-    malos_titulos = [t for _, t, _, _ in titulos if TITULO_DE_ANALISIS.match(normalizar(t))
+    frases = sorted(set(buscar_d15(texto)))   # también con énfasis de Markdown o letras disfrazadas (L117)
+    malos_titulos = [t for _, t, _, _ in titulos if TITULO_DE_ANALISIS.match(normalizar(latinizar(forma_canonica(t))))
                      and not re.match(SECCIONES[7][1], normalizar(t))]
     problemas = []
     if frases:
@@ -507,6 +544,10 @@ def validar(texto, artefactos, faltan=(), utf8=True):
     invisibles = INVISIBLES.findall(texto)
     if invisibles:
         problemas.append(f"{len(invisibles)} carácter(es) invisibles o de control (p. ej. U+{ord(invisibles[0]):04X})")
+    disfrazadas = letras_disfrazadas(texto)   # «concluye» con la «o» cirílica: se lee latina y ninguna lista la ve (L117)
+    if disfrazadas:
+        problemas.append(f"{len(disfrazadas)} palabra(s) con letras de otro alfabeto que se leen como latinas "
+                         f"(p. ej. {disfrazadas[0]})")
     etiquetas = sorted({m.group(1).lower() for m in ETIQUETA.finditer(texto)})
     if etiquetas:
         problemas.append("marcado HTML: " + ", ".join(etiquetas[:5]))
@@ -696,7 +737,12 @@ Queda 1 pregunta abierta (P1): la cifra usa su valor por defecto.
     caso("ahorro", {"W3"}, mas("Con menos devoluciones se ahorra dinero."))
     caso("título de conclusiones", {"W3"}, [("## Límites\n", "## Conclusiones\nSin conclusiones.\n\n## Límites\n")])
     for frase in FRASES_D15:   # la misma lista de frases que prueban la presentación y las fichas
-        caso(f"D15: «{frase[:48]}»", {"W3"}, mas(frase))
+        caso(f"D15: «{frase[:48]}»", {"W3"} | ({"W5"} if letras_disfrazadas(frase) else set()), mas(frase))
+    caso("título de conclusiones con una letra de otro alfabeto", {"W3", "W5"},
+         [("## Límites\n", "## C\u043enclusiones\nSin conclusiones.\n\n## Límites\n")])
+    caso("palabra con una letra de otro alfabeto, sin frase de la lista", {"W5"}, mas("El N\u043erte suma lo de la tabla."))
+    caso("letra suelta de otro alfabeto en una fórmula (pasa)", set(), mas("La correlación \u03c1 no se calculó."))
+    caso("énfasis que no esconde nada (pasa)", set(), mas("La cifra es *exacta* y se **validó** sin IA."))
     caso("menos de tres preguntas", {"W4"}, [("- **Calidad.** ¿Qué tienen en común las 18 facturas con valores atípicos?\n", "")])
     caso("pregunta sin signos", {"W4"}, [("¿Qué parte de las ventas netas se va en devoluciones en cada región?",
                                           "Qué parte de las ventas netas se va en devoluciones en cada región.")])

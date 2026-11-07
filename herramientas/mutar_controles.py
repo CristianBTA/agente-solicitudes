@@ -107,6 +107,9 @@ MUTANTES = [
      '    return _FORMATO[0].sub("", unicodedata.normalize("NFKC", t))\n', "    return t\n", "B27"),
     ("M35", "de una salida HTML solo se resuelven las entidades (las etiquetas en medio de un dato quedan)", "herramientas/gobernanza.py",
      '        texto = "\\n".join(texto_de_marcado(texto))\n', "        texto = html.unescape(texto)\n", "B27"),
+    ("M36", "la detección de instrucciones lee el texto tal cual (sin su forma canónica ni las letras de otro alfabeto vueltas latinas)",
+     "herramientas/gobernanza.py",
+     "    for forma in ((t,) if t.isascii() else (t, latinizar(forma_canonica(t)))):\n", "    for forma in (t,):\n", "B27"),
 ]
 
 

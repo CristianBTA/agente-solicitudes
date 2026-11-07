@@ -31,10 +31,11 @@ Lo que dice (comprobar_sin_analisis: solo lee el JSON de la figura; la prueba ta
  15. sin lenguaje de análisis (D15) en ningún texto de la figura: título y subtítulo, títulos de los ejes y de la
      leyenda, anotaciones, nombres de las trazas, plantillas del texto y del hover, etiquetas y textos por marca,
      también los de la plantilla de la figura. Se busca con la lista D15 de validar_whitepaper.py (ANALISIS, la
-     misma de W3, de la presentación y de las fichas, importada tal cual), sobre el texto que se ve: sin etiquetas
-     HTML (Plotly junta «sobre<b>costo</b>»), sin entidades ni caracteres de formato. Un texto de una lista de
-     valores (las categorías, customdata) que repite la frase de un valor de los datos es el nombre de una
-     categoría, no lo que escribe la IA. Es una lista: una frase de análisis con otras palabras pasa; la revisa una
+     misma de W3, de la presentación y de las fichas, buscada con buscar_d15), sobre el texto que se ve: sin
+     etiquetas HTML (Plotly junta «sobre<b>costo</b>»), sin entidades ni caracteres de formato, y también sin
+     asteriscos de énfasis y con las letras de otro alfabeto que se leen como latinas vueltas latinas (L117). Un
+     texto de una lista de valores (las categorías, customdata) que repite la frase de un valor de los datos es el
+     nombre de una categoría, no lo que escribe la IA. Es una lista: una frase de análisis con otras palabras pasa; la revisa una
      persona (D15).
 Los colores se toman de la figura (marker.color, line.color, marker.colors) o, si no los trae, de la paleta
 (colorway) de la figura o de su plantilla, en el orden de las trazas. Ver herramientas/color.py.
@@ -60,7 +61,7 @@ import caja  # noqa: E402
 import color  # noqa: E402
 import verificar  # noqa: E402
 from gobernanza import escanear_texto, parece_instruccion  # noqa: E402
-from validar_whitepaper import ANALISIS  # noqa: E402  D15: la lista única del whitepaper, la presentación y las fichas
+from validar_whitepaper import buscar_d15  # noqa: E402  D15: la lista única del whitepaper, la presentación y las fichas
 
 TIEMPO = 300
 
@@ -441,9 +442,7 @@ def comprobar_sin_analisis(fig, resultado=()):
                        for v in f.values() if isinstance(v, str))
     hallados = []
     for ruta, t, de_lista in cadenas(fig):
-        plano = lo_que_se_ve(t)
-        for m in ANALISIS.finditer(plano):
-            frase = " ".join(m.group(0).lower().split())
+        for frase in buscar_d15(lo_que_se_ve(t)):   # también con énfasis o letras disfrazadas (L117)
             if de_lista and frase in datos:
                 continue
             hallados.append(f"{ruta}: «{frase[:40]}»")

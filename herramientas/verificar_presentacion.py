@@ -42,13 +42,15 @@ de GPT-5 y D15):
   7. método, incertidumbre y límites declarados; las preguntas abiertas se nombran
   8. preguntas para las personas: de 3 a 6, cada una entre «¿» y «?», con al menos una de costo, una de calidad y
      una de impacto
-  9. sin lenguaje de análisis en ningún texto: la lista D15 de validar_whitepaper.py (ANALISIS, importada tal cual:
+  9. sin lenguaje de análisis en ningún texto: la lista D15 de validar_whitepaper.py (ANALISIS, buscada con buscar_d15:
      la misma de W3, del gráfico y de las fichas, con lo que traía la forma anterior de la presentación: «se
      concluye», «demuestra que», «esto muestra que», «se recomienda», «debería», «la causa es», «se debe a», «lo
      que se pide decidir», «próximo paso», «por eso»…); ningún título empieza como un título de análisis
-     («Hallazgo», «Conclusión»)
+     («Hallazgo», «Conclusión»). Se busca en el texto tal cual y en como lo lee una persona: el énfasis de Markdown y
+     las letras de ancho completo o de otro alfabeto que se leen como latinas no esconden una frase (L117)
  10. fuente y fecha de consulta tomadas de la procedencia
- 11. sin textos con forma de instrucción, sin invisibles y sin datos personales (textos y celdas de las tablas)
+ 11. sin textos con forma de instrucción, sin invisibles ni palabras disfrazadas con letras de otro alfabeto («concluye»
+     con la «o» cirílica) y sin datos personales (textos y celdas de las tablas)
 Las frases de análisis se buscan con una lista: lo que no conoce, lo revisa una persona con la última lámina.
 """
 import html
@@ -64,8 +66,8 @@ from pathlib import Path
 
 AQUI = Path(__file__).resolve().parent
 sys.path.insert(0, str(AQUI))
-from gobernanza import clasificar_columna, escanear_texto, parece_instruccion  # noqa: E402
-from validar_whitepaper import ANALISIS, MAGNITUD_EN_PALABRAS, TITULO_DE_ANALISIS  # noqa: E402  D15: la lista única
+from gobernanza import clasificar_columna, escanear_texto, latinizar, letras_disfrazadas, parece_instruccion  # noqa: E402
+from validar_whitepaper import MAGNITUD_EN_PALABRAS, TITULO_DE_ANALISIS, buscar_d15  # noqa: E402  D15: la lista única
 from validar_whitepaper import FRASES_D15  # noqa: E402  las frases de prueba de la autoprueba
 from validar_whitepaper import normalizar as normalizar_titulo  # noqa: E402
 
@@ -688,12 +690,10 @@ def comprobar(c):
 
     # D15: la IA resume, no analiza. La lista única de validar_whitepaper.py (la de W3, del gráfico y de las fichas).
     frases = []
-    for lugar, t in textos:
-        plano = " ".join(normalizar(t).split())
-        hallados = [x.group(0) for x in ANALISIS.finditer(plano)]
-        frases += [f"{lugar}: «{' '.join(x.lower().split())[:40]}»" for x in hallados]
+    for lugar, t in textos:   # también con énfasis de Markdown o letras de otro alfabeto disfrazadas de latinas (L117)
+        frases += [f"{lugar}: «{x[:40]}»" for x in buscar_d15(normalizar(t))]
     for lugar, t in titulos:
-        if TITULO_DE_ANALISIS.match(normalizar_titulo(normalizar(t))):
+        if TITULO_DE_ANALISIS.match(normalizar_titulo(latinizar(normalizar(t)))):
             frases.append(f"{lugar}: empieza como un título de análisis («{' '.join(normalizar(t).split()[:2])[:30]}»)")
     chk("sin lenguaje de análisis: ni conclusiones, recomendaciones, causas, juicios ni decisiones (D15)", not frases,
         "dice lo preguntado y lo medido; el análisis queda para las personas" if not frases else "; ".join(frases[:8]))
@@ -716,7 +716,14 @@ def comprobar(c):
     ordenes = [t[:60] for t in publicados if parece_instruccion(t)]
     chk("sin textos con forma de instrucción para una IA", not ordenes, "ninguno" if not ordenes else f"{ordenes[:2]}")
     invis = [t[:40] for t in publicados + [t for _, t in textos] + [str(x.get("tipo")) for x in preg] if invisibles_en(t)]
-    chk("sin caracteres invisibles o bidireccionales", not invis, "ninguno" if not invis else f"{len(invis)} textos")
+    # una palabra que se lee latina con una letra de otro alfabeto («concluye» con la «o» cirílica) en un texto de la IA
+    # es un disfraz para las listas (L117); en las celdas de la tabla vienen los datos, no se miran aquí
+    disfraz = [lugar for lugar, t in textos if letras_disfrazadas(t)] + [f"tipo de la pregunta {k}" for k, x in enumerate(preg, 1)
+                                                                       if letras_disfrazadas(x.get("tipo"))]
+    chk("sin caracteres invisibles o bidireccionales", not invis and not disfraz,
+        "ninguno" if not invis and not disfraz else "; ".join(([f"{len(invis)} textos con invisibles"] if invis else [])
+                                                             + ([f"letras de otro alfabeto que se leen como latinas en: {', '.join(disfraz[:5])}"]
+                                                                if disfraz else [])))
     pii = escanear_texto(" ".join(x[:MAX_TEXTO] for x in publicados))
     chk("sin datos personales en los textos ni en las tablas", not pii, str(pii or "ninguno"))
 
@@ -935,6 +942,10 @@ def autoprueba():
     datos_pii = copy.deepcopy(resultado)
     # Las muestras maliciosas se leen de las baterías (ahí viven los casos de prueba): el código no las trae escritas.
     muestra_pii, muestra_orden = _muestras()
+    muestra_disfrazada = next((x for x in (AQUI.parent / "baterias" / "inyeccion" / "maliciosos.txt").read_text(encoding="utf-8").splitlines()
+                               if letras_disfrazadas(x) and len(x) < MAX_TEXTO), None)
+    if not muestra_disfrazada:
+        raise SystemExit("falta en baterias/inyeccion una orden con letras de otro alfabeto")
     datos_pii[4]["region"] = muestra_pii
     casi_todo = {"op": "porcentaje", "parte": {"op": "diferencia", "a": {"op": "suma", "columna": "ventas"}, "b": {"op": "suma", "columna": "pedidos"}},
                  "total": {"op": "suma", "columna": "ventas"}}
@@ -1071,6 +1082,13 @@ def autoprueba():
         ("texto con orden para una IA", mut(apertura(situacion=muestra_orden)), resultado, "aprobado", (), "forma de instrucción"),
         ("carácter bidireccional", mut(lambda p: p["mediciones"][0].update(nota="Las regiones ‮menores‬ son tres.")),
          resultado, "aprobado", (), "invisibles"),
+        # letras de otro alfabeto que se leen como latinas (la «o» cirílica, escrita como \u): un disfraz para las listas (L117)
+        ("palabra con una letra de otro alfabeto en una nota", mut(nota("El N\u043erte vende lo que dice la tabla.")),
+         resultado, "aprobado", (), "invisibles"),
+        ("título que empieza como conclusión, con una letra de otro alfabeto",
+         mut(titulo("C\u043enclusión: el Norte vendió {norte} de pesos en el semestre", 0)), resultado, "aprobado", (), SIN_ANALISIS),
+        ("orden para una IA con letras de otro alfabeto", mut(apertura(situacion=muestra_disfrazada)), resultado, "aprobado", (),
+         "forma de instrucción"),
         ("dato personal en una celda de la tabla", base, datos_pii, "aprobado", (), "datos personales"),
     ]
     raiz = Path(tempfile.mkdtemp(prefix="autoprueba-presentacion-"))
