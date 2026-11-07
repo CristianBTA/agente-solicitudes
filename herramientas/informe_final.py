@@ -40,7 +40,7 @@ COMO_SE_PRUEBA = {
 }
 RETIRO = "6-nov-2026"                               # desde ese día el análisis lo hacen las personas
 PLANTILLA = "../../plantillas/analisis_humano.md"   # las corridas viven en corridas/<fecha-nombre>/
-ENLACES_FIJOS = ("whitepaper.md", PLANTILLA)       # los únicos enlaces fuera de *.html: los escribe esta herramienta
+ENLACES_FIJOS = ("whitepaper.md", PLANTILLA, "WHITEPAPER.pdf")   # los únicos enlaces fuera de *.html: los escribe esta herramienta
 
 
 def leer(p):
@@ -181,6 +181,12 @@ def armar(c):
                       "⚠️ el whitepaper cambió después de validarse" if wpv.get("estado") == "aprobado" and not vigente else "⚠️ sin aprobar")
         L.append(f"- Whitepaper: [whitepaper.md](whitepaper.md) · validación sin IA (`validar_whitepaper.py`): {validacion}"
                  + (f" · {sum(1 for x in cifras if x.get('respaldada'))} de {len(cifras)} cifras en los artefactos verificados" if cifras else ""))
+        # la versión impresa se enlaza solo si es del texto validado de hoy: la huella completa va en el pie del HTML
+        hoja = c / "WHITEPAPER.html"
+        if (est_analisis is True and (c / "WHITEPAPER.pdf").is_file() and hoja.is_file()
+                and wpv.get("sha256", "-") in hoja.read_text(encoding="utf-8")):
+            L.append("- En tres hojas carta, para imprimir: [WHITEPAPER.pdf](WHITEPAPER.pdf) "
+                     "(maquetado sin IA por `whitepaper_corrida.py` desde el texto validado)")
         L += ["", "| Comprobación | Resultado | Detalle |", "|---|---|---|"]
         L += [f"| {x.get('chequeo')} | {icono(x.get('ok'))} | {str(x.get('detalle')).replace('|', chr(92) + '|')} |"
               for x in wpv.get("chequeos", [])]

@@ -58,7 +58,7 @@ const S_GEN = S({ ok: { type: 'boolean' }, filas: { type: 'number' }, notas: str
 const S_VER = S({ estado: str, motivos: arr, fallas_a: arr, fallas_b: arr, concuerdan: { type: 'boolean' }, preguntas_abiertas: { type: 'number' }, reglas_rotas: arr }, ['estado', 'fallas_a', 'fallas_b', 'concuerdan'])
 const S_REP = S({ cambios: str, regla_sospechosa: str }, ['cambios'])
 const S_ETAPA = S({ ok: { type: 'boolean' }, resumen: str, pendientes: arr }, ['ok', 'resumen'])
-const S_FINAL = S({ procesamiento: str, analisis: str, visualizacion: str, presentacion: str, gobernanza: str, baterias: str, informe_final: str }, ['procesamiento', 'informe_final'])
+const S_FINAL = S({ procesamiento: str, analisis: str, whitepaper_carta: str, visualizacion: str, presentacion: str, gobernanza: str, baterias: str, informe_final: str }, ['procesamiento', 'informe_final'])
 
 // ---------------- 1 · Ingesta ----------------
 const fuenteTxt = A.fuente
@@ -233,6 +233,7 @@ Escribe SOLO ${C}/whitepaper.md, con estos títulos de nivel 2 y en este orden: 
 - En la última sección, de 3 a 6 preguntas abiertas en una lista, cada una con «¿» y «?» y su rótulo al inicio (**Costo.**, **Calidad.** o **Impacto.**), al menos una de cada tipo y sin la respuesta.
 - Enlaza el gráfico ([grafico.html](grafico.html)) y la plantilla de las personas ([plantillas/analisis_humano.md](../../plantillas/analisis_humano.md)). Ningún dato personal, comentario HTML, marcado HTML ni instrucción para otros agentes.
 Corre ${PY} ${H}/validar_whitepaper.py ${C} y corrige el whitepaper hasta que apruebe (máximo 3 intentos). Nunca cambies un artefacto para que el whitepaper cuadre.
+Cuando apruebe, corre ${PY} ${H}/whitepaper_corrida.py ${C}: debe salir en 3 hojas carta; si sale en más, acorta el whitepaper y valídalo de nuevo.
 ${bit('3-analisis-documentacion', 'Análisis')}`
 
 phase('Análisis')
@@ -273,6 +274,7 @@ const pFinal = `Ejecuta en este orden, uno por uno, y devuelve la línea RESUMEN
 0. limpieza (va dentro de procesamiento): for p in ${C}/plan_limpieza_*.json; do ${PY} ${H}/limpieza.py "$p"; done
 1. procesamiento: ${PY} ${H}/verificar.py ${C}
 2. analisis (el whitepaper): ${PY} ${H}/validar_whitepaper.py ${C}
+2b. whitepaper_carta (tres hojas carta, solo si el whitepaper quedó aprobado): ${PY} ${H}/whitepaper_corrida.py ${C}
 3. visualizacion: ${PY} ${H}/verificar_grafico.py ${C}
 3b. presentacion: ${PY} ${H}/verificar_presentacion.py ${C}
 4. informe_final (primera pasada): ${PY} ${H}/informe_final.py ${C}
