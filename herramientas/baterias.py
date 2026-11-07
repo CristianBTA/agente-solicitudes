@@ -17,7 +17,9 @@ Uso:
 3. Lecciones: la prueba que cita cada lección existe de verdad: un id del blindaje (B05), un mutante de los controles
    (M12), un caso de una batería (bateria:failfast/campo_de_mas.csv), una herramienta con --autoprueba o un archivo o
    una carpeta versionados; una cita textual («…») está en el archivo que la precede, y el texto libre solo no cuenta.
-   Las citas buenas y malas de baterias/citas/casos.json prueban al probador (L96).
+   Las citas buenas y malas de baterias/citas/casos.json prueban al probador (L96). Y las lecciones llegan a todos los
+   subagentes (regla común 9): cada instrucción de flujo.js que empieza con «Eres el» las trae, con ${LECCIONES} o con
+   ${reglasComunes}, que las trae; con una instrucción que las pierde, la comprobación tiene que echarla de menos (L122).
 4. Cruces: el perfil explica por qué no cruza cada valor (baterias/cruces/esperado.json) y no explica un ausente.
 5. Fechas: el perfil cuenta aparte las fechas que no existen en el calendario (baterias/fechas/casos.json).
 6. Repetidos: una llave repetida nunca se resuelve por el orden del archivo sin aviso (baterias/limpieza/).
@@ -501,6 +503,50 @@ class Citas:
         return problemas
 
 
+def instrucciones_de_flujo(texto):
+    """{nombre: plantilla} de cada `const <nombre> = `…`` o `const <nombre> = (…) => `…`` de flujo.js: la plantilla
+    entera, con sus ${…} sin evaluar (las comillas invertidas dentro de un ${…} no la cierran)."""
+    out = {}
+    for m in re.finditer(r"^const (\w+) = (?:\([^)]*\) => )?`", texto, re.M):
+        i = j = m.end()
+        hondo = 0
+        while j < len(texto):
+            if texto.startswith("${", j):
+                hondo, j = hondo + 1, j + 2
+                continue
+            c = texto[j]
+            if c == "\\":
+                j += 2
+                continue
+            if c == "}" and hondo:
+                hondo -= 1
+            elif c == "`" and not hondo:
+                out[m.group(1)] = texto[i:j]
+                break
+            j += 1
+    return out
+
+
+def sin_lecciones(texto):
+    """Lo que falta para que las lecciones lleguen a cada subagente de flujo.js (regla común 9, L122): LECCIONES apunta
+    a baterias/lecciones.json, reglasComunes las trae y cada instrucción que empieza con «Eres el» trae ${LECCIONES} o
+    ${reglasComunes}. Devuelve (instrucciones revisadas, problemas)."""
+    problemas = []
+    if not re.search(r"^const LECCIONES = `\$\{RAIZ\}/baterias/lecciones\.json`", texto, re.M):
+        problemas.append("flujo.js: LECCIONES no apunta a ${RAIZ}/baterias/lecciones.json")
+    plantillas = instrucciones_de_flujo(texto)
+    comunes = "${LECCIONES}" in plantillas.get("reglasComunes", "")
+    if not comunes:
+        problemas.append("flujo.js: reglasComunes no trae ${LECCIONES}")
+    roles = {n: p for n, p in plantillas.items() if p.startswith("Eres el")}
+    if not roles:
+        problemas.append("flujo.js: no se encontró ninguna instrucción que empiece con «Eres el»")
+    for n, p in roles.items():
+        if "${LECCIONES}" not in p and not (comunes and "${reglasComunes}" in p):
+            problemas.append(f"flujo.js ({n}): la instrucción no le pasa las lecciones (${{LECCIONES}} ni ${{reglasComunes}})")
+    return len(roles), problemas
+
+
 def bateria_lecciones():
     """Cada lección cita una prueba que existe de verdad (L96): un id del blindaje que está en blindaje.py, un mutante de
     mutar_controles.py, un caso de una batería, una herramienta que tiene --autoprueba o un archivo versionado, y cada
@@ -531,7 +577,24 @@ def bateria_lecciones():
         if tipos != esperados:
             fallas.append(falla(c["nombre"], f"la cita mala {c['nombre']} falla {tipos or 'ninguna comprobación'}; se esperaba {esperados}"))
     fallas += [falla(t, f"sin cita mala para «{t}»") for t in TIPOS_DE_CITA if t not in atacados]
-    return {"bateria": "lecciones", "casos": len(d["lecciones"]) + len(casos["buenas"]) + len(casos["malas"]), "fallas": fallas}
+    # las lecciones llegan a todos los subagentes (regla común 9, L122), con su control positivo: cada forma de perderlas
+    # (sin ${reglasComunes}, sin la línea de ${LECCIONES}, reglasComunes sin ${LECCIONES}) se echa de menos
+    flujo = (RAIZ / "flujo.js").read_text(encoding="utf-8")
+    roles, problemas = sin_lecciones(flujo)
+    fallas += [falla("flujo.js", p) for p in problemas]
+    plantillas = instrucciones_de_flujo(flujo)
+    perdidas = {"pGraficar": ("${reglasComunes}", ""), "pPresentar": ("(${LECCIONES}:", "("),
+                "reglasComunes": ("las lecciones de errores reales en ${LECCIONES}", "las lecciones de errores reales")}
+    for nombre, (quitar, poner) in perdidas.items():
+        plantilla = plantillas.get(nombre, "")
+        if plantilla.count(quitar) != 1:
+            fallas.append(falla("flujo.js", f"control positivo inválido: «{quitar}» no está una vez en {nombre}; rehacerlo"))
+            continue
+        _, vistos = sin_lecciones(flujo.replace(plantilla, plantilla.replace(quitar, poner), 1))
+        if not any(f"({nombre})" in v or (nombre == "reglasComunes" and "reglasComunes no trae" in v) for v in vistos):
+            fallas.append(falla("flujo.js", f"control positivo: con {nombre} sin las lecciones, la comprobación no lo echa de menos"))
+    return {"bateria": "lecciones", "casos": len(d["lecciones"]) + len(casos["buenas"]) + len(casos["malas"]) + roles
+            + len(perdidas), "fallas": fallas}
 
 
 def main(argv):

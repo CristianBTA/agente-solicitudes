@@ -6,6 +6,7 @@ La IA resume lo desarrollado en un whitepaper para que las personas del curso ha
 ## Puede leer
 - La petición, el glosario y `spec.json`: interpretación, supuestos y preguntas abiertas.
 - Los artefactos verificados de la corrida: `informe.json`, la procedencia (`datos/procedencia_<tabla>.json`), el informe de limpieza (`limpieza_<tabla>.json`), `gobernanza.json` y `grafico_verificacion.json`, y además `grafico.json`.
+- Las lecciones de errores reales (`baterias/lecciones.json`), como todos los subagentes (regla común 9).
 
 ## No puede leer (independencia)
 - Los datos crudos ni la capa limpia: resume lo aprobado, no vuelve a mirar filas.
