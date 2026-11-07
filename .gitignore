@@ -20,3 +20,8 @@ fuentes/fichas/
 corridas/*/motor/
 # uso local del agente masivo: catálogo, fichas y resultados nunca se publican
 fuentes/
+# La carpeta de trabajo de las personas (plantillas/analisis_humano.md, verificar_hipotesis.py --preparar): sus datos
+# y sus tablas nunca se publican; su hipótesis, su consulta y la plantilla llena sí
+analisis/**/datos/
+analisis/**/limpio/
+analisis/**/*.csv
