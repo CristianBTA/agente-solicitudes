@@ -335,8 +335,19 @@ def comparar_custodio(c, tablas):
 
 
 def gobernar(c):
-    from rutas import resolver_datos
+    from rutas import faltan_datos, resolver_datos
     spec = resolver_datos(json.loads((c / "spec.json").read_text(encoding="utf-8")))
+    # un dato que este clon no tiene no se barre en otra carpeta (L123): la gobernanza queda en «revisar» con el motivo,
+    # sin traceback, y no deja en pie un gobernanza.json «aprobado» de otra corrida
+    sin_dato = faltan_datos(spec, crudos=False)
+    if sin_dato:
+        out = {"tablas": {}, "salidas": {}, "problemas": sin_dato, "estado": "revisar"}
+        (c / "gobernanza.json").write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
+        print("Gobernanza: revisar (sin el dato no se barre)")
+        for p in sin_dato:
+            print(f"  - {p}")
+        print("RESUMEN " + json.dumps({"estado": "revisar", "problemas": sin_dato}, ensure_ascii=False))
+        return 1
     tablas = {t: barrer_tabla(r) for t, r in spec["datos"].items()}
     salidas = barrer_salidas(c)
     inf = json.loads((c / "informe.json").read_text(encoding="utf-8")) if (c / "informe.json").exists() else {}

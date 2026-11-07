@@ -732,6 +732,12 @@
       "leccion": "Una regla que dice «todos» tiene que llegar a todos. La regla común 9 y la ficha 12 decían que todos los subagentes leen baterias/lecciones.json antes de escribir, pero flujo.js solo se las pasaba a 7 de 11 instrucciones (por las reglas comunes o por la ruta de las lecciones): el custodio, el documentador, el presentador y el revisor ciego de seguridad no las recibían, y el control blando de las lecciones no existía para ellos. Ahora las cuatro las traen, las fichas 10, 11 y 13 las nombran, y la batería de lecciones lee flujo.js: cada instrucción que empieza con «Eres el» trae ${LECCIONES} o ${reglasComunes}, que las trae, y LECCIONES apunta a baterias/lecciones.json; con tres formas de perderlas (sin las reglas comunes, sin la ruta, las reglas comunes sin la ruta) la comprobación las echa de menos, y con el flujo.js anterior faltan las 4.",
       "origen": "verificación de coherencia de la versión final, 7-nov-2026: sed -n 224,256p flujo.js | grep -c -E 'reglasComunes|LECCIONES' daba 0 en las instrucciones del documentador y del presentador, y tampoco las traían el custodio ni el revisor ciego de seguridad",
       "prueba": "herramientas/baterias.py «def sin_lecciones» «control positivo: con {nombre} sin las lecciones» · agentes/00-reglas-comunes.md «la batería de lecciones lo comprueba (L122)»"
+    },
+    {
+      "id": "L123",
+      "leccion": "--id",
+      "origen": "verificación de un clon ajeno de la versión final, 7-nov-2026: en un clon de la rama sin los datos ignorados, verificar.py sobre una copia de la corrida completa dejaba en informe.json un resultado_oficial de 53 filas y filas_reales {contratos: 49662}, gobernanza.json nombraba la capa limpia de la carpeta del dueño y, con la ruta sellada de otra máquina, la autoprueba de verificar.py salía con «apunta a … que no existe»",
+      "prueba": "herramientas/rutas.py --autoprueba «def _en_un_clon_sin_el_dato» «control positivo: con resolver() de antes, el clon leía el dato de la otra carpeta» «corre sin el dato real: solo lee el caso conocido» «se detiene sin traceback y nombra el archivo que falta en este clon» · herramientas/validar_whitepaper.py --autoprueba «W2 no toma la procedencia de otra carpeta» · herramientas/verificar_hipotesis.py --autoprueba «la prueba dice qué archivo falta y no corre la consulta»"
     }
   ]
 }

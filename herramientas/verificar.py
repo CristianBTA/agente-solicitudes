@@ -76,25 +76,27 @@ print("MARCA" + json.dumps({"filas": filas, "conciliacion": conc}, ensure_ascii=
 
 
 # ---------------- carga ----------------
-def cargar_spec(c):
+def cargar_spec(c, exigir_datos=True):
+    """La spec con sus rutas en este clon (rutas.resolver_datos). Con exigir_datos, cada tabla de datos y de
+    datos_crudos tiene que estar en este clon: si falta, se detiene diciendo qué archivo falta y con qué se reproduce,
+    nunca con los datos de otra carpeta (L123). La autoprueba no la usa: solo lee el caso conocido."""
     ruta = c / "spec.json"
     if not ruta.exists():
         raise SystemExit(f"No existe {ruta}")
     spec = json.loads(ruta.read_text(encoding="utf-8"))
     faltan = [k for k in ("datos", "salida") if k not in spec]
     if "datos" in spec:
-        resolver_datos(spec)
-    if spec.get("datos_crudos"):
-        from rutas import resolver
-        spec["datos_crudos"] = {k: resolver(r) for k, r in spec["datos_crudos"].items()}
+        resolver_datos(spec)    # también datos_crudos
     if faltan:
         raise SystemExit(f"spec.json no tiene: {', '.join(faltan)}")
     for k in ("claves", "valores"):
         if not spec["salida"].get(k):
             raise SystemExit(f"spec.json: salida.{k} está vacío")
-    for tabla, ruta_csv in spec["datos"].items():
-        if not Path(ruta_csv).exists():
-            raise SystemExit(f"spec.json: la tabla {tabla} apunta a {ruta_csv}, que no existe")
+    if exigir_datos:
+        from rutas import faltan_datos
+        sin_dato = faltan_datos(spec)
+        if sin_dato:
+            raise SystemExit("spec.json: " + "; ".join(sin_dato))
     return spec
 
 
@@ -924,7 +926,7 @@ def verificar(c, impls, extra=False):
 
 
 def autoprueba(c):
-    spec = cargar_spec(c)
+    spec = cargar_spec(c, exigir_datos=False)   # solo el caso conocido: un clon sin los datos ignorados también la corre
     reglas, problemas = cargar_reglas(c)
     caso, error_caso = cargar_caso(c, spec)
     if problemas or error_caso or not reglas:
@@ -948,7 +950,7 @@ def autoprueba(c):
 
 
 def main(argv):
-    if not argv:
+    if not argv or argv[0].startswith("--"):   # «verificar.py --autoprueba» sin corrida: el uso, no una carpeta «--autoprueba»
         raise SystemExit(__doc__)
     c = Path(argv[0]).resolve()
     resto = argv[1:]

@@ -720,8 +720,10 @@ def validar_con_tope(texto, artefactos, faltan=(), utf8=True, tope=TIEMPO_MAX, c
 
 
 def procedencias(c):
-    """Las procedencias de la ingesta: en la corrida, en datos/ o junto al dato crudo (como en informe_final.py)."""
-    from rutas import resolver
+    """Las procedencias de la ingesta: en la corrida, en datos/ o junto al dato crudo (como en informe_final.py). Solo
+    archivos de la corrida o de este repositorio: una procedencia de otra carpeta (la copia del dueño, otro clon) no
+    respalda una cifra que quien lee el whitepaper no puede ver (L123)."""
+    from rutas import RAIZ, resolver
     candidatos = sorted(c.glob("procedencia*.json")) + sorted((c / "datos").glob("procedencia*.json"))
     spec = leer(c / "spec.json") or {}
     for r in list((spec.get("datos_crudos") or {}).values()) + list((spec.get("datos") or {}).values()):
@@ -729,7 +731,7 @@ def procedencias(c):
     vistas, out = set(), []
     for p in candidatos:
         real = p.resolve()
-        if real in vistas or not p.is_file():
+        if real in vistas or not p.is_file() or not (real.is_relative_to(c.resolve()) or real.is_relative_to(RAIZ)):
             continue
         vistas.add(real)
         try:
@@ -960,7 +962,30 @@ Queda 1 pregunta abierta (P1): la cifra usa su valor por defecto.
     errores += bool(malos)
     print(f"  {'✓' if not malos else '✗'} textos hostiles: los {len(hostiles)} terminan en menos de 10 s"
           + (f" · no: {', '.join(malos)}" if malos else ""))
-    print("RESUMEN " + json.dumps({"autoprueba": len(casos) + 3, "errores": errores}))
+    # el pozo de W2 solo toma procedencias de la corrida o de este repositorio (L123): la que está junto a un dato de
+    # otra carpeta (la copia del dueño, otro clon) no respalda cifras. Control positivo (L27): la lista de candidatos
+    # de antes, la carpeta de cada dato de la spec, sí la encontraba
+    import shutil
+    import tempfile
+    from rutas import resolver
+    tmp = Path(tempfile.mkdtemp(prefix="wp-procedencias-"))
+    try:
+        c, afuera = tmp / "corrida", tmp / "afuera"
+        (c / "datos").mkdir(parents=True)
+        afuera.mkdir()
+        (afuera / "ventas.csv").write_text("id\n1\n", encoding="utf-8")
+        (afuera / "procedencia_ventas.json").write_text('{"estado": "aprobada", "filas": 987654}', encoding="utf-8")
+        (c / "datos" / "procedencia_ventas.json").write_text('{"estado": "aprobada", "filas": 1520}', encoding="utf-8")
+        (c / "spec.json").write_text(json.dumps({"datos": {"ventas": str(afuera / "ventas.csv")}}), encoding="utf-8")
+        nombres = [n for n, _ in procedencias(c)]
+        antes = sorted(Path(resolver(str(afuera / "ventas.csv"))).parent.glob("procedencia*.json"))
+        ok_pozo = nombres == ["datos/procedencia_ventas.json"] and antes == [afuera / "procedencia_ventas.json"]
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    errores += not ok_pozo
+    print(f"  {'✓' if ok_pozo else '✗'} W2 no toma la procedencia de otra carpeta, solo la de la corrida o del repositorio "
+          f"(control positivo: la lista de antes la encontraba)" + ("" if ok_pozo else f" · tomó {nombres}"))
+    print("RESUMEN " + json.dumps({"autoprueba": len(casos) + 4, "errores": errores}))
     return 1 if errores else 0
 
 

@@ -47,7 +47,7 @@ cmp /tmp/datos-prueba/ventas.csv ejemplo/datos/ventas.csv && echo "datos idénti
 # 5d. Probar al probador de la presentación: 5 presentaciones buenas aprueban y 91 mutantes (número a mano, marcadores pegados, NaN, un «donde» mal escrito, título de tema, recomendación escondida, campos de la forma anterior…) fallan
 .venv/bin/python herramientas/verificar_presentacion.py --autoprueba
 
-# 5e. Probar al probador del whitepaper (88 casos: conclusiones, también con énfasis o letras disfrazadas, cifras sin respaldo, con espacios o con palabras, texto oculto…) y su versión en tres hojas carta (36 casos, sin Chrome, con el PDF que el informe final enlaza solo si tiene tres hojas carta)
+# 5e. Probar al probador del whitepaper (89 casos: conclusiones, también con énfasis o letras disfrazadas, cifras sin respaldo, con espacios o con palabras, texto oculto, procedencias de otra carpeta…) y su versión en tres hojas carta (36 casos, sin Chrome, con el PDF que el informe final enlaza solo si tiene tres hojas carta)
 .venv/bin/python herramientas/validar_whitepaper.py --autoprueba
 .venv/bin/python herramientas/whitepaper_corrida.py --autoprueba
 

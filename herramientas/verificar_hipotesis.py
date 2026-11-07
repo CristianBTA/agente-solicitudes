@@ -216,6 +216,9 @@ def autoprueba():
         rc, msgs = preparar(c, raiz / "analisis" / "sin-datos")
         caso("sin el dato crudo en el clon, --preparar dice cómo cargarlo", rc == 0 and any("ingesta.py" in m for m in msgs),
              " | ".join(msgs))
+        rc, out = silencio([str(d)])
+        caso("sin el dato crudo en el clon, la prueba dice qué archivo falta y no corre la consulta (L123)",
+             rc == 1 and f"apunta a {crudo}, que no existe" in out and "hipotesis.py falló" not in out, out.strip()[-200:])
     finally:
         shutil.rmtree(raiz, ignore_errors=True)
     # 4. lo que git no sube de la carpeta de trabajo (el .gitignore del repositorio)
@@ -282,10 +285,16 @@ def main(argv):
         salida = {}
     else:
         datos_h = spec.get("datos_crudos") or spec["datos"]   # el dato crudo, igual que las reglas
-        salida, err = ejecutar(hp, datos_h)
-        if err:
-            problemas.append(f"hipotesis.py falló: {err}")
+        from rutas import falta_dato
+        sin_dato = [falta_dato(t, r) for t, r in datos_h.items() if not Path(str(r)).is_file()]
+        if sin_dato:   # nunca el de otra carpeta (L123): sin el dato no se corre la consulta, y se dice qué falta
+            problemas += sin_dato
             salida = {}
+        else:
+            salida, err = ejecutar(hp, datos_h)
+            if err:
+                problemas.append(f"hipotesis.py falló: {err}")
+                salida = {}
     filas = []
     for h in hips:
         r = salida.get(h["id"], {"error": "no hay prueba para esta hipótesis"})
