@@ -4,8 +4,10 @@
 Uso: python herramientas/whitepaper_fichas.py <carpeta de trabajo del agente masivo> [--titulo "…"]
 
 El resumen lo puede escribir la IA (<trabajo>/RESUMEN_IA.md); el análisis lo hace el estudiante con su propio conocimiento.
-El resumen de la IA entra solo si pasa una comprobación sin IA: sin conclusiones, sin cifras fuera de las medidas (años y
-normas se permiten), sin datos personales ni instrucciones, y corto (hasta 230 palabras). Si no pasa, el documento sale igual y
+El resumen de la IA entra solo si pasa una comprobación sin IA: sin conclusiones, recomendaciones ni causas (la lista D15 de
+validar_whitepaper.py, la misma del whitepaper del pipeline, la presentación, el gráfico y las fichas; su autoprueba está en
+la de validar_ficha.py), sin cifras fuera de las medidas (años y normas se permiten), sin datos personales ni
+instrucciones, y corto (hasta 230 palabras). Si no pasa, el documento sale igual y
 dice por qué quedó fuera. Lo demás se arma solo con lo que ya está escrito y validado:
   - las fichas (<trabajo>/fichas/<id>.json), que escribió la IA y comprobó validar_ficha.py;
   - el tamaño medido (<id>.dictamen.json);
@@ -27,7 +29,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import carta  # noqa: E402
 from gobernanza import PATRONES, parece_instruccion  # noqa: E402
-from validar_ficha import CONCLUSION, PERMITIDOS_NUM  # noqa: E402
+from validar_ficha import PERMITIDOS_NUM  # noqa: E402
+from validar_whitepaper import ANALISIS  # noqa: E402  D15: la lista única
 
 E = html.escape
 
@@ -63,8 +66,9 @@ def comprobar_resumen(texto, fichas):
     palabras = len(re.findall(r"\w+", texto))
     if palabras > 230:
         problemas.append(f"tiene {palabras} palabras (máximo 230)")
-    if CONCLUSION.search(texto):
-        problemas.append(f"concluye («{CONCLUSION.search(texto).group(0)}»): el análisis es del estudiante")
+    m = ANALISIS.search(" ".join(texto.split()))
+    if m:
+        problemas.append(f"concluye, recomienda o busca causas («{m.group(0)}»): el análisis es del estudiante")
     sueltas = [n for n in re.findall(r"\d[\d.,]*", PERMITIDOS_NUM.sub("", texto)) if n.rstrip(".,") not in medidas]
     if sueltas:
         problemas.append(f"cifras que no están en las mediciones: {', '.join(sueltas[:5])}")

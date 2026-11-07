@@ -44,10 +44,10 @@ cmp /tmp/datos-prueba/ventas.csv ejemplo/datos/ventas.csv && echo "datos idénti
 .venv/bin/python herramientas/sgsi.py --autoprueba
 .venv/bin/python herramientas/sgsi.py --efectividad
 
-# 5d. Probar al probador de la presentación: 4 presentaciones buenas aprueban y 48 mutantes (número a mano, marcadores pegados, NaN, título de tema, recomendación escondida, campos de la forma anterior…) fallan
+# 5d. Probar al probador de la presentación: 4 presentaciones buenas aprueban y 75 mutantes (número a mano, marcadores pegados, NaN, título de tema, recomendación escondida, campos de la forma anterior…) fallan
 .venv/bin/python herramientas/verificar_presentacion.py --autoprueba
 
-# 5e. Probar al probador del whitepaper (35 casos: conclusiones, cifras sin respaldo, texto oculto…) y su versión en tres hojas carta (26 casos, sin Chrome)
+# 5e. Probar al probador del whitepaper (61 casos: conclusiones, cifras sin respaldo, texto oculto…) y su versión en tres hojas carta (26 casos, sin Chrome)
 .venv/bin/python herramientas/validar_whitepaper.py --autoprueba
 .venv/bin/python herramientas/whitepaper_corrida.py --autoprueba
 
@@ -170,7 +170,7 @@ La IA propone el plan de limpieza (`plan_limpieza_<tabla>.json`) y `herramientas
 **D15 · El análisis lo hacen las personas; la IA solo documenta lo desarrollado.**
 Desde el 6-nov-2026 la IA no propone ni prueba hipótesis ni da el análisis. El documentador escribe un whitepaper con la pregunta, los datos y su procedencia, la limpieza, la cifra verificada y cómo se verificó, el gráfico, la gobernanza, los límites y preguntas de costo, calidad e impacto, sin conclusiones. Las personas escriben su hipótesis antes de mirar, la prueban con una consulta (pueden usar `herramientas/verificar_hipotesis.py`, que la sella) y concluyen en la plantilla.
 *Dónde:* `agentes/13-documentador.md`, `whitepaper.md` de cada corrida, `herramientas/validar_whitepaper.py` (y `herramientas/whitepaper_corrida.py`, que lo maqueta en tres hojas carta sin cambiar una palabra y sin enlaces en el PDF, L84) y `plantillas/analisis_humano.md`; las fichas del proponente y del probador, en `historial/agentes-retirados/`.
-*Cómo se comprueba:* `validar_whitepaper.py`: secciones obligatorias, cada cifra en los artefactos verificados (con tolerancia de redondeo), sin conclusiones, recomendaciones ni causas, al menos tres preguntas y sin instrucciones ni datos personales; `--autoprueba` con whitepapers buenos y malos. Las frases de conclusión se buscan con una lista: lo que no conoce, lo revisa una persona.
+*Cómo se comprueba:* `validar_whitepaper.py`: secciones obligatorias, cada cifra en los artefactos verificados (con tolerancia de redondeo), sin conclusiones, recomendaciones ni causas, al menos tres preguntas y sin instrucciones ni datos personales; `--autoprueba` con whitepapers buenos y malos. Las frases de análisis se buscan con **una sola lista** (`ANALISIS`, en `validar_whitepaper.py`), la que importan también la presentación, el gráfico, las fichas del agente masivo y el resumen de su whitepaper; las frases de prueba (`FRASES_D15`) las prueban las autopruebas del whitepaper, de la presentación y de las fichas. En los textos de método de una ficha (nota, riesgos de lectura, pasos) no cuentan las de acción («hay que unificar los nombres antes de comparar» describe el método). Es una lista: una frase de análisis con otras palabras pasa (por ejemplo, «porque», «de modo que», «los contratos muestran que» o «debe» con un verbo sin «se», como «la Alcaldía debe publicar», no se buscan, porque también describen el método o una regla), y lo que no conoce lo revisa una persona.
 *Por qué:* el valor del trabajo con datos (reducir un costo, mejorar una calidad, el impacto de un contrato en la sociedad) lo concluyen las personas, no la IA. Y la hipótesis va antes de mirar: mover el umbral después de ver el resultado convierte cualquier dato en confirmación.
 
 **D16 · Si hay modelo:** partición temporal, línea base de la misma partición, solo variables que se conocen en el momento de decidir (sin fuga), métrica según el costo del error y umbral explícito. Lo exige el módulo 3 del curso; los ejemplos de este repositorio no entrenan modelos.
@@ -200,9 +200,9 @@ Desde el 6-nov-2026 la IA no propone ni prueba hipótesis ni da el análisis. El
 - Método, incertidumbre y límites explícitos, con cada pregunta abierta nombrada (como METR). En lugar de una recomendación, de 3 a 6 preguntas para las personas, de costo, calidad e impacto (como el whitepaper), que ellas responden en `plantillas/analisis_humano.md`.
 - La IA escribe solo `presentacion.json`; las láminas, las tablas, la fuente y la fecha las pone el verificador, y solo si todo aprueba.
 - Una cifra que no es un número finito no se publica. Se comprueba en tres capas, cada una con su ataque: cada dato que entra al cálculo (un «NaN» en texto que `max()` se tragaría), el resultado del cálculo (dos valores finitos cuya diferencia desborda) y la lectura de `informe.json`, que rechaza `NaN` e `Infinity` (B31, L92).
-- Las frases de análisis se buscan en todos los textos con la misma lista W3 de `validar_whitepaper.py` (importada, no copiada) y la de la forma anterior («lo que se pide decidir», «próximo paso», «por eso»). Un campo de la forma anterior (`recomendacion`, `decision`, `scqa`, `hallazgos`) hace fallar la presentación.
+- Las frases de análisis se buscan en todos los textos con la lista D15 de `validar_whitepaper.py` (importada, no copiada), la misma del whitepaper, del gráfico y de las fichas, que ya trae la de la forma anterior («lo que se pide decidir», «próximo paso», «por eso»). Las magnitudes con palabras que el whitepaper no deja pasar («la mayoría», «casi todos») tampoco pasan. Un campo de la forma anterior (`recomendacion`, `decision`, `scqa`, `hallazgos`) hace fallar la presentación.
 - Lo que el código no puede ver: que la frase use bien una cifra correcta (por ejemplo, llamar «Medellín» a las entidades con sede en Medellín) y las frases de análisis que la lista no conoce. Eso lo revisa una persona o un juez ciego con la última lámina, que lista los títulos y las preguntas para las personas.
-*Dónde:* `agentes/12-presentador.md` y `herramientas/verificar_presentacion.py` (`--autoprueba`: primero 4 presentaciones buenas aprueban y luego 48 mutantes fallan donde deben).
+*Dónde:* `agentes/12-presentador.md` y `herramientas/verificar_presentacion.py` (`--autoprueba`: primero 4 presentaciones buenas aprueban y luego 75 mutantes fallan donde deben).
 
 ## F · Gobernanza
 

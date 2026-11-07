@@ -17,8 +17,11 @@ analicen, pero no da el análisis. El whitepaper pasa si:
      técnicas (Ley 1581 de 2012, SHA-256, CC BY-SA 4.0) e identificadores (R1, P3, D15). Las cifras van en formato
      colombiano (punto para miles, coma para decimales). Una magnitud con palabras («la mitad», «la mayoría») no se
      puede comprobar y no pasa. La sección de la cifra verificada cita al menos un total del resultado aprobado;
-  W3 no trae conclusiones, recomendaciones, causas ni juicios («se concluye», «demuestra que», «se recomienda»,
-     «debería», «se ahorra», «la causa es», «se debe a»…), ni títulos de conclusiones, hallazgos o análisis;
+  W3 no trae conclusiones, recomendaciones, causas ni juicios («se concluye», «demuestra que», «esto muestra que»,
+     «se recomienda», «recomendación», «debería», «próximo paso», «por eso», «se ahorra», «la causa es», «se debe
+     a»…), ni títulos de conclusiones, hallazgos o análisis. Es la lista D15 (ANALISIS), la misma que importan la
+     presentación, el gráfico, las fichas del agente masivo y el resumen de su whitepaper. Es una lista: una frase de
+     análisis con otras palabras pasa, y la revisa una persona;
   W4 la sección de preguntas trae al menos 3, cada una con «¿» y «?», y al menos una de costo, una de calidad y
      una de impacto (rótulo al inicio de cada pregunta);
   W5 no trae instrucciones para agentes, datos personales (los patrones de gobernanza.py) ni texto oculto
@@ -99,19 +102,79 @@ MAGNITUD_EN_PALABRAS = re.compile(
     r"\b(la\s+mitad|un\s+tercio|dos\s+tercios|un\s+cuarto|tres\s+cuartos|el\s+doble|el\s+triple|la\s+(?:gran\s+)?mayor[ií]a|"
     r"la\s+minor[ií]a|casi\s+tod[oa]s?|decenas\s+de|cientos\s+de|miles\s+de(?!\s+millones))\b", re.I)
 
-# W3 · lo que solo pueden concluir las personas
-CONCLUSION = re.compile(
-    r"\b(se\s+conclu\w+|conclu(?:imos|yo|ye|yen)\b|en\s+conclusi[oó]n|como\s+conclusi[oó]n|la\s+conclusi[oó]n\s+es|"
-    r"demuestra(?:n)?\s+que|se\s+demuestra|queda\s+demostrad[oa]|se\s+evidencia\s+que|evidencia(?:n)?\s+que|"
-    r"est[aá]\s+claro\s+que|es\s+claro\s+que|es\s+evidente|sin\s+duda|por\s+lo\s+tanto|por\s+consiguiente|en\s+consecuencia|"
-    r"(?:esto|lo\s+que)\s+(?:indica|sugiere)\s+que|"
-    r"se\s+recomienda\w*|recomend(?:amos|ar[ií]amos|ar[ií]a)\b|recomiendo|la\s+recomendaci[oó]n\s+es|es\s+recomendable|"
-    r"deber[ií]a\w*|convendr[ií]a\w*|conviene|se\s+sugiere|sugerimos|hay\s+que|es\s+necesario|es\s+urgente|"
-    r"se\s+ahorr\w*|ahorrar[ií]a\w*|reduce\s+en|reducir[ií]a\w*|mejora\s+en|mejorar[ií]a\w*|significativamente|"
-    r"tiene(?:n)?\s+(?:un\s+|una\s+)?(?:gran\s+|alto\s+|bajo\s+|fuerte\s+)?impacto|impacta(?:n|r[aá])?\b|"
-    r"la\s+causa\s+(?:es|fue|son|est[aá])|las\s+causas\s+(?:son|fueron)|se\s+deb(?:e|en|i[oó]|ieron)\s+a\b|debido\s+a|"
-    r"es\s+causad[oa]|fue\s+causad[oa]|caus[oó]\b|provoc[oó]\b|"
-    r"sobrecosto\w*|despilfarr\w*|ineficien\w*|irregularidad\w*|corrupci[oó]n)", re.I)
+# W3 · D15: lo que solo pueden concluir las personas. UNA sola lista para todos los verificadores: W3 de este
+# whitepaper, la presentación (verificar_presentacion.py), el gráfico (verificar_grafico.py), las fichas del agente
+# masivo (validar_ficha.py, V6) y el resumen de su whitepaper (whitepaper_fichas.py); cada uno la importa de aquí y
+# ninguno trae una propia. Es una lista: una frase de análisis con otras palabras pasa, y la revisa una persona.
+_CONCLUYE = (   # conclusiones y lo que «muestran» los datos
+    r"se\s+conclu\w+", r"conclu(?:ir|imos|yo|ye|yen)\b", r"en\s+conclusi[oó]n", r"como\s+conclusi[oó]n",
+    r"la\s+conclusi[oó]n\s+es", r"demuestra(?:n)?\s+que", r"demostr\w*\s+que", r"se\s+demuestra", r"queda\s+demostrad[oa]",
+    r"se\s+evidencia\s+que", r"evidencia(?:n)?\s+que", r"(?:revela|significa|implica)(?:n)?\s+que\b",
+    r"(?:esto|eso|ello|lo\s+que|lo\s+cual|lo\s+anterior|(?:el|los|este|estos)\s+(?:resultados?|datos?)|"
+    r"(?:la|las|esta|estas)\s+cifras?|(?:el|este)\s+gr[aá]fico|(?:la|esta)\s+(?:tabla|gr[aá]fica))\s+"
+    r"(?:indica|sugiere|muestra|refleja|prueba|confirma)(?:n)?\s+que",
+    r"(?:esto|eso|ello|lo\s+cual)\s+implica\w*", r"est[aá]\s+claro\s+que", r"es\s+claro\s+que", r"es\s+evidente", r"sin\s+duda",
+)
+_CAUSA = (   # causas que se le atribuyen a lo medido
+    r"la\s+causa(?:\s+\w+)?\s+(?:es|fue|son|est[aá])", r"las\s+causas(?:\s+\w+)?\s+(?:son|fueron)",
+    r"se\s+deb(?:e|en|i[oó]|ieron)\s+al?\b", r"debido\s+a", r"debid[oa]s?\s+a", r"es\s+causad[oa]", r"fue\s+causad[oa]",
+    r"caus[oó]\b", r"provoc[oó]\b", r"se\s+explica(?:n|r[ií]a|r[ií]an)?\s+(?:por|con|en)\b",
+    r"(?:esto|eso|ello|lo\s+que|lo\s+cual)\s+explica\w*",
+)
+_JUICIO = (   # efectos y juicios de valor
+    r"se\s+ahorr\w*", r"ahorrar[ií]a\w*", r"reduce\s+en", r"reducir[ií]a\w*", r"mejora\s+en", r"mejorar[ií]a\w*",
+    r"significativamente", r"tiene(?:n)?\s+(?:un\s+|una\s+)?(?:gran\s+|alto\s+|bajo\s+|fuerte\s+)?impacto",
+    r"impacta(?:n|r[aá])?\b", r"sobrecosto\w*", r"despilfarr\w*", r"ineficien\w*", r"irregular\w*", r"corrupci[oó]n",
+)
+_ACCION = (   # recomendaciones, decisiones y consecuencias
+    r"se\s+recomienda\w*", r"recomend(?:amos|ar[ií]amos|ar[ií]a)\b", r"recomiendo", r"recomendaci[oó]n(?:es)?\b",
+    r"recomendable", r"se\s+aconseja\w*", r"aconsej(?:amos|o|ar[ií]a|ar[ií]amos)\b", r"aconsejable", r"se\s+propone\w*",
+    r"proponemos", r"propongo", r"(?:es|ser[ií]a|resulta|resultar[ií]a)\s+(?:m[aá]s\s+|muy\s+)?(?:conveniente|prudente|deseable|oportuno)",
+    r"lo\s+(?:ideal|prudente|conveniente|deseable)\b", r"lo\s+mejor\s+(?:es|ser[ií]a)\b", r"vale\s+la\s+pena",
+    r"deber[ií]a\w*", r"convendr[ií]a\w*", r"conviene", r"se\s+sugiere", r"sugerimos", r"sugiero", r"hay\s+que",
+    r"es\s+necesario", r"es\s+urgente", r"tiene(?:n)?\s+que\s+(?!ver\b)\w+(?:ar|er|ir)\b", r"deb(?:e|en)\s+\w+(?:ar|er|ir)se\b",
+    r"se\s+deb(?:e|en)\s+(?!al?\b)\w+(?:ar|er|ir)\b",
+    r"se\s+pide\s+decidir\b", r"lo\s+que\s+se\s+pide\b", r"decidir\s+si\b", r"la\s+decisi[oó]n\s+(?:es|ser[ií]a)\b",
+    r"pr[oó]xim[oa]s?\s+pasos?\b",
+    r"por\s+lo\s+tanto", r"por\s+tanto\b", r"por\s+consiguiente", r"en\s+consecuencia", r"por\s+ende\b", r"as[ií]\s+pues\b",
+    r"por\s+eso\b", r"por\s+ello\b", r"de\s+ah[ií]\s+que\b", r"as[ií]\s+que\b",
+)
+
+
+ANALISIS = re.compile(r"\b(" + "|".join(_CONCLUYE + _CAUSA + _JUICIO + _ACCION) + ")", re.I)   # la lista D15 completa
+# Sin las de acción: para los textos de método de una ficha (nota, riesgos de lectura, pasos), donde «hay que unificar
+# los nombres antes de comparar» o «por eso se excluyen» describen el método, no los datos (validar_ficha.py, V6).
+JUICIO = re.compile(r"\b(" + "|".join(_CONCLUYE + _CAUSA + _JUICIO) + ")", re.I)
+# Una frase por cada forma nueva o fácil de perder: las autopruebas del whitepaper, de la presentación y de las fichas
+# las prueban todas, así ninguna lista vuelve a perder una. Sin cifras ni magnitudes con palabras.
+FRASES_D15 = (
+    "Esto demuestra que el Norte vende mejor.",
+    "Se puede concluir que el Centro concentra las ventas.",
+    "Los datos demostraron que el Norte lidera.",
+    "Esto muestra que el Norte concentra las ventas.",
+    "Los datos revelan que el Centro vende más en diciembre.",
+    "La diferencia se debe a la temporada.",
+    "La ventaja del Norte se debe al invierno.",
+    "La causa principal es la temporada de fin de año.",
+    "El total alto se explica por las ventas del Norte.",
+    "La concentración es debida a la temporada.",
+    "Por tanto, el Norte es la región más rentable.",
+    "Por ende, el Centro queda segundo.",
+    "Por eso el Sur queda atrás.",
+    "Se recomienda cerrar la región Centro.",
+    "**Recomendación.** Revisar las ventas del Sur.",
+    "El próximo paso es revisar las ventas del Sur.",
+    "Sería recomendable revisar las ventas del Sur.",
+    "Se aconseja revisar las ventas del Sur.",
+    "Sería conveniente revisar las ventas del Sur.",
+    "Lo prudente sería revisar las ventas del Sur.",
+    "Debe auditarse la venta de la región Sur.",
+    "Las tiendas tienen que rendir cuentas por sus ventas.",
+    "La región Sur debería vender más.",
+    "Hay ventas irregulares en el Sur.",
+    "Con menos devoluciones se ahorra dinero.",
+    "El Sur tiene sobrecostos en el transporte.",
+)
 TITULO_DE_ANALISIS = re.compile(r"(conclusion|recomendacion|hallazgo|analisis\b)")
 
 # W5 · lo que no se ve al leer
@@ -392,7 +455,7 @@ def validar(texto, artefactos, faltan=(), utf8=True):
 
     # W3
     plano = re.sub(r"\s+", " ", texto)
-    frases = sorted({re.sub(r"\s+", " ", m.group(0).lower()) for m in CONCLUSION.finditer(plano)})
+    frases = sorted({re.sub(r"\s+", " ", m.group(0).lower()) for m in ANALISIS.finditer(plano)})
     malos_titulos = [t for _, t, _, _ in titulos if TITULO_DE_ANALISIS.match(normalizar(t))
                      and not re.match(SECCIONES[7][1], normalizar(t))]
     problemas = []
@@ -631,6 +694,8 @@ Queda 1 pregunta abierta (P1): la cifra usa su valor por defecto.
     caso("causa", {"W3"}, mas("La diferencia se debe a la temporada."))
     caso("ahorro", {"W3"}, mas("Con menos devoluciones se ahorra dinero."))
     caso("título de conclusiones", {"W3"}, [("## Límites\n", "## Conclusiones\nSin conclusiones.\n\n## Límites\n")])
+    for frase in FRASES_D15:   # la misma lista de frases que prueban la presentación y las fichas
+        caso(f"D15: «{frase[:48]}»", {"W3"}, mas(frase))
     caso("menos de tres preguntas", {"W4"}, [("- **Calidad.** ¿Qué tienen en común las 18 facturas con valores atípicos?\n", "")])
     caso("pregunta sin signos", {"W4"}, [("¿Qué parte de las ventas netas se va en devoluciones en cada región?",
                                           "Qué parte de las ventas netas se va en devoluciones en cada región.")])

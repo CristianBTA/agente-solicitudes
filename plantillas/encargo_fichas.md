@@ -48,6 +48,7 @@ Solo lees estos. Junto a cada ficha está `<id>.dictamen.json`, el tamaño medid
 
 1. **Grano (V10).** Di qué es una fila y cuál es su llave; se mide que la llave sea única. Si el conjunto es muy grande, acota esa medición con `grano.muestra_where`. Si cada fila es un grupo con una columna de conteo, **súmala**: no cuentes filas.
 2. **Preguntas.** Entre 2 y 6, cada una con «¿» y «?», sin cifras y sin conclusiones.
+   - Las plantillas, las preguntas, su `por_que_importa` y el `para_que` de un cruce no concluyen, no recomiendan, no buscan causas ni juzgan (V6, con la lista D15 del whitepaper): ni «se concluye», «muestra que», «se recomienda», «hay que», «conviene», «por eso», «se debe a» ni «sobrecosto», tampoco negados. En los textos de método (nota, riesgos de lectura, pasos) puedes indicar el método («hay que unificar los nombres antes de comparar»), sin conclusiones, causas ni juicios.
    - **Costo:** suma dinero y lo **contrasta** con una referencia (V9 y V16): valor del contrato frente a lo pagado, precio base frente a lo adjudicado.
    - **Calidad:** mira estados, fechas, vacíos o días adicionados.
    - **Impacto:** agrupa por lugar, sector o población.

@@ -1,6 +1,6 @@
 # Whitepaper · Valor contratado en 2025 por las entidades públicas con sede en Medellín
 
-Resumen de lo desarrollado en esta corrida para que las personas del curso hagan el análisis. Lo escribió la IA siguiendo la [ficha del documentador](../../agentes/13-documentador.md), solo con los artefactos verificados de la corrida, y lo comprueba sin IA `herramientas/validar_whitepaper.py`. Se escribió el 6-nov-2026, después de la corrida, como demostración del paso que reemplaza a las hipótesis de la IA. No trae conclusiones ni recomendaciones: el análisis lo hacen las personas, con la [plantilla del análisis](../../plantillas/analisis_humano.md).
+Resumen de lo desarrollado en esta corrida para que las personas del curso hagan el análisis. Lo escribió la IA siguiendo la [ficha del documentador](../../agentes/13-documentador.md), solo con los artefactos verificados de la corrida, y lo comprueba sin IA `herramientas/validar_whitepaper.py`. Se escribió el 6-nov-2026, después de la corrida, como demostración del paso que reemplaza a las hipótesis de la IA. No trae conclusiones: el análisis lo hacen las personas, con la [plantilla del análisis](../../plantillas/analisis_humano.md).
 
 ## Pregunta
 

@@ -34,15 +34,17 @@ de GPT-5 y D15):
   4. de 1 a 5 mediciones, cada una con una sola evidencia válida (gráfico aprobado, tabla sin columnas personales
      ni de texto libre, cifra declarada)
   5. los números los escribe el código: marcadores conocidos y ningún dígito, número con palabras ni «%» fuera
-     de un marcador (salvo los años del período y los ids P1, S1)
+     de un marcador (salvo los años del período y los ids P1, S1); tampoco las magnitudes con palabras que el
+     whitepaper no deja pasar («la mayoría», «casi todos», MAGNITUD_EN_PALABRAS de validar_whitepaper.py)
   6. títulos que dicen lo medido: oración con una cifra, de 6 a 22 palabras y hasta 120 caracteres; sin repetirse
   7. método, incertidumbre y límites declarados; las preguntas abiertas se nombran
   8. preguntas para las personas: de 3 a 6, cada una entre «¿» y «?», con al menos una de costo, una de calidad y
      una de impacto
-  9. sin lenguaje de análisis en ningún texto: los patrones W3 de validar_whitepaper.py (importados tal cual:
-     «se concluye», «demuestra que», «se recomienda», «debería», «la causa es», «se debe a»…) y los de la forma
-     anterior de la presentación («lo que se pide decidir», «próximo paso», «por eso»…); ningún título empieza
-     como un título de análisis («Hallazgo», «Conclusión»)
+  9. sin lenguaje de análisis en ningún texto: la lista D15 de validar_whitepaper.py (ANALISIS, importada tal cual:
+     la misma de W3, del gráfico y de las fichas, con lo que traía la forma anterior de la presentación: «se
+     concluye», «demuestra que», «esto muestra que», «se recomienda», «debería», «la causa es», «se debe a», «lo
+     que se pide decidir», «próximo paso», «por eso»…); ningún título empieza como un título de análisis
+     («Hallazgo», «Conclusión»)
  10. fuente y fecha de consulta tomadas de la procedencia
  11. sin textos con forma de instrucción, sin invisibles y sin datos personales (textos y celdas de las tablas)
 Las frases de análisis se buscan con una lista: lo que no conoce, lo revisa una persona con la última lámina.
@@ -61,7 +63,8 @@ from pathlib import Path
 AQUI = Path(__file__).resolve().parent
 sys.path.insert(0, str(AQUI))
 from gobernanza import clasificar_columna, escanear_texto, parece_instruccion  # noqa: E402
-from validar_whitepaper import CONCLUSION, TITULO_DE_ANALISIS  # noqa: E402  W3: la misma lista que el whitepaper
+from validar_whitepaper import ANALISIS, MAGNITUD_EN_PALABRAS, TITULO_DE_ANALISIS  # noqa: E402  D15: la lista única
+from validar_whitepaper import FRASES_D15  # noqa: E402  las frases de prueba de la autoprueba
 from validar_whitepaper import normalizar as normalizar_titulo  # noqa: E402
 
 MAX_MEDICIONES = 5
@@ -113,11 +116,6 @@ SIGNOS_PORCENTAJE = re.compile(r"[%‰‱٪⁒]")
 ABREVIADAS = re.compile(r"\{[a-z][a-z0-9_]*\}\s*(?:MM|M|K|B|mill\.?|USD|US\$|COP|€|\$|d[oó]lar\w*|euro\w*)(?![\w])|"
                         r"(?:US\$|USD|COP|€|\$)\s*\{", re.I)
 ID_DE_REFERENCIA = re.compile(r"[PS]\d{1,2}")      # preguntas y supuestos de la especificación
-# Lo propio de la forma anterior de la presentación, que la lista W3 del whitepaper no trae: pedir una decisión,
-# recomendar con otras palabras o sacar una consecuencia. Complementa a W3; no la reemplaza ni la copia.
-ANALISIS_DE_LA_PRESENTACION = re.compile(
-    r"\b(se\s+pide\s+decidir|lo\s+que\s+se\s+pide|decidir\s+si|la\s+decisi[oó]n\s+(?:es|ser[ií]a)|"
-    r"pr[oó]xim[oa]s?\s+pasos?|recomendaci[oó]n(?:es)?|por\s+eso|por\s+ello|de\s+ah[ií]\s+que|as[ií]\s+que)\b", re.I)
 MAX_CELDA = 120
 RELLENOS = {"ㅤ", "ᅟ", "ᅠ", "ﾠ", "͏"}
 
@@ -589,6 +587,10 @@ def comprobar(c):
             if frase in FRASES_PERMITIDAS or f" {normal_sellado(frase)} " in f" {sellado} ":
                 continue
             sueltos.append(f"{lugar}: «{m.group(0)}» (magnitud con palabras)")
+        for m in MAGNITUD_EN_PALABRAS.finditer(resto):   # las del whitepaper (W2): «la mayoría» no se puede comprobar
+            frase = " ".join(m.group(0).lower().split())
+            if f" {normal_sellado(frase)} " not in f" {sellado} ":
+                sueltos.append(f"{lugar}: «{m.group(0)}» (magnitud con palabras que no se puede comprobar)")
         if not lugar.startswith(LUGARES_CON_CARDINALES):
             for m in CARDINALES.finditer(resto):
                 sueltos.append(f"{lugar}: «{m.group(0)}» (fuera del método y los límites, cada número es un marcador)")
@@ -667,11 +669,11 @@ def comprobar(c):
     chk("preguntas para las personas: de 3 a 6, entre «¿» y «?», de costo, calidad e impacto", not problemas,
         "; ".join(problemas[:6]) or f"{len(preg)} preguntas, de costo, calidad e impacto; las responden las personas en {PLANTILLA}")
 
-    # D15: la IA resume, no analiza. W3 del whitepaper (la misma lista) y lo propio de la forma anterior.
+    # D15: la IA resume, no analiza. La lista única de validar_whitepaper.py (la de W3, del gráfico y de las fichas).
     frases = []
     for lugar, t in textos:
         plano = " ".join(normalizar(t).split())
-        hallados = [x.group(0) for rx in (CONCLUSION, ANALISIS_DE_LA_PRESENTACION) for x in rx.finditer(plano)]
+        hallados = [x.group(0) for x in ANALISIS.finditer(plano)]
         frases += [f"{lugar}: «{' '.join(x.lower().split())[:40]}»" for x in hallados]
     for lugar, t in titulos:
         if TITULO_DE_ANALISIS.match(normalizar_titulo(normalizar(t))):
@@ -919,7 +921,7 @@ def autoprueba():
     datos_pii[4]["region"] = muestra_pii
     casi_todo = {"op": "porcentaje", "parte": {"op": "diferencia", "a": {"op": "suma", "columna": "ventas"}, "b": {"op": "suma", "columna": "pedidos"}},
                  "total": {"op": "suma", "columna": "ventas"}}
-    ANALISIS = "sin lenguaje de análisis"
+    SIN_ANALISIS = "sin lenguaje de análisis"
     NUMEROS = "los números los escribe"
     # (nombre, presentación, resultado, estado, supuestos, comprobación que debe fallar o None si debe aprobar)
     casos = [
@@ -1003,22 +1005,28 @@ def autoprueba():
         ("sin preguntas para las personas", mut(lambda p: p.update(preguntas_para_las_personas=[])), resultado, "aprobado", (), "preguntas para las personas"),
         # D15: lenguaje de análisis en cualquier texto
         ("recomendación escondida en una nota", mut(nota("Lo siguiente sería claro: se recomienda empezar por el inventario del Norte.")),
-         resultado, "aprobado", (), ANALISIS),
+         resultado, "aprobado", (), SIN_ANALISIS),
         ("«se debe a» en un título", mut(titulo("La ventaja del Norte, que vendió {norte} de pesos, se debe a la temporada de fin de año", 0)),
-         resultado, "aprobado", (), ANALISIS),
+         resultado, "aprobado", (), SIN_ANALISIS),
         ("«por eso hay que» en un título", mut(titulo("El Norte vendió {norte} de pesos y por eso hay que reforzar su inventario", 0)),
-         resultado, "aprobado", (), ANALISIS),
+         resultado, "aprobado", (), SIN_ANALISIS),
         ("conclusión en la situación", mut(apertura(situacion="La empresa vende en {n_regiones} regiones; esto demuestra que el Norte es la más rentable.")),
-         resultado, "aprobado", (), ANALISIS),
+         resultado, "aprobado", (), SIN_ANALISIS),
         ("pregunta para las personas que trae la respuesta",
          mut(lambda p: p["preguntas_para_las_personas"][2].update(pregunta="¿Por qué el Norte debería recibir primero el inventario?")),
-         resultado, "aprobado", (), ANALISIS),
+         resultado, "aprobado", (), SIN_ANALISIS),
         ("recomendación en un límite", mut(lambda p: p["metodo_y_limites"].update(limites=["P1: se recomienda restar las devoluciones."])),
-         resultado, "aprobado", (), ANALISIS),
+         resultado, "aprobado", (), SIN_ANALISIS),
         ("decisión pedida en el método", mut(lambda p: p["metodo_y_limites"].update(metodo="Suma por región; lo que se pide decidir es dónde va el inventario.")),
-         resultado, "aprobado", (), ANALISIS),
+         resultado, "aprobado", (), SIN_ANALISIS),
         ("título que empieza como hallazgo", mut(titulo("Hallazgo principal: el Norte vendió {norte} de pesos en el semestre", 0)),
-         resultado, "aprobado", (), ANALISIS),
+         resultado, "aprobado", (), SIN_ANALISIS),
+        ("«la mayoría» en una nota (magnitud con palabras del whitepaper)", mut(nota("La mayoría de las ventas sale del Norte.")),
+         resultado, "aprobado", (), NUMEROS),
+    ] + [
+        # la misma lista de frases que prueban el whitepaper y las fichas (validar_whitepaper.FRASES_D15)
+        (f"D15 en una nota: «{frase[:48]}»", mut(nota(frase)), resultado, "aprobado", (), SIN_ANALISIS) for frase in FRASES_D15
+    ] + [
         # resultado, evidencias y barridos
         ("resultado sin aprobar", base, resultado, "revisar", (), "el resultado que se presenta"),
         ("tabla con columna inexistente", mut(lambda p: p["mediciones"][0]["evidencia"].update(columnas=["region", "utilidad"])),

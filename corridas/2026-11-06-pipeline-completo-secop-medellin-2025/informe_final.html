@@ -317,16 +317,16 @@ code{font-size:.88em}a{color:var(--acento)}iframe{width:100%;height:620px;border
 <li>suma_desborda_float: Cada valor pasa la prueba de número finito, pero la suma de un NIT puede pasarse del máximo de float: B devuelve valor_contratado = inf sin aviso sobre el total y A se cae con OverflowError en math.fsum (impl_a.py, línea 351). Hoy R1 lo ataja porque inf − inf no es &lt;= 0,5. Corrección: comprobar que cada total sea finito y fallar con un motivo claro. — confirmado</li>
 <li>marcas_desde_encabezado: <em>otras_marcas (líneas 219-228 y 319) vuelve cualquier columna calidad</em>&lt;texto&gt; una clave de «marcadas» con el texto tal como viene en el encabezado; impl_b hace lo mismo (líneas 174-178 y 275), y verificar.py (línea 542) escribe esas claves en informe.md, que se publica y que leen otros agentes. Un encabezado preparado mete ahí texto libre: Markdown con una imagen remota o instrucciones para una IA. En esta corrida el encabezado lo arma la limpieza sobre 6 columnas fijas de la consulta, así que hoy no se puede explotar. Corrección: aceptar solo nombres de marca con [a-z0-9_] o los del plan. — confirmado</li>
 <li>Baterías (lo que falló una vez, probado otra vez):</li>
-<li>✓ seguridad: 455 casos</li>
-<li>✓ privacidad: 96 casos</li>
-<li>✓ failfast: 34 casos</li>
+<li>✓ seguridad: 479 casos</li>
+<li>✓ privacidad: 100 casos</li>
+<li>✓ failfast: 158 casos</li>
 <li>✓ inyeccion: 18 casos</li>
 <li>✓ cruces: 18 casos</li>
 <li>✓ fechas: 5 casos</li>
 <li>✓ repetidos: 4 casos</li>
 <li>✓ factor: 7 casos</li>
-<li>✓ grafico: 13 casos</li>
-<li>✓ lecciones: 88 casos</li>
+<li>✓ grafico: 17 casos</li>
+<li>✓ lecciones: 123 casos</li>
 </ul>
 <h2>Bitácora del copiloto</h2>
 <table><thead><tr><th>Etapa</th><th>Qué se pidió</th><th>Qué devolvió</th><th>Cómo se probó</th><th>Qué se corrigió</th><th>Qué quedó sin verificar</th></tr></thead><tbody>
