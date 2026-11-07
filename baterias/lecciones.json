@@ -498,6 +498,12 @@
       "leccion": "Sanear por comillas no basta: «valor no numérico en fila 7: Ficticio Inventado 99887766» llegaba tal cual al informe, porque el texto de la celda viene sin comillas. Los mensajes de error de las implementaciones y de las reglas tapan ahora las cifras de 5 o más dígitos y toda palabra que aparezca en una celda de la entrada.",
       "origen": "revisión ciega de seguridad (SEG-3, parte del saneado), 6-nov-2026",
       "prueba": "herramientas/blindaje.py --solo B26"
+    },
+    {
+      "id": "L85",
+      "leccion": "El presentador también obedece D15: hasta el 6-nov su primera lámina daba «la conclusión y lo que se pide decidir», escribía «hallazgos» y una «recomendación accionable» (qué, quién, próximo paso, cómo se mide) y mostraba veredictos de las hipótesis de la IA, mientras validar_whitepaper.py ya le prohibía eso al documentador: una regla nueva cambió un agente y el otro siguió exigiendo lo contrario. Ahora los títulos dicen lo medido con su cifra (sin causas ni consecuencias), la recomendación se cambió por preguntas de costo, calidad e impacto para las personas, verificar_presentacion.py aplica a todos los textos la misma lista W3 del whitepaper (importada, no copiada) y un campo de la forma anterior (recomendacion, decision, scqa, hallazgos) hace fallar la forma en vez de ignorarse. Cuando cambia una regla, se buscan en todas las fichas y verificadores los textos que la contradicen.",
+      "origen": "alineación del presentador con D15 (decisión del dueño), 6-nov-2026",
+      "prueba": "herramientas/verificar_presentacion.py --autoprueba"
     }
   ]
 }
