@@ -34,7 +34,7 @@ Revisa:
      decisión del dueño», y orquestar.mjs, que lanza agy y Codex sin pedir permisos, es de lo que decide el dueño (L100).
   4. Que no rompa nada: baterías, la corrida sintética verificada desde cero y las 13 mutantes atrapadas, con la
      corrida y las mutantes de la base (más las mutantes nuevas del aporte). Una herramienta que se cae antes de su línea
-     RESUMEN no aprueba nada: es falla, aunque no haya escrito ninguna «✗» (L67).
+     RESUMEN, o que deja más de una, no aprueba nada: es falla, aunque no haya escrito ninguna «✗» (L67, L102).
   4b. Que lo que solo crece no se debilite en verde (CT24, D26): borrar un archivo de baterias/ o una mutante del banco
      sintético, quitar o cambiar una línea, un caso o lo esperado de uno que ya estaba, o tocar lo sellado de una corrida
      (sus sellos, lo que nombran, reglas.py, spec.json, hipotesis.json y caso_conocido/) queda como «requiere decisión
@@ -42,8 +42,12 @@ Revisa:
   5. Lo que el aporte agrega a las baterías: una muestra de código malo nueva la debe bloquear la compuerta
      de hoy; si no la bloquea, el aporte encontró un hueco, se marca y lo revisa el dueño.
   6. El SGSI (sgsi/README.md): nada restringido versionado, sin llaves, flujos de solo lectura y cada control con evidencia.
-  7. Si el aporte cambia una herramienta: el banco de blindaje de la base contra las herramientas del aporte, y las
-     baterías con las herramientas del aporte. Lo que ceda o falle es falla; que pase no basta: lo decide el dueño.
+  7. Si el aporte cambia una herramienta: el banco de blindaje y las baterías de la base, con las herramientas del
+     aporte. Lo que ceda o falle es falla; que pase no basta: lo decide el dueño. Ese código corre en el mismo proceso
+     que el banco y las baterías y puede escribir en su salida: por eso el baterias.py del aporte no se corre, la salida
+     del banco tiene que cuadrar (una sola línea RESUMEN, una línea por cada prueba de la base y lo que cede igual a lo
+     marcado con ✗ o !) y lo que cede en las líneas o en el RESUMEN es falla (L102). Límite: un código que reescribe toda
+     la salida de forma coherente no se detecta; cerrarlo pide correr cada herramienta del aporte en un proceso aparte.
 Sale con 0 si pasa, con 1 si no pasa y con 2 si no pudo revisar (la carpeta no es la raíz de un repositorio git o la
 base no existe): nunca cambia de base ni revisa otra cosa en silencio. FAILFAST también para el filtro: si una de sus
 herramientas no termina, sale con un código distinto de 0 o no deja su línea RESUMEN, el aporte no pasa.
@@ -193,15 +197,16 @@ def mostrar(d, sha, ruta):
 
 
 def resumen(texto):
-    """La línea RESUMEN de una herramienta como diccionario; None si falta o no es JSON."""
-    for linea in reversed(texto.splitlines()):
-        if linea.startswith("RESUMEN "):
-            try:
-                d = json.loads(linea[len("RESUMEN "):])
-            except ValueError:
-                return None
-            return d if isinstance(d, dict) else None
-    return None
+    """La línea RESUMEN de una herramienta como diccionario; None si falta, si no es JSON o si hay más de una: cada
+    herramienta deja una sola, y una segunda la escribió otro código (el del aporte, que corre en el mismo proceso, L102)."""
+    lineas = [x for x in texto.splitlines() if x.startswith("RESUMEN ")]
+    if len(lineas) != 1:
+        return None
+    try:
+        d = json.loads(lineas[0][len("RESUMEN "):])
+    except ValueError:
+        return None
+    return d if isinstance(d, dict) else None
 
 
 def ultima(texto):
@@ -256,6 +261,48 @@ def revisar_sgsi(rc, out, res=_LEER):
     elif rc != 0 and not marcadas:
         fallas.append(f"el SGSI salió con código {rc} sin decir qué falló: {ultima(out)}")
     return fallas
+
+
+LINEA_BANCO = re.compile(r"^([✓✗·!]) (B\d+) \[", re.M)
+
+
+def revisar_blindaje(rc, out, ids, res=_LEER):
+    """Fallas y avisos del banco de blindaje de la base corrido con las herramientas del aporte. Ese código corre en el
+    mismo proceso del banco y puede escribir en su salida (L102): lo que cede, en las líneas «✗»/«!» o en el RESUMEN, es
+    falla, y la salida tiene que cuadrar (una sola línea RESUMEN, una línea por cada prueba de la base, `ids`, y el RESUMEN
+    igual a lo marcado). Que cuadre y resista no prueba nada: lo decide el dueño."""
+    if res is _LEER:
+        res = resumen(out)
+    fallas, avisos = [], []
+    lineas = LINEA_BANCO.findall(out)
+    marcadas = {i for s, i in lineas if s in "✗!"}
+    ceden = set((res or {}).get("ceden") or [])
+    fallas += [f"el cambio debilita el blindaje: {i}: {evidencia_blindaje(out, i)}" for i in sorted(marcadas | ceden)]
+    if res is None:
+        fallas.append(f"el banco de blindaje de la base no terminó con las herramientas del aporte o dejó más de una línea "
+                      f"RESUMEN (código {rc}): {ultima(out)}")
+        return fallas, avisos
+    vistas = [i for _, i in lineas]
+    descuadre = []
+    if sorted(vistas) != sorted(ids):
+        faltan = sorted(set(ids) - set(vistas))
+        sobran = sorted({i for i in vistas if vistas.count(i) > 1} | (set(vistas) - set(ids)))
+        descuadre.append(f"una línea por prueba de la base: faltan {faltan[:5]}, sobran o se repiten {sobran[:5]}")
+    if res.get("pruebas") != len(ids):
+        descuadre.append(f"el RESUMEN dice {res.get('pruebas')} pruebas y la base tiene {len(ids)}")
+    if ceden != marcadas or res.get("resisten") != sum(s == "✓" for s, _ in lineas):
+        descuadre.append("el RESUMEN no dice lo mismo que las líneas de cada prueba")
+    if descuadre:
+        fallas.append("la salida del banco no cuadra (" + "; ".join(descuadre) + "): las herramientas del aporte corren en su "
+                      "mismo proceso y pudieron escribir en ella")
+    if res.get("caja_de_arena") is False:
+        avisos.append("sin caja de arena (sandbox-exec) en esta máquina: las pruebas de red y escritura del blindaje no aplicaron")
+    if rc != 0 and not fallas:
+        fallas.append(f"el banco de blindaje salió con código {rc}: {ultima(out)}")
+    avisos.append("el banco de blindaje y las baterías de la base corrieron las herramientas del aporte en su mismo proceso: lo "
+                  "que cede es falla, pero que resistan no prueba nada (ese código pudo escribir su salida); el dueño revisa el "
+                  "cambio línea por línea")
+    return fallas, avisos
 
 
 def instrucciones(texto):
@@ -626,12 +673,13 @@ def armar_mixto(arbol, sha_base, destino):
 
 
 def armar_base_con_herramientas(arbol, sha_base, destino):
-    """La base entera con las herramientas del aporte, menos el banco de blindaje, que sigue siendo el de la base:
-    mide si el cambio debilita una defensa con ataques que el aporte no pudo tocar."""
+    """La base entera con las herramientas del aporte, menos el banco de blindaje y las baterías, que siguen siendo los de
+    la base: miden si el cambio debilita una defensa con ataques y casos que el aporte no pudo tocar. El baterias.py del
+    aporte no se corre: su código daría el veredicto (L102)."""
     extraer(arbol, sha_base, ["."], destino)
     quitar(destino, "herramientas/")
     copiar(arbol, [r for r in versionables(arbol) if r.startswith("herramientas/")], destino)
-    extraer(arbol, sha_base, ["herramientas/blindaje.py"], destino)
+    extraer(arbol, sha_base, ["herramientas/blindaje.py", "herramientas/baterias.py"], destino)
     return destino
 
 
@@ -828,18 +876,14 @@ def revisar(arbol, base):
         if "herramientas/" in requiere:
             base_con = armar_base_con_herramientas(arbol, sha_base, tmp / "base-con-herramientas-del-aporte")
             rc, out, res = correr(base_con, "herramientas/blindaje.py")
+            ids = re.findall(r'^@prueba\("(B\d+)"', (base_con / "herramientas/blindaje.py").read_text(encoding="utf-8"), re.M)
+            f, a = revisar_blindaje(rc, out, ids, res)
+            fallas += f
+            avisos += a
+            rc, out, res = correr(base_con, "herramientas/baterias.py")   # las baterías de la base, no las del aporte (L102)
             if res is None:
-                fallas.append(f"el banco de blindaje de la base no terminó con las herramientas del aporte (código {rc}): {ultima(out)}")
-            else:
-                for id_ in res.get("ceden") or []:
-                    fallas.append(f"el cambio debilita el blindaje: {id_}: {evidencia_blindaje(out, id_)}")
-                if res.get("caja_de_arena") is False:
-                    avisos.append("sin caja de arena (sandbox-exec) en esta máquina: las pruebas de red y escritura del blindaje no aplicaron")
-                if rc != 0 and not res.get("ceden"):
-                    fallas.append(f"el banco de blindaje salió con código {rc}: {ultima(out)}")
-            rc, out, res = correr(arbol, "herramientas/baterias.py")
-            if res is None:
-                fallas.append(f"con las herramientas del aporte, las baterías no terminaron (código {rc}): {ultima(out)}")
+                fallas.append(f"con las herramientas del aporte, las baterías no terminaron o dejaron más de una línea RESUMEN "
+                              f"(código {rc}): {ultima(out)}")
             elif rc != 0:
                 fallas += [f"con las herramientas del aporte, baterías: {x.get('bateria')}: {x.get('falla')}"[:300]
                            for x in (res.get("detalle") or [{"bateria": "?", "falla": f"código {rc}"}])]
@@ -905,6 +949,22 @@ def _juez_editado(d):
         raise ValueError("validar_aporte.py ya no tiene el ancla de este caso: actualiza el caso")
     p.write_text(t.replace(ancla, "    fallas.clear()\n" + ancla, 1), encoding="utf-8")
     _datos_personales(d)
+
+
+def _resumen_falso_del_banco(d):
+    """L102: limpieza.py deja de neutralizar las fórmulas (B03 cede) y, solo dentro de blindaje.py, escribe al salir un
+    RESUMEN que dice que nada cede. Solo en el clon temporal: el código se escribe, y lo corre el banco de la base."""
+    p = d / "herramientas/limpieza.py"
+    t = p.read_text(encoding="utf-8")
+    viejo = '            if v[:1] in ("=", "+", "-", "@", "\\t", "\\r"):'
+    if viejo not in t or "import csv\n" not in t:
+        raise ValueError("limpieza.py ya no tiene lo que este caso debilita: actualiza el caso")
+    falso = json.dumps({"pruebas": 1, "resisten": 1, "ceden": [], "errores": [], "no_aplica": [], "caja_de_arena": True})
+    t = t.replace(viejo, "            if False:", 1).replace("import csv\n", (
+        "import csv\nimport atexit as _ae, os as _os, sys as _s\n"
+        "def _fin():\n    if _s.argv[0].endswith('blindaje.py'):\n"
+        f"        print('RESUMEN {falso}', flush=True)\n        _os._exit(0)\n_ae.register(_fin)\n"), 1)
+    p.write_text(t, encoding="utf-8")
 
 
 def _comentario_en_herramienta(d):
@@ -1035,6 +1095,8 @@ CASOS = {
     "intacto": (None, 0, [], [], None),
     "lecciones_mal_formado": (_lecciones_mal_formado, 1, ["lecciones"], [], None),
     "caja_hereda_entorno_y_renombre": (_caja_hereda_entorno_y_renombre, 1, ["requiere decisión del dueño", "debilita el blindaje"], [], None),
+    "resumen_falso_del_banco": (_resumen_falso_del_banco, 1, ["el cambio debilita el blindaje: B03", "dejó más de una línea RESUMEN",
+                                                              "requiere decisión del dueño"], [], None),
     "juez_editado_y_datos_personales": (_juez_editado, 1, ["posibles datos personales", "requiere decisión del dueño"], [], None),
     "copia_sin_git": (_datos_personales, 2, [], [], "sin_git"),
     "comentario_sin_sandbox_exec": (_comentario_en_herramienta, 1, ["requiere decisión del dueño"], ["B11", "B12"], "sin_sandbox"),

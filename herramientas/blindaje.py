@@ -1415,6 +1415,43 @@ def b37():
                         "cambios fuera de lo que solo crece pasan")
 
 
+@prueba("B38", "aportes → filtro", "una herramienta del aporte, cargada dentro del banco de blindaje de la base, escribe al salir un segundo RESUMEN («ceden: []») o reescribe la salida del banco para esconder lo que cede")
+def b38():
+    import validar_aporte as va
+    if not hasattr(va, "revisar_blindaje"):
+        return r("CEDE", "el filtro lee la última línea RESUMEN del banco, y el código del aporte, que corre en su mismo proceso, "
+                         "la puede escribir: la falla de B03 desaparece")
+    ids = ["B00", "B03", "B11"]
+
+    def linea(s, i, ev="ok"):
+        return f"{s} {i} [capa] ataque\n    {'CEDE' if s == '✗' else 'RESISTE'}: {ev}\n"
+
+    def resumen(pruebas, resisten, ceden):
+        return "RESUMEN " + json.dumps({"pruebas": pruebas, "resisten": resisten, "ceden": ceden, "errores": [], "no_aplica": [],
+                                        "caja_de_arena": True}) + "\n"
+    cede = linea("✗", "B03", "3 celdas empiezan con = + @")
+    real = linea("✓", "B00") + cede + linea("✓", "B11")
+    ataques = {   # (código de salida, salida); el código del aporte sale con 0 (os._exit)
+        "un segundo RESUMEN al salir (el de la revisión)": (0, real + resumen(3, 2, ["B03"]) + resumen(1, 1, [])),
+        "la línea ✗ reescrita a ✓ y un segundo RESUMEN": (0, real.replace(cede, linea("✓", "B03")) + resumen(3, 2, ["B03"]) + resumen(3, 3, [])),
+        "el RESUMEN reescrito, con la línea ✗ a la vista": (0, real + resumen(3, 3, [])),
+        "la línea de B03 y el RESUMEN reescritos, sin B03": (0, linea("✓", "B00") + linea("✓", "B11") + resumen(2, 2, [])),
+        "B03 dos veces, una en ✓, y el RESUMEN reescrito": (0, linea("✓", "B00") + linea("✓", "B03") + linea("✓", "B03") + linea("✓", "B11")
+                                                           + resumen(3, 3, [])),
+    }
+    pasan = [n for n, (rc, out) in ataques.items() if not va.revisar_blindaje(rc, out, ids)[0]]
+    # controles: lo honesto que cede es falla y nombra B03; lo que resiste no deja falla
+    cede_honesto = va.revisar_blindaje(1, real + resumen(3, 2, ["B03"]), ids)[0]
+    limpio = va.revisar_blindaje(0, linea("✓", "B00") + linea("✓", "B03") + linea("✓", "B11") + resumen(3, 3, []), ids)[0]
+    malos_controles = ([] if any("B03" in f for f in cede_honesto) else ["el banco honesto que cede no da falla"]) + \
+                      ([f"el banco limpio da falla: {limpio}"] if limpio else [])
+    if pasan or malos_controles:
+        return r("CEDE", f"pasan {len(pasan)} de {len(ataques)}: {pasan}; controles: {malos_controles}")
+    return r("RESISTE", f"las {len(ataques)} salidas del banco escritas por el código del aporte (un segundo RESUMEN, la línea "
+                        "reescrita, el RESUMEN reescrito, una prueba de menos, una repetida) son falla; el banco que cede de verdad "
+                        "es falla con su prueba, y el que resiste no deja falla")
+
+
 def main(argv):
     solo = set(argv[argv.index("--solo") + 1].split(",")) if "--solo" in argv else None
     filas = []

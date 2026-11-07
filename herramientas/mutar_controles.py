@@ -75,6 +75,11 @@ MUTANTES = [
      "    faltan = Counter(tv.splitlines()) - Counter(tn.splitlines())\n", "    faltan = Counter()\n", "B37"),
     ("M22", "los casos quitados o cambiados de un JSON de las baterías no cuentan", "herramientas/validar_aporte.py",
      "                out.append(f\"{camino}[{i}]\")\n", "                pass\n", "B37"),
+    ("M23", "el filtro acepta más de una línea RESUMEN (lee la última, la que escribió el aporte)", "herramientas/validar_aporte.py",
+     "    lineas = [x for x in texto.splitlines() if x.startswith(\"RESUMEN \")]\n    if len(lineas) != 1:\n        return None\n",
+     "    lineas = [x for x in texto.splitlines() if x.startswith(\"RESUMEN \")][-1:]\n    if len(lineas) != 1:\n        return None\n", "B38"),
+    ("M24", "el filtro no cruza la salida del banco con su RESUMEN ni con las pruebas de la base", "herramientas/validar_aporte.py",
+     "    if descuadre:\n        fallas.append(", "    if False:\n        fallas.append(", "B38"),
 ]
 
 

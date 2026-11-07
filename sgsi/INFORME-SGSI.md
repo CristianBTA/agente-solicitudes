@@ -231,7 +231,7 @@ prev. = preventivo, det. = detectivo, corr. = correctivo.
 | CT22 | Restablecer: todo se reconstruye desde GitHub o un clon, el contrato de datos y la semilla | correctivo | I·D | A.8.13, A.8.14, A.5.29, A.5.30 | corrida-sintetica |
 | CT23 | Procedencia con fecha y huella, licencia y atribución de la fuente (D6, D19, D20) | detectivo | I | A.5.33, A.5.32, A.5.31 | evidencia documental |
 | CT24 | Baterías que solo crecen: cada error real se vuelve lección y prueba (D26) | correctivo | C·I·D | A.5.27, A.8.8 | bateria:lecciones, B37 |
-| CT25 | Banco de blindaje con control positivo, con datos y secretos ficticios en carpetas temporales (DB1, DB10) | detectivo | C·I·D | A.8.29, A.8.34, A.8.33 | B00 |
+| CT25 | Banco de blindaje con control positivo, con datos y secretos ficticios en carpetas temporales (DB1, DB10) | detectivo | C·I·D | A.8.29, A.8.34, A.8.33 | B00, B38 |
 | CT26 | Revisión ciega de seguridad con prueba por hallazgo (D25) | detectivo | C·I·D | A.5.35, A.8.29, A.5.7 | bateria:seguridad |
 | CT27 | Reparador con tope de dos rondas; lo que quede lo decide una persona | correctivo | I·D | A.8.25 | evidencia documental |
 | CT28 | Bitácora del copiloto e informe final con todo el texto escapado (D27) | detectivo | I | A.8.15, A.5.28 | B18 |
