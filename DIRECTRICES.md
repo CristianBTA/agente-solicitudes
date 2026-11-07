@@ -62,7 +62,7 @@ SECOP II se actualiza a diario. Si el recorte de hoy no es idéntico al del 6-no
 
 Si corriste los pasos sobre `corridas/` directamente (como decía una versión anterior de esta guía), `git status` muestra `informe.json`, `informe.md` y `gobernanza.json` modificados, con el tiempo medido y la ruta de tu carpeta; `git restore corridas/` los deja como estaban. Nunca entran en un aporte.
 
-Lo que debe salir: todas las baterías en ✓ (hoy son 10), el blindaje con todas sus pruebas en «RESISTE» (hoy son 26, con el control B00; en Linux no hay sandbox-exec: B01, B11, B12 y B24 salen «NO APLICA» y el banco lo dice, porque ahí el código de la IA tendría red y escritura; por eso el filtro de aportes corre en macOS), la corrida en «aprobado», la referencia `m00` sin fallas y las mutantes `m01` a `m13` con al menos una falla cada una, los datos idénticos, la gobernanza aprobada, el SGSI sin fallas, con sus 21 mutantes atrapados, las autopruebas de la presentación y del whitepaper sin fallas ni errores, y `git status` sin ningún archivo. Si algo no sale así, el repositorio no cumple lo que dice.
+Lo que debe salir: todas las baterías en ✓ (hoy son 10), el blindaje con todas sus pruebas en «RESISTE» (hoy son 27, con el control B00; en Linux no hay sandbox-exec: B01, B11, B12 y B24 salen «NO APLICA» y el banco lo dice, porque ahí el código de la IA tendría red y escritura; por eso el filtro de aportes corre en macOS), la corrida en «aprobado», la referencia `m00` sin fallas y las mutantes `m01` a `m13` con al menos una falla cada una, los datos idénticos, la gobernanza aprobada, el SGSI sin fallas, con sus 21 mutantes atrapados, las autopruebas de la presentación y del whitepaper sin fallas ni errores, y `git status` sin ningún archivo. Si algo no sale así, el repositorio no cumple lo que dice.
 
 ---
 
@@ -215,7 +215,7 @@ El código de la IA solo importa la biblioteca estándar y lo de `herramientas/p
 *Por qué:* un nombre inventado (`pandas-secop-tools`) lo puede registrar un atacante. Comprobar que el paquete exista no basta (*slopsquatting*).
 
 **D22 · Contrato estrecho y análisis estático antes de ejecutar.**
-El código de la IA es una función pura. Antes de correrlo se revisan con reglas propias y con Bandit: ejecución de texto, comandos, deserialización, red, escritura, reflexión y secretos. Si algo bloquea, no se ejecuta.
+El código de la IA es una función pura. Antes de correrlo se revisan con reglas propias y con Bandit: ejecución de texto, comandos, deserialización, red, escritura, reflexión, recorrer o navegar carpetas (listar, subir o ir al archivo vecino: así buscaría el oráculo; B28, L90) y secretos. Si algo bloquea, no se ejecuta.
 *Dónde:* `herramientas/seguridad.py` y `herramientas/dependencias.py`.
 *Dos perfiles:* `pura` es el contrato de este párrafo. `usuario` es para código que sí necesita red y archivos: permite TLS, escritura y procesos con lista de argumentos, y bloquea la debilidad en sí (11 CWE, `herramientas/seguridad_cwe.py`). Un comentario `# nosec` no apaga nada.
 *Cómo se mide:* con un lote que escribe otro modelo sin ver la compuerta (`herramientas/medir_compuerta.py`). Revelar un lote lo descarta como medida; la meta se juzga con la cota inferior.
@@ -258,7 +258,7 @@ El mismo patrón del generador y el validador, aplicado al pipeline entero: un a
 
 **DB5 · Las salidas no ejecutan nada al abrirse.** Las fórmulas de Excel se neutralizan y se marcan en la capa limpia; el HTML de los datos se escapa (B03, L31, L19, L23).
 
-**DB6 · La compuerta se ataca con evasiones conocidas,** y cada evasión cerrada queda en la batería sin romper el código legítimo (B15, L32).
+**DB6 · La compuerta se ataca con evasiones conocidas,** y cada evasión cerrada queda en la batería sin romper el código legítimo (B15, L32). En el perfil pura, lo que recorre carpetas se bloquea por su nombre, se llame o no, y también por alias, getattr con texto, import * o el texto que se vuelve llamada: B28 lo ataca con 29 variantes que, sin la compuerta, llegan al oráculo (L90).
 
 **DB7 · Cadena de suministro fijada.** Cada dependencia lleva su huella y se instala con `--require-hashes`; cada acción de GitHub está fijada a su commit (B08, L33).
 
