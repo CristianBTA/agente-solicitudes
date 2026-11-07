@@ -456,6 +456,104 @@ def b23():
     return r("CEDE", f"prueba inválida: el código normal no corrió ({str(err)[:120]})")
 
 
+@prueba("B24", "caja de arena", "la implementación bajo prueba lee el oráculo del caso conocido (esperado.json) junto a sus datos o por su ruta")
+def b24():
+    d = Path(tempfile.mkdtemp(prefix="blindaje-oraculo-"))
+    canario = f"ORACULO-{uuid.uuid4().hex[:10]}"
+    try:
+        (d / "caso_conocido").mkdir()
+        datos = d / "caso_conocido" / "t.csv"
+        datos.write_text("a,b\n1,2\n", encoding="utf-8")
+        oraculo = d / "caso_conocido" / "esperado.json"
+        oraculo.write_text(json.dumps([{"x": canario}]), encoding="utf-8")
+        impl = d / "impl_a.py"
+        # el atacante busca el oráculo junto a sus datos (lo que hacía la mutante de la revisión ciega) y, además, por su
+        # ruta real, como si la conociera; siempre devuelve sus filas, así se ve que corrió (no resiste porque no arranca)
+        impl.write_text(
+            "import os\ndef analizar(datos):\n    vistos = []\n"
+            f"    for p in (os.path.join(os.path.dirname(datos['t']), 'esperado.json'), {str(oraculo)!r}):\n"
+            "        try:\n            with open(p, encoding='utf-8') as fh:\n                vistos.append(fh.read())\n"
+            "        except OSError as e:\n            vistos.append(type(e).__name__)\n"
+            "    with open(datos['t'], encoding='utf-8') as fh:\n        filas = sum(1 for _ in fh) - 1\n"
+            "    return [{'filas': filas, 'vistos': ' | '.join(vistos)}]\n", encoding="utf-8")
+        # control positivo (L27): con la caja de antes (leía la carpeta de sus datos y la de su código), el ataque llega
+        so, se, motivo, _ = caja.ejecutar(["-c", verificar.RUNNER, str(impl), json.dumps({"t": str(datos)})],
+                                          verificar.TIEMPO_IMPL, lecturas=[d / "caso_conocido", d])
+        antes = canario in so
+        res, err = verificar.ejecutar_impl(impl, {"t": str(datos)})
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+    if not antes:
+        return r("CEDE", f"prueba inválida: sin aislar, el ataque tampoco leyó el oráculo ({(motivo or se.strip()[-120:])}); "
+                         "un «resiste» así no prueba nada (L27)")
+    if not res or res[0].get("filas") != 1:
+        return r("CEDE", f"prueba inválida: la implementación no corrió con sus datos ({str(err)[:120]})")
+    vistos = str(res[0].get("vistos"))
+    if not caja.CAJA:
+        return r("NO APLICA", "sin sandbox-exec (Linux): la copia de la entrada deja el oráculo fuera de la carpeta de sus "
+                              f"datos, pero por su ruta real no hay negación de lectura ({vistos[:80]})")
+    if canario in json.dumps(res):
+        return r("CEDE", "la implementación bajo prueba leyó el esperado.json del caso conocido y lo devolvió en su resultado")
+    return r("RESISTE", "sin aislar el ataque leía el oráculo; en la caja aislada corre sobre una copia de sus datos "
+                        f"(junto a ellos no hay esperado.json) y la lectura por su ruta real se niega: {vistos[:90]}")
+
+
+@prueba("B25", "verificador", "la implementación declara en conciliar() más filas leídas de las que tiene el archivo, y la cuenta cierra")
+def b25():
+    d = Path(tempfile.mkdtemp(prefix="blindaje-conc-"))
+    try:
+        datos = d / "t.csv"
+        datos.write_text("a,b\n1,2\n3,4\n", encoding="utf-8")
+        base = "def analizar(datos):\n    return [{'ok': 1}]\n"
+        honesta, mentirosa = d / "honesta.py", d / "mentirosa.py"
+        honesta.write_text(base + "def conciliar(datos):\n    return {'filas_leidas': 2, 'usadas': 2, 'excluidas': {}}\n",
+                           encoding="utf-8")
+        # 1.000 leídas = 1.000 usadas + 0 excluidas: la aritmética interna cierra, pero el archivo tiene 2 filas
+        mentirosa.write_text(base + "def conciliar(datos):\n    return {'filas_leidas': 1000, 'usadas': 1000, 'excluidas': {}}\n",
+                             encoding="utf-8")
+        conteos = verificar.conteos_entrada({"t": str(datos)})
+        out = {}
+        for nombre, impl in (("honesta", honesta), ("mentirosa", mentirosa)):
+            _, err, conc, _ = verificar.ejecutar_impl(impl, {"t": str(datos)}, detalle=True)
+            out[nombre] = (err, conc, verificar.revisar_conciliacion(conc), verificar.anclar_conciliacion(conc, conteos))
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+    (err_h, conc_h, arit_h, ancla_h), (err_m, conc_m, arit_m, ancla_m) = out["honesta"], out["mentirosa"]
+    if err_h or err_m or not conc_h or not conc_m:
+        return r("CEDE", f"prueba inválida: las implementaciones no corrieron en la caja ({str(err_h or err_m)[:120]})")
+    if arit_h or ancla_h:
+        return r("CEDE", f"falsa alarma: la conciliación honesta (2 de 2 filas) no pasa: {arit_h or ancla_h}")
+    if arit_m:
+        return r("CEDE", "prueba inválida: la conciliación mentirosa ya no cierra por aritmética; el ataque no prueba el ancla")
+    if not ancla_m:
+        return r("CEDE", "la conciliación autodeclarada (1.000 leídas de un archivo de 2 filas) pasa: nadie cuenta las filas reales")
+    return r("RESISTE", f"la cuenta interna cierra (1.000 = 1.000 + 0), pero el verificador cuenta el archivo: {ancla_m[:110]}; "
+                        "la conciliación honesta pasa")
+
+
+@prueba("B26", "salidas", "el error de una implementación copia el texto de una celda sin comillas al informe")
+def b26():
+    d = Path(tempfile.mkdtemp(prefix="blindaje-sanear-"))
+    secreto = ["Ficticio", "Inventado", "99887766"]
+    try:
+        datos = d / "t.csv"
+        datos.write_text(f"id,valor\n1,10\n2,{' '.join(secreto)}\n", encoding="utf-8")
+        res, err = correr_impl("import csv\ndef analizar(datos):\n    with open(datos['t'], encoding='utf-8') as fh:\n"
+                               "        for i, f in enumerate(csv.DictReader(fh), 2):\n"
+                               "            try:\n                float(f['valor'])\n"
+                               "            except ValueError:\n"
+                               "                raise ValueError(f'valor no numérico en la fila {i}: ' + f['valor'])\n"
+                               "    return []\n", {"t": str(datos)})
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+    if not err or "valor no numérico" not in err:
+        return r("CEDE", f"prueba inválida: el error no llegó al verificador ({str(err or res)[:120]})")
+    fugas = [s for s in secreto if s in err]
+    if fugas:
+        return r("CEDE", f"el mensaje de error publica el texto de la celda: {len(fugas)} de 3 palabras ({err[:60]}…)")
+    return r("RESISTE", f"el mensaje conserva lo que dice el código y tapa lo que viene de las celdas: «{err[:100]}»")
+
+
 def main(argv):
     solo = set(argv[argv.index("--solo") + 1].split(",")) if "--solo" in argv else None
     filas = []

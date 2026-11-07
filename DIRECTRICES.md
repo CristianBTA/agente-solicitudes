@@ -127,7 +127,7 @@ Fechas límite (00:00 del 1 de enero, 23:59 del 31 de diciembre), repetidos, vac
 pandas y Python puro. Un error propio de una herramienta no se repite en la otra.
 
 **D12 · Todo conteo cierra; limpiar es marcar.**
-Cada implementación concilia: filas leídas = usadas + excluidas por motivo. Nada se borra en silencio.
+Cada implementación concilia: filas leídas = usadas + excluidas por motivo. Nada se borra en silencio. La conciliación no se autodeclara: el verificador cuenta las filas reales de la entrada (y las compara con las de la procedencia), en los datos reales y en el caso conocido, y A y B deben conciliar igual motivo por motivo (B25, L82).
 *Dónde:* `conciliar(datos)` en `impl_a.py` e `impl_b.py`; tabla de conciliación en el informe.
 *Por qué:* quitar «duplicados» por (entidad, valor, fecha) borró 25.824 contratos legítimos en una de las mutantes (lección L08).
 
@@ -195,7 +195,7 @@ Desde el 6-nov-2026 la IA no propone ni prueba hipótesis ni da el análisis. El
 ## F · Gobernanza
 
 **D18 · Nunca filas a la IA; el texto libre es un dato personal en potencia.**
-La IA trabaja con nombres, tipos y conteos. Antes de publicar, un barrido determinista busca cédulas con contexto, correos, celulares y nombres con tratamiento en los datos y en todo lo que se publica. Si se publican personas, se exige k-anonimato (k ≥ 5).
+La IA trabaja con nombres, tipos y conteos. Antes de publicar, un barrido determinista busca cédulas con contexto, correos, celulares y nombres con tratamiento en los datos y en todo lo que se publica. Si se publican personas, se exige k-anonimato (k ≥ 5). Los mensajes de error que llegan al informe tapan lo que va entre comillas, las cifras largas y toda palabra que aparezca en una celda de la entrada (B26, L83).
 *Dónde:* `herramientas/gobernanza.py`. La IA (custodio) clasifica todas las columnas de la fuente y el código compara su clasificación con la propia.
 *Por qué:* además de proteger a las personas, la IA no puede seguir una instrucción escondida en un texto que nunca lee.
 
@@ -245,7 +245,7 @@ El mismo patrón del generador y el validador, aplicado al pipeline entero: un a
 
 **DB1 · Toda batería de ataques lleva un control positivo.** Un ataque que «resiste» porque nada funciona no prueba nada. B00 corre código normal en la caja: si falla, ninguna prueba de la caja vale (lección L27).
 
-**DB2 · La caja de arena niega la red, la escritura y la lectura de la carpeta personal, y da un entorno mínimo.** El código de la IA no ve las variables de entorno del proceso que lo lanza (secretos) y tiene topes de tiempo y de memoria. La memoria se mide como huella física, no como memoria residente (B01, B10–B14, B23; lecciones L25, L26, L28, L69).
+**DB2 · La caja de arena niega la red, la escritura y la lectura de la carpeta personal, y da un entorno mínimo.** El código de la IA no ve las variables de entorno del proceso que lo lanza (secretos) y tiene topes de tiempo y de memoria. La memoria se mide como huella física, no como memoria residente (B01, B10–B14, B23; lecciones L25, L26, L28, L69). La implementación bajo prueba corre aislada, sobre una copia de su código y de sus tablas: no lee el repositorio, las carpetas temporales ni ningún archivo con nombre de oráculo o de criterio (`esperado.json`, `reglas.py`, `sellos*.json`), ni la otra implementación (B24, L81).
 
 **DB3 · Las herramientas no pueden cambiar durante una corrida.** Un manifiesto de integridad se sella antes de cualquier agente y se comprueba al final. Las baterías solo pueden crecer (B02, L29).
 

@@ -480,6 +480,24 @@
       "leccion": "Un HTTP 400 (una consulta mal escrita) se reintentaba tres veces con esperas y terminaba en traceback, gastando cupo de la API. Un error de la consulta no se arregla repitiéndola: se rechaza a la primera con el mensaje del servidor, y solo se reintentan 429, 5xx y la red.",
       "origen": "revisión ciega del pipeline (PIP-4), 6-nov-2026",
       "prueba": "herramientas/ingesta.py --autoprueba"
+    },
+    {
+      "id": "L81",
+      "leccion": "El código bajo prueba tenía el oráculo al alcance: la caja le dejaba leer la carpeta de sus datos, y una mutante que leía el esperado.json del caso conocido pasaba «sin fallas». La línea «No puede leer» de la ficha es una instrucción, no un control. Ahora corre sobre copias de su código y de sus tablas, en una carpeta temporal nueva, con la caja aislada: sin repositorio, sin carpetas temporales y sin ningún archivo con nombre de oráculo, de criterio o de otra implementación.",
+      "origen": "revisión ciega de seguridad (SEG-4), 6-nov-2026",
+      "prueba": "herramientas/blindaje.py --solo B00,B24"
+    },
+    {
+      "id": "L82",
+      "leccion": "Una conciliación vale si la ancla el verificador, no si la declara el código: una corrida de 30 filas salía aprobada con «Filas leídas: 1.000», porque 1.000 = 1.000 + 0 cerraba, y «la conciliación de B es distinta» no cambiaba el estado. Ahora las filas leídas se comparan con las filas reales del archivo (y con las de la procedencia), en los datos reales y en el caso conocido; A y B deben coincidir motivo por motivo, hace falta al menos una regla de conservación (D9) y no hay conteos negativos.",
+      "origen": "revisión ciega del pipeline (PIP-3), 6-nov-2026",
+      "prueba": "herramientas/blindaje.py --solo B25"
+    },
+    {
+      "id": "L83",
+      "leccion": "Sanear por comillas no basta: «valor no numérico en fila 7: Ficticio Inventado 99887766» llegaba tal cual al informe, porque el texto de la celda viene sin comillas. Los mensajes de error de las implementaciones y de las reglas tapan ahora las cifras de 5 o más dígitos y toda palabra que aparezca en una celda de la entrada.",
+      "origen": "revisión ciega de seguridad (SEG-3, parte del saneado), 6-nov-2026",
+      "prueba": "herramientas/blindaje.py --solo B26"
     }
   ]
 }

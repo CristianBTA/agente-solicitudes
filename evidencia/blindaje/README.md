@@ -33,8 +33,11 @@ El patrón del generador y el validador, aplicado al pipeline entero: **un ataca
 | B21 | aportes → filtro | Un aporte apaga el filtro desde adentro: lo edita, lo renombra o reemplaza un módulo que importa (L56) | **Cede** | Resiste |
 | B22 | aportes → filtro | Un aporte deja un JSON roto en `baterias/` o en `sgsi/`: la herramienta se cae sin escribir «✗» y el filtro respondía «✓ pasa» (L67) | **Cede** | Resiste |
 | B23 | caja de arena | Un `json.py` plantado en la carpeta desde donde se lanza la caja reemplaza al de la biblioteca estándar dentro del ejecutor (L69) | **Cede** | Resiste |
+| B24 | caja de arena | La implementación bajo prueba lee el `esperado.json` del caso conocido junto a sus datos o por su ruta real (SEG-4 de la revisión ciega) | **Cede** | Resiste |
+| B25 | verificador | `conciliar()` declara 1.000 filas leídas de un archivo de 2 y la cuenta interna cierra (1.000 = 1.000 + 0) (PIP-3) | **Cede** | Resiste |
+| B26 | salidas | El error de una implementación copia al informe el texto de una celda sin comillas (SEG-3) | **Cede** | Resiste |
 
-**De 5 de 14 a 22 de 22.** La línea base fueron los 14 ataques de B01 a B15; hoy el banco tiene 22 pruebas: B00 de control y 21 ataques. B17 salió de las pruebas con IA, y B18 a B23, de revisiones posteriores; cada una entró con su hueco ya cerrado. El número B06 no se usó, y B16 es la auditoría de independencia, que corre aparte. En Linux, B01, B11 y B12 salen «NO APLICA», porque no existe `sandbox-exec` (allí la defensa es la compuerta), y el resumen del banco lo dice (`caja_de_arena: false`): por eso el filtro de aportes corre en macOS (L42).
+**De 5 de 14 a 25 de 25.** La línea base fueron los 14 ataques de B01 a B15; hoy el banco tiene 25 pruebas: B00 de control y 24 ataques. B17 salió de las pruebas con IA, y B18 a B26, de revisiones posteriores; cada una entró con su hueco ya cerrado. El número B06 no se usó, y B16 es la auditoría de independencia, que corre aparte. En Linux, B01, B11, B12 y B24 salen «NO APLICA», porque no existe `sandbox-exec` (allí la defensa es la compuerta y, en B24, la copia de la entrada), y el resumen del banco lo dice (`caja_de_arena: false`): por eso el filtro de aportes corre en macOS (L42).
 
 ## Lecciones de método
 

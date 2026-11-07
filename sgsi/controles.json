@@ -73,7 +73,8 @@
     }
    ],
    "pruebas": [
-    "bateria:privacidad"
+    "bateria:privacidad",
+    "B26"
    ]
   },
   {
@@ -125,7 +126,9 @@
      "archivo": "flujo.js"
     }
    ],
-   "pruebas": []
+   "pruebas": [
+    "B24"
+   ]
   },
   {
    "id": "CT06",
@@ -220,7 +223,8 @@
    ],
    "pruebas": [
     "corrida-sintetica",
-    "B05"
+    "B05",
+    "B25"
    ]
   },
   {
@@ -337,7 +341,8 @@
     "B12",
     "B13",
     "B14",
-    "B23"
+    "B23",
+    "B24"
    ]
   },
   {
