@@ -14,7 +14,7 @@ Cada ficha define un subagente: qué hace, qué puede leer y qué no, qué entre
 | 09 | [Graficador](09-graficador.md) | 4 · Visualización | `herramientas/verificar_grafico.py` |
 | 10 | [Custodio de datos personales](10-custodio-de-datos-personales.md) | 5 · Gobernanza | `herramientas/gobernanza.py` |
 | 11 | [Revisor ciego de seguridad](11-revisor-ciego-de-seguridad.md) | 5 · Gobernanza | `herramientas/baterias.py` |
-| 12 | [Presentador](12-presentador.md) | 4 · Visualización | `herramientas/verificar_presentacion.py` (calcula y escribe cada cifra) |
+| 12 | [Presentador](12-presentador.md) | 4 · Visualización (dice lo medido; el análisis lo hacen las personas) | `herramientas/verificar_presentacion.py` (calcula y escribe cada cifra; sin lenguaje de análisis) |
 
 Las [reglas comunes](00-reglas-comunes.md) aplican a todos.
 
@@ -33,7 +33,7 @@ La independencia es lo que evita que el que prueba comparta los puntos ciegos de
 | Reparador | su falla, su sección del informe, spec | reglas, la otra implementación |
 | Documentador | spec, artefactos verificados (informe, procedencia, limpieza, gobernanza, verificación del gráfico), `grafico.json` | datos crudos, capa limpia, código de los demás, bitácoras |
 | Graficador | resultado aprobado, procedencia | datos crudos |
-| Presentador | resultado aprobado, hipótesis probadas, gráfico aprobado, supuestos y preguntas, procedencia | datos crudos, capa limpia, código y bitácoras de los demás |
+| Presentador | resultado aprobado, gráfico aprobado, supuestos y preguntas, procedencia | datos crudos, capa limpia, código y bitácoras de los demás, hipótesis de la IA (historial) |
 | Custodio | metadatos de todas las columnas, conteos | filas y valores |
 | Revisor ciego de seguridad | el código generado | bitácora y notas de los autores |
 

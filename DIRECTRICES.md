@@ -42,7 +42,7 @@ cmp /tmp/datos-prueba/ventas.csv ejemplo/datos/ventas.csv && echo "datos idénti
 .venv/bin/python herramientas/sgsi.py --autoprueba
 .venv/bin/python herramientas/sgsi.py --efectividad
 
-# 5d. Probar al probador de la presentación: 4 presentaciones buenas aprueban y 29 mutantes (número a mano, marcadores pegados, NaN, título de tema…) fallan
+# 5d. Probar al probador de la presentación: 4 presentaciones buenas aprueban y 48 mutantes (número a mano, marcadores pegados, NaN, título de tema, recomendación escondida, campos de la forma anterior…) fallan
 .venv/bin/python herramientas/verificar_presentacion.py --autoprueba
 
 # 6. (Opcional, con red) SECOP II: los datos no vienen en el repositorio; se descargan con su contrato y se prueban al cargar
@@ -183,14 +183,15 @@ Desde el 6-nov-2026 la IA no propone ni prueba hipótesis ni da el análisis. El
 *Dónde:* `herramientas/verificar_grafico.py` y `herramientas/color.py`, con la batería `baterias/grafico/` (casos buenos que deben pasar y malos que deben fallar).
 *Por qué:* el ojo compara mejor posiciones y longitudes que colores (Cleveland y McGill, 1984); un color que no se distingue o no contrasta borra el dato para una parte del público.
 
-**D30 · La presentación da la respuesta primero y cada cifra sale de los datos.**
-- Primero la conclusión y lo que se pide decidir (pirámide de Minto); luego situación, complicación, pregunta y respuesta (SCQA).
-- Cada título es una afirmación con su cifra, de dos líneas como máximo, y debajo va una sola evidencia (método afirmación-evidencia de Alley). Si solo se leen los títulos, se entiende el argumento.
+**D30 · La presentación dice lo preguntado y lo medido, y cada cifra sale de los datos.**
+- Primero la pregunta y la medición principal con su cifra (la pirámide de Minto, sin conclusión). De SCQA quedan la situación y la pregunta, que describen; la complicación y la respuesta se quitaron porque piden interpretar. Como en D15, la IA resume y no analiza: ni conclusiones, ni causas, ni juicios, ni decisiones que se pidan, ni recomendación.
+- Cada título dice lo medido con su cifra, de dos líneas como máximo, y debajo va una sola evidencia (método afirmación-evidencia de Alley). «Las {n} entidades con sede en Medellín contrataron {total} en 2025» dice lo medido; «…, por eso hay que…» saca una consecuencia. Si solo se leen los títulos, se entiende qué se midió.
 - La IA no escribe números: pone marcadores (`{total}`) y declara el cálculo de cada uno; el código calcula la cifra desde el resultado aprobado y la escribe. Un dígito, una magnitud con palabras o un «%» fuera de un marcador hacen fallar la presentación. En el lanzamiento de GPT-5 (agosto de 2025), una barra de 52,8 % se dibujó más alta que una de 69,1 %: lo que no calcula el código, no se presenta.
-- Método, incertidumbre y límites explícitos, con cada pregunta abierta nombrada (como METR); recomendación con qué, quién, próximo paso y cómo se mide.
+- Método, incertidumbre y límites explícitos, con cada pregunta abierta nombrada (como METR). En lugar de una recomendación, de 3 a 6 preguntas para las personas, de costo, calidad e impacto (como el whitepaper), que ellas responden en `plantillas/analisis_humano.md`.
 - La IA escribe solo `presentacion.json`; las láminas, las tablas, la fuente y la fecha las pone el verificador, y solo si todo aprueba.
-- Lo que el código no puede ver: que la frase use bien una cifra correcta (por ejemplo, llamar «Medellín» a las entidades con sede en Medellín). Eso lo revisa una persona o un juez ciego con la lámina «Prueba de los títulos».
-*Dónde:* `agentes/12-presentador.md` y `herramientas/verificar_presentacion.py` (`--autoprueba`: 4 presentaciones buenas aprueban y 29 mutantes fallan donde deben).
+- Las frases de análisis se buscan en todos los textos con la misma lista W3 de `validar_whitepaper.py` (importada, no copiada) y la de la forma anterior («lo que se pide decidir», «próximo paso», «por eso»). Un campo de la forma anterior (`recomendacion`, `decision`, `scqa`, `hallazgos`) hace fallar la presentación.
+- Lo que el código no puede ver: que la frase use bien una cifra correcta (por ejemplo, llamar «Medellín» a las entidades con sede en Medellín) y las frases de análisis que la lista no conoce. Eso lo revisa una persona o un juez ciego con la última lámina, que lista los títulos y las preguntas para las personas.
+*Dónde:* `agentes/12-presentador.md` y `herramientas/verificar_presentacion.py` (`--autoprueba`: primero 4 presentaciones buenas aprueban y luego 48 mutantes fallan donde deben).
 
 ## F · Gobernanza
 
@@ -291,7 +292,7 @@ La seguridad del repositorio, ordenada como un sistema de gestión (ISO/IEC 2700
 | 1 · Pedir, probar, citar | R1 solo nombres reales · R2 nunca filas · R3 todo conteo cierra · R4 prueba independiente · R5 no borrar en silencio · R6 fechas · R7 valores imposibles se cuentan · R8 primero igual, después rápido · R9 citar con fecha | D1–D4, D9, D12, D13, D18, D20 |
 | 2 · Ingesta y procesamiento | R10 leer completo · R11 esquema declarado · R12 correr dos veces da lo mismo · R13 particionar sin perder nulos · R14 limpiar es marcar · R15 las cinco pruebas · R16 sin traer todo a memoria | D5–D7, D12, D13, DL1–DL7 |
 | 3 · Analítica | lo hacen las personas: hipótesis escrita antes de mirar, línea base, partición temporal, fuga, umbral, desmentir con una consulta; la IA solo documenta (whitepaper) y deja bitácora | D15, D16, D27 |
-| 4 · Visualización y gobernanza | etiqueta exacta, eje desde cero, factor de mentira, período incompleto, cuenta de control, color con contraste y apto para daltonismo, presentación con la respuesta primero y cifras que escribe el código, unicidad (k), qué no se pega al asistente, cita | D17–D20, D24, D29, D30 |
+| 4 · Visualización y gobernanza | etiqueta exacta, eje desde cero, factor de mentira, período incompleto, cuenta de control, color con contraste y apto para daltonismo, presentación con lo preguntado y lo medido primero, preguntas para las personas y cifras que escribe el código, unicidad (k), qué no se pega al asistente, cita | D17–D20, D24, D29, D30 |
 
 R13 y R16 son de PySpark: aquí no aplican, porque los datos caben en memoria (91.072 filas).
 
