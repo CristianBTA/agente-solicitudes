@@ -287,6 +287,14 @@
     {
      "archivo": "herramientas/baterias.py",
      "contiene": "AUTOPRUEBAS"
+    },
+    {
+     "archivo": "agentes/01-lector.md",
+     "contiene": "k_minimo"
+    },
+    {
+     "archivo": "agentes/03-limpiador.md",
+     "contiene": "vacios_maximo"
     }
    ],
    "pruebas": [
@@ -297,7 +305,8 @@
     "bateria:factor",
     "B09",
     "B19",
-    "B33"
+    "B33",
+    "B34"
    ]
   },
   {
