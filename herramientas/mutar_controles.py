@@ -54,6 +54,14 @@ MUTANTES = [
      "    if fechas and privada:", "    if False:", "B32"),
     ("M12", "la batería FAILFAST sin las autopruebas de la ingesta y de la limpieza", "herramientas/baterias.py",
      "    for herramienta, minimo in AUTOPRUEBAS.items():", "    for herramienta, minimo in {}.items():", "B33"),
+    ("M13", "el filtro no busca rutas que en macOS caen sobre otra escrita distinto", "herramientas/rutas_protegidas.py",
+     "            if len(g) > 1:\n                choques[r] = sorted(g)\n", "            if False:\n                choques[r] = sorted(g)\n", "B35"),
+    ("M14", "la clave de la ruta distingue mayúsculas (como el disco de Linux, no como el de macOS)", "herramientas/rutas_protegidas.py",
+     '    return unicodedata.normalize("NFC", t.casefold())\n', '    return unicodedata.normalize("NFC", t)\n', "B35"),
+    ("M15", "los ganchos y flujos de GitHub son solo del dueño únicamente con su grafía exacta", "herramientas/validar_aporte.py",
+     "    return DEL_DUENO.match(clave(ruta)) is not None\n", "    return DEL_DUENO.match(ruta) is not None\n", "B35"),
+    ("M16", "lo que juzga a los aportes (CONFIABLES) solo con su grafía exacta", "herramientas/validar_aporte.py",
+     "    k = clave(ruta)\n    return next((c for c in CONFIABLES", "    k = ruta\n    return next((c for c in CONFIABLES", "B35"),
 ]
 
 

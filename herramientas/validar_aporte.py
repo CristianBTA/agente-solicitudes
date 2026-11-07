@@ -19,7 +19,10 @@ Revisa:
      carpetas datos/ o limpio/, entornos, cachés, llaves, la configuración de asistentes y editores que se ejecuta o
      se obedece sola al abrir el clon (L54) y enlaces simbólicos. Los flujos, las plantillas y CODEOWNERS de .github/
      y los ganchos de .githooks/ solo los cambia el dueño: de otra persona son falla, y del dueño, «requiere decisión
-     del dueño».
+     del dueño». Las rutas se comparan como las ve el disco de macOS (el runner y el Mac del dueño): sin mayúsculas, con
+     los acentos en una sola forma y sin los invisibles que ignora HFS+. Una ruta que ahí cae sobre otra escrita distinto
+     («.Githooks/pre-commit», «Flujo.js», «agentes/00-Reglas-comunes.md») es falla y su contenido no se revisa: git deja
+     un solo archivo en el disco, y el juez leería el de la base mientras el clon del dueño recibe el del aporte (L99).
   2. Datos personales en todo lo que el aporte agrega (barrido de gobernanza) y, en toda tabla, que las columnas que
      identifican a personas solo traigan valores con la forma ficticia de la guía; en baterias/privacidad/, también
      lo que encuentre el barrido.
@@ -57,6 +60,7 @@ RAIZ = JUEZ.parent.parent
 sys.path.insert(0, str(RAIZ / "herramientas"))
 from gobernanza import (parece_instruccion, INSTRUCCION, COMENTARIO_OCULTO, PATRONES,  # noqa: E402
                         clasificar_columna, es_sensible)
+from rutas_protegidas import clave, colisiones  # noqa: E402  (una sola forma de comparar rutas, L99)
 
 
 def ordenes_a_agentes(texto):
@@ -106,15 +110,23 @@ MUTANTES = "evidencia/sintetico/mutantes"
 # Lo que juzga a los aportes. Si un aporte lo cambia, no se juzga con su propia versión: lo decide el dueño.
 CONFIABLES = ("herramientas/", ".github/", ".githooks/", "flujo.js", "requirements.txt", "requirements-compuerta.txt")
 ESTADOS = {"A": "agrega", "M": "cambia", "D": "borra", "T": "cambia el tipo de"}
+# Por qué el dueño decide cada grupo de «requiere decisión del dueño» (lo que no está aquí es parte del juez)
+MOTIVO_DUENO = {"rutas que chocan": "en macOS y Windows reemplazan a otra ruta escrita distinto (L99)"}
 
 
 def motivo_prohibido(ruta):
-    """Por qué una ruta no puede entrar en un aporte (None si puede)."""
-    if ASISTENTES.search(ruta):
+    """Por qué una ruta no puede entrar en un aporte (None si puede). Se mira la clave de la ruta (L99)."""
+    if ASISTENTES.search(clave(ruta)):
         return f"configuración de asistente o editor que se ejecuta o se obedece al abrir el clon: {ruta}"
-    if PROHIBIDOS.search(ruta):
+    if PROHIBIDOS.search(clave(ruta)):
         return f"archivo que no puede entrar: {ruta}"
     return None
+
+
+def solo_del_dueno(ruta):
+    """Los flujos, plantillas y CODEOWNERS de .github/ y los ganchos de .githooks/, con cualquier grafía: en macOS,
+    «.Githooks/pre-commit» es el gancho que corre en cada commit del dueño (L99)."""
+    return DEL_DUENO.match(clave(ruta)) is not None
 
 
 def es_del_dueno():
@@ -229,8 +241,19 @@ def instrucciones(texto):
     return out
 
 
+def confiable_de(ruta):
+    """La entrada de CONFIABLES que cubre la ruta, con cualquier grafía (L99), o None."""
+    k = clave(ruta)
+    return next((c for c in CONFIABLES if k == c.rstrip("/") or k.startswith(c)), None)
+
+
 def es_confiable(ruta):
-    return any(ruta == c.rstrip("/") or ruta.startswith(c) for c in CONFIABLES)
+    return confiable_de(ruta) is not None
+
+
+def rutas_en(arbol, sha):
+    """Todas las rutas versionadas de un commit."""
+    return {r for r in git(arbol, "ls-tree", "-r", "--name-only", "-z", sha).split("\0") if r}
 
 
 def cambios(arbol, punto):
@@ -510,10 +533,22 @@ def revisar(arbol, base):
         avisos.append(f"la rama no parte de la punta de {base}: se compara contra su punto de partida ({punto[:10]}); "
                       f"actualízala con git rebase {base}")
 
+    # rutas que en el disco de macOS caen sobre otra escrita distinto: la base, el aporte y lo que no tiene commit (L99)
+    choques = colisiones([r for e, r in archivos if e != "D"], rutas_en(arbol, sha_base) | rutas_en(arbol, "HEAD")
+                         | set(versionables(arbol)))
     for estado, ruta in archivos:
-        if es_confiable(ruta):
-            c = next(c for c in CONFIABLES if ruta == c.rstrip("/") or ruta.startswith(c))
+        c = confiable_de(ruta)
+        if c:
             requiere.setdefault(c, []).append(f"{ESTADOS.get(estado, 'cambia')} {ruta}")
+        if ruta in choques:
+            mismas = " y ".join(f"«{g}»" for g in choques[ruta])[:200]
+            texto = (f"{ruta}: en macOS y Windows {mismas} son la misma ruta (solo cambian mayúsculas, acentos o "
+                     "caracteres invisibles): git deja un solo archivo en el disco y reemplaza al otro; su contenido no se revisa")
+            if del_dueno:
+                requiere.setdefault("rutas que chocan", []).append(f"{ESTADOS.get(estado, 'cambia')} {ruta}")
+            else:
+                fallas.append(texto)
+            continue
         if estado == "D":
             if ruta.startswith(("baterias/", "agentes/", "DIRECTRICES")):
                 avisos.append(f"borra {ruta}: lo revisa el dueño")
@@ -526,10 +561,10 @@ def revisar(arbol, base):
         if p.is_symlink():  # un enlace hace que las herramientas lean archivos de quien abre el clon (L54)
             fallas.append(f"enlace simbólico (apunta a {os.readlink(p)}; no se aceptan: puede apuntar fuera del repositorio): {ruta}")
             continue
-        if DEL_DUENO.match(ruta) and not del_dueno:
+        if solo_del_dueno(ruta) and not del_dueno:
             # de otra persona no entran; del dueño, quedan en «requiere decisión del dueño» como todo lo de CONFIABLES
             fallas.append(f"{ruta}: los flujos de GitHub, las plantillas, CODEOWNERS y los ganchos de git solo los cambia el dueño")
-        if CADENA_DEL_FILTRO.match(ruta) and not juez_externo:
+        if CADENA_DEL_FILTRO.match(clave(ruta)) and not juez_externo:
             avisos.append(f"{ruta} es parte del filtro: este resultado lo da la copia del propio aporte y no prueba nada "
                           "(en GitHub juzga el de la base); el dueño revisa el cambio línea por línea")
         if not p.is_file():
@@ -650,8 +685,8 @@ def revisar(arbol, base):
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
-    pide_dueno = [f"{c}: {', '.join(v[:6])}{' …' if len(v) > 6 else ''} (es parte de lo que juzga a los aportes)"
-                  for c, v in requiere.items()]
+    pide_dueno = [f"{c}: {', '.join(v[:6])}{' …' if len(v) > 6 else ''} "
+                  f"({MOTIVO_DUENO.get(c, 'es parte de lo que juzga a los aportes')})" for c, v in requiere.items()]
     todas = fallas + [f"requiere decisión del dueño: {x}" for x in pide_dueno]
     print(f"Juez: {JUEZ} ({'de fuera del aporte' if juez_externo else 'el del propio árbol; en GitHub corre el de la base'})")
     print(f"Aporte: {len(archivos)} archivo(s) cambiados frente a {base}{' (elegida: no se pasó --base)' if elegida else ''}"
@@ -729,6 +764,17 @@ def _asistentes_flujo_y_enlace(d):
     os.symlink("../README.md", d / "ejemplo/enlace.md")
 
 
+def _rutas_que_chocan(d):
+    """L99: el gancho de git y el flujo con otra mayúscula, armados como los arma un fork: con git update-index, sin pasar
+    por el disco, que en macOS no distingue mayúsculas. skip-worktree hace que el «git add -A» del caso no los toque."""
+    g = ["git", "-c", "core.quotepath=off"]
+    for ruta, contenido, modo in ((".Githooks/pre-commit", "#!/bin/sh\nexit 0\n", "100755"), ("Flujo.js", "// prueba\n", "100644")):
+        blob = subprocess.run([*g, "hash-object", "-w", "--stdin"], cwd=d, input=contenido.encode(), capture_output=True,  # nosec B603 B607
+                              check=True).stdout.decode().strip()
+        subprocess.run([*g, "update-index", "--add", "--cacheinfo", f"{modo},{blob},{ruta}"], cwd=d, check=True, capture_output=True)  # nosec B603 B607
+        subprocess.run([*g, "update-index", "--skip-worktree", ruta], cwd=d, check=True, capture_output=True)  # nosec B603 B607
+
+
 def _flujo_del_dueno(d):
     p = d / ".github/workflows/vigilancia-diaria.yml"
     p.write_text(p.read_text(encoding="utf-8") + "# comentario de prueba: no cambia nada\n", encoding="utf-8")
@@ -787,6 +833,8 @@ CASOS = {
     "asistentes_flujo_y_enlace": (_asistentes_flujo_y_enlace, 1, [".mcp.json", ".vscode/tasks.json", "CLAUDE.md", ".env.local",
                                   "solo los cambia el dueño", "enlace simbólico", "requiere decisión del dueño"], [], None),
     "flujo_del_dueno": (_flujo_del_dueno, 1, ["requiere decisión del dueño"], ["solo los cambia el dueño"], "del_dueno"),
+    "rutas_que_chocan": (_rutas_que_chocan, 1, [".Githooks/pre-commit: en macOS y Windows «.Githooks» y «.githooks» son la misma ruta",
+                                                "Flujo.js: en macOS y Windows «Flujo.js» y «flujo.js» son la misma ruta"], [], None),
     "extracto_y_personas_en_otros_formatos": (_aporte_con_datos, 1, ARCHIVOS_GOB6, [], None),
     "privacidad_con_valores_de_la_guia": (_privacidad_con_la_guia, 0, [], [], None),
 }

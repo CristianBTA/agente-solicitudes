@@ -225,7 +225,7 @@ prev. = preventivo, det. = detectivo, corr. = correctivo.
 | CT16 | Cuarentena de instrucciones: los datos y los aportes son datos, nunca órdenes (DB4) | preventivo | I | A.8.26, A.8.27 | bateria:inyeccion, B04, B07 |
 | CT17 | Salidas que no ejecutan nada al abrirse: HTML escapado y fórmulas neutralizadas (D24, DB5) | preventivo | C·I | A.8.28, A.8.26 | B03, B17, B18 |
 | CT18 | Lista de comprobación del gráfico: eje desde cero, período, fuente y cuenta de control (D17) | detectivo | I | A.8.29 | B17, bateria:grafico |
-| CT19 | Filtro automático de aportes, sin IA ni llaves (validar-aporte) | preventivo | C·I | A.8.32, A.8.29, A.8.4, A.8.25 | B07, B20, B21, B22 |
+| CT19 | Filtro automático de aportes, sin IA ni llaves (validar-aporte) | preventivo | C·I | A.8.32, A.8.29, A.8.4, A.8.25 | B07, B20, B21, B22, B35 |
 | CT20 | main protegida: revisión del dueño (CODEOWNERS), sin borrado ni force-push y aprobación de flujos de forks | preventivo | I·D | A.8.4, A.8.32, A.5.3, A.5.18 | evidencia documental |
 | CT21 | Comprobación diaria de que el repositorio sigue abierto a aportes | detectivo | I·D | A.8.16, A.5.30, A.5.22 | red:abierta_a_aportes |
 | CT22 | Restablecer: todo se reconstruye desde GitHub o un clon, el contrato de datos y la semilla | correctivo | I·D | A.8.13, A.8.14, A.5.29, A.5.30 | corrida-sintetica |

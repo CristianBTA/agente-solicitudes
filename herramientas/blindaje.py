@@ -15,6 +15,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import unicodedata
 import uuid
 from pathlib import Path
 
@@ -1298,6 +1299,37 @@ def b34():
                         + "; ".join(f"{a}, {len(o[0])} en las dos y {len(o[1])} solo en la ficha" for a, o in opciones.items())
                         + "; con una opción nueva en cada motor (hora_del_dia, redondeo, filas_minimas), la comprobación las "
                           "echa de menos (control positivo)")
+
+
+@prueba("B35", "aportes → equipo del dueño", "un aporte trae una ruta que solo cambia mayúsculas, la forma de un acento o un invisible de HFS+ de una protegida (.Githooks/pre-commit, Flujo.js, agentes/00-Reglas-comunes.md): en macOS reemplaza al archivo del dueño y el juez lee el de la base")
+def b35():
+    import rutas_protegidas as rp
+    import validar_aporte as va
+    faltan = [n for n, m in (("rutas_protegidas.colisiones", rp), ("validar_aporte.solo_del_dueno", va), ("validar_aporte.colisiones", va))
+              if not hasattr(m, n.split(".")[1])]
+    if faltan:
+        return r("CEDE", f"el filtro compara las rutas tal cual: falta {', '.join(faltan)}")
+    T = "CONTRIBUTOR"
+    # las rutas de main del ataque (ficticias, con las mismas grafías que el repositorio)
+    main = [".githooks/pre-commit", ".github/workflows/validar-aporte.yml", "flujo.js", "orquestar.mjs", "agentes/00-reglas-comunes.md",
+            "herramientas/validar_aporte.py", "herramientas/perfilar.py", "baterias/fechas/casos.json", "ejemplo/guía.md"]
+    ataques = [".Githooks/pre-commit", ".git\u200chooks/post-checkout", ".GITHUB/workflows/x.yml", "Flujo.js", "ORQUESTAR.mjs",
+               "agentes/00-Reglas-comunes.md", "Herramientas/perfilar.py", "herramientas/Validar_aporte.py", "AGENTES/14-apoyo.md",
+               unicodedata.normalize("NFD", "ejemplo/guía.md")]
+    pasan = [a for a in ataques if not rp.decidir([{"f": a}], T, 1, existentes=main)[1]]
+    pasan += [f"{a} (juez)" for a in ataques if a not in va.colisiones([a], set(main) | {a})]
+    # lo que sigue protegido aunque no choque con nada: en macOS, core.hooksPath .githooks corre «.Githooks/» (L99)
+    pasan += [f"{a} (solo del dueño)" for a in (".Githooks/pre-commit", ".GitHub/workflows/x.yml") if not va.solo_del_dueno(a)]
+    pasan += [f"{a} (confiable)" for a in ("Flujo.js", "Herramientas/x.py", "Requirements.txt") if not va.es_confiable(a)]
+    # sin falsas alarmas: la misma grafía, una ruta nueva y la tilde en la misma forma
+    buenas = ["agentes/00-reglas-comunes.md", "agentes/14-apoyo.md", "baterias/fechas/casos.json", "ejemplo/guía.md", "herramientas/color.py"]
+    falsas = [b for b in buenas if rp.decidir([{"f": b}], T, 1, existentes=main)[1] or va.colisiones([b], set(main) | {b})]
+    falsas += [b for b in ("agentes/14-apoyo.md", "ejemplo/guía.md") if va.solo_del_dueno(b) or va.es_confiable(b)]
+    if pasan or falsas:
+        return r("CEDE", f"pasan {len(pasan)}: {pasan[:6]}; falsas alarmas: {falsas}")
+    return r("RESISTE", f"las {len(ataques)} rutas que en macOS son otra quedan para el dueño en el chequeo de main y en el juez (también "
+                        "la tilde en NFD y un invisible de HFS+), los ganchos y flujos con otra mayúscula siguen siendo solo del dueño, "
+                        f"y {len(buenas)} rutas legítimas pasan")
 
 
 def main(argv):
