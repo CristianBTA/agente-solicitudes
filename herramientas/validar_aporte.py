@@ -85,7 +85,7 @@ ASISTENTES = re.compile(r"(^|/)(\.claude|\.cursor|\.vscode|\.idea|\.devcontainer
 # decide quién revisa (L54). En GitHub el juez sale de la base (L68), pero en el clon de quien aporta corre su propia
 # copia: si el aporte toca el filtro o lo que importa, ese verde no prueba nada y el dueño lo revisa línea por línea.
 DEL_DUENO = re.compile(r"^\.git(hub|hooks)/")   # .githooks corre sola en cada commit de quien activó el freno
-CADENA_DEL_FILTRO = re.compile(r"^(herramientas/(validar_aporte|rutas_protegidas|gobernanza|seguridad|seguridad_cwe|comprobar|gancho_compuerta|dependencias|blindaje|sgsi|caja|integridad)\.py"
+CADENA_DEL_FILTRO = re.compile(r"^(herramientas/(validar_aporte|rutas_protegidas|gobernanza|rutas|seguridad|seguridad_cwe|comprobar|gancho_compuerta|dependencias|blindaje|sgsi|caja|integridad)\.py"
                                r"|herramientas/permitidas(_usuario)?\.json|requirements(-compuerta)?\.txt)$")
 MUESTRAS_MALAS = ("baterias/seguridad/malos/", "baterias/seguridad/malos_usuario/")
 CSV_PERMITIDOS = re.compile(r"^(ejemplo/datos/|baterias/|corridas/[^/]+/caso_conocido/)")

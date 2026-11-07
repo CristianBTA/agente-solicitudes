@@ -12,17 +12,22 @@ Uso:
   python3 herramientas/rutas_protegidas.py --autoprueba
 Solo biblioteca estándar.
 """
+import ast
 import json
 import os
 import re
+import subprocess  # nosec B404: solo en --autoprueba, git ls-files sin shell
 import sys
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
 
-# El filtro, lo que importa y lo que corre para decidir, más los flujos de GitHub (incluido este chequeo).
-FILTRO = re.compile(r"^(herramientas/(validar_aporte|rutas_protegidas|gobernanza|seguridad|dependencias|blindaje|sgsi|caja"
-                    r"|integridad)\.py|herramientas/permitidas\.json|requirements\.txt|\.github/.+)$")
+# El filtro, lo que importa (también de forma indirecta: gobernanza importa rutas, seguridad importa seguridad_cwe) y lo
+# que corre para decidir; la compuerta local (comprobar, su gancho, .githooks/ y lo que instala) y los flujos de GitHub,
+# incluido este chequeo (L86). La autoprueba comprueba que cubre todo lo que importa el filtro y la lista del filtro.
+FILTRO = re.compile(r"^(herramientas/(validar_aporte|rutas_protegidas|gobernanza|rutas|seguridad|seguridad_cwe|comprobar"
+                    r"|gancho_compuerta|dependencias|blindaje|sgsi|caja|integridad)\.py"
+                    r"|herramientas/permitidas(_usuario)?\.json|requirements(-compuerta)?\.txt|\.git(hub|hooks)/.+)$")
 # Python los carga solo al arrancar, antes de cualquier herramienta.
 ARRANQUE = re.compile(r"(^|/)(sitecustomize|usercustomize)\.py$|\.pth$")
 
@@ -57,6 +62,44 @@ def decidir(archivos, autor, esperados=None):
                     tocadas.append((r, f"reemplaza el módulo «{m.group(1)}» que importan las herramientas"))
     bloquea = bool(entrada) or (bool(tocadas) and autor != "OWNER")
     return sorted(set(tocadas)), bloquea, entrada
+
+
+def importa(ruta):
+    """Módulos de herramientas/ que importa un archivo de herramientas/ (ast, sin ejecutarlo)."""
+    arbol = ast.parse(ruta.read_text(encoding="utf-8"))
+    nombres = set()
+    for n in ast.walk(arbol):
+        if isinstance(n, ast.Import):
+            nombres |= {a.name.split(".")[0] for a in n.names}
+        elif isinstance(n, ast.ImportFrom) and n.module and not n.level:
+            nombres.add(n.module.split(".")[0])
+    return {m for m in nombres if (RAIZ / "herramientas" / f"{m}.py").is_file()}
+
+
+def cadena_sin_cubrir(filtro=None):
+    """Lo que FILTRO no cubre y debería: el cierre de lo que importan el filtro y este chequeo, y todo lo que nombra la
+    lista CADENA_DEL_FILTRO de validar_aporte.py (leída con ast, sin importarla). Una lista que se queda atrás es un hueco."""
+    vistos, pendientes = set(), ["validar_aporte", "rutas_protegidas"]
+    while pendientes:
+        m = pendientes.pop()
+        if m not in vistos:
+            vistos.add(m)
+            pendientes += sorted(importa(RAIZ / "herramientas" / f"{m}.py"))
+    rutas = {f"herramientas/{m}.py" for m in vistos}
+    cadena = None
+    for n in ast.walk(ast.parse((RAIZ / "herramientas/validar_aporte.py").read_text(encoding="utf-8"))):
+        if (isinstance(n, ast.Assign) and any(getattr(t, "id", "") == "CADENA_DEL_FILTRO" for t in n.targets)
+                and isinstance(n.value, ast.Call) and n.value.args and isinstance(n.value.args[0], ast.Constant)):
+            cadena = re.compile(n.value.args[0].value)
+    if cadena is None:
+        return ["herramientas/validar_aporte.py: no se encontró CADENA_DEL_FILTRO"]
+    try:
+        versionados = subprocess.run(["git", "-C", str(RAIZ), "ls-files"], capture_output=True, text=True,  # nosec B603 B607
+                                     timeout=60, check=True).stdout.splitlines()
+    except Exception as e:  # sin la lista no se puede revisar: falla cerrada
+        return [f"git ls-files no respondió ({type(e).__name__}): no se pudo revisar la lista del filtro"]
+    rutas |= {r for r in versionados if cadena.match(r)}
+    return sorted(r for r in rutas if not (filtro or FILTRO).match(r))
 
 
 def leer_entrada(texto):
@@ -114,6 +157,15 @@ def autoprueba():
         ("sitecustomize", [{"f": "herramientas/sitecustomize.py"}], T, True),
         ("archivo .pth", [{"f": "a.pth"}], T, True),
         ("renombra el filtro para sacarlo", [{"f": "herramientas/viejo.py", "p": "herramientas/validar_aporte.py"}], T, True),
+        ("edita las reglas CWE que importa la compuerta", [{"f": "herramientas/seguridad_cwe.py"}], T, True),
+        ("edita la compuerta que importa el filtro", [{"f": "herramientas/comprobar.py"}], T, True),
+        ("edita el gancho de la compuerta", [{"f": "herramientas/gancho_compuerta.py"}], T, True),
+        ("edita lo que importa gobernanza", [{"f": "herramientas/rutas.py"}], T, True),
+        ("agrega librerías al perfil de usuario", [{"f": "herramientas/permitidas_usuario.json"}], T, True),
+        ("cambia las dependencias de la compuerta", [{"f": "requirements-compuerta.txt"}], T, True),
+        ("edita el gancho de git", [{"f": ".githooks/pre-commit"}], T, True),
+        ("agrega un gancho de git", [{"f": ".githooks/post-checkout"}], T, True),
+        ("renombra la compuerta para sacarla", [{"f": "herramientas/x.py", "p": "herramientas/comprobar.py"}], T, True),
         ("la API entrega menos archivos de los que dice el pull request", [{"f": "agentes/x.md"}], T, True, 3),
         ("aporte normal", [{"f": "agentes/13-x.md"}, {"f": "baterias/fechas/casos.json"}, {"f": "herramientas/color.py"}], T, False),
         ("herramienta nueva con nombre propio", [{"f": "herramientas/recorrer_partes.py"}], T, False),
@@ -131,6 +183,19 @@ def autoprueba():
     falsas = [h for h in hoy if not FILTRO.match(h) and decidir([{"f": h}], T)[1]]
     print(f"{'✓' if not falsas else '✗'} {len(hoy)} herramientas de hoy: un tercero puede mejorar las que no son del filtro"
           + (f" — falsas alarmas: {falsas}" if falsas else ""))
+    sin_cubrir = cadena_sin_cubrir()
+    print(f"{'✓' if not sin_cubrir else '✗'} lo que importa el filtro (directo o indirecto) y la lista del filtro están en FILTRO"
+          + (f" — sin cubrir: {sin_cubrir}" if sin_cubrir else ""))
+    malos += [f"sin cubrir: {r}" for r in sin_cubrir]
+    # control positivo (L27): con la lista de antes del 6-nov, el chequeo sí encuentra lo que faltaba
+    antes = cadena_sin_cubrir(re.compile(r"^(herramientas/(validar_aporte|rutas_protegidas|gobernanza|seguridad|dependencias"
+                                         r"|blindaje|sgsi|caja|integridad)\.py|herramientas/permitidas\.json"
+                                         r"|requirements\.txt|\.github/.+)$"))
+    esperadas = {"herramientas/seguridad_cwe.py", "herramientas/comprobar.py", "herramientas/rutas.py"}
+    ok = esperadas <= set(antes)
+    print(f"{'✓' if ok else '✗'} control positivo: con la lista de antes faltaban {len(antes)} rutas ({', '.join(antes)})")
+    if not ok:
+        malos.append("control positivo: el chequeo no encuentra lo que faltaba en la lista de antes")
     for nombre, texto in (("línea que no es JSON", "esto no es json\n"), ("línea sin ruta", '{"p": "x"}\n')):
         try:
             leer_entrada(texto)
@@ -138,7 +203,7 @@ def autoprueba():
             print(f"✗ {nombre}: se aceptó")
         except Exception:
             print(f"✓ {nombre}: se detiene")
-    print("RESUMEN " + json.dumps({"autoprueba": "aprobada" if not (malos or falsas) else "fallida", "casos": len(casos) + 3,
+    print("RESUMEN " + json.dumps({"autoprueba": "aprobada" if not (malos or falsas) else "fallida", "casos": len(casos) + 5,
                                    "fallas": malos + falsas}, ensure_ascii=False))
     return 1 if malos or falsas else 0
 
