@@ -669,6 +669,13 @@
     {
      "archivo": "herramientas/baterias.py",
      "contiene": "--leccion"
+    },
+    {
+     "archivo": "herramientas/baterias.py",
+     "contiene": "class Citas"
+    },
+    {
+     "archivo": "baterias/citas/casos.json"
     }
    ],
    "pruebas": [
