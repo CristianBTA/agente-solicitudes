@@ -139,7 +139,7 @@ Si al probar encuentras **otro** hueco distinto del que trajo la persona, no lo 
 
 - Revisa lo que difiere de `upstream/main`, esté o no en un commit, y no modifica ningún archivo del repositorio.
 - Debe terminar en «✓ pasa el filtro automático». Un hueco encontrado por el aporte aparece como **aviso**, no como falla.
-- Si el aporte propone un arreglo en `herramientas/` (o toca `flujo.js` o `requirements.txt`), termina en «✗ … requiere decisión del dueño». Es lo esperado: envíalo igual. Cualquier otra falla se corrige: lo de `.github/` (flujos, plantillas y CODEOWNERS) solo lo cambia el dueño.
+- Si el aporte propone un arreglo en `herramientas/` (o toca `flujo.js`, `orquestar.mjs` o `requirements.txt`, o trae un script u otro código que corre fuera de Python), termina en «✗ … requiere decisión del dueño». Es lo esperado: envíalo igual. Cualquier otra falla se corrige: lo de `.github/` (flujos, plantillas y CODEOWNERS) solo lo cambia el dueño.
 - Si marca una falla, corrígela y vuelve a correrlo.
 - **Córrelo tú, aunque tengas terminal y pruebas que ya pasan:** las baterías o el blindaje solos no lo reemplazan, y que el filtro también corra en GitHub tampoco. Copia la línea `RESUMEN` que imprime: va en el pull request.
 - Solo si de verdad no puedes correr Python (modo B), dilo en el pull request: el dueño lo corre antes de aprobar.

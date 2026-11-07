@@ -62,6 +62,10 @@ MUTANTES = [
      "    return DEL_DUENO.match(clave(ruta)) is not None\n", "    return DEL_DUENO.match(ruta) is not None\n", "B35"),
     ("M16", "lo que juzga a los aportes (CONFIABLES) solo con su grafía exacta", "herramientas/validar_aporte.py",
      "    k = clave(ruta)\n    return next((c for c in CONFIABLES", "    k = ruta\n    return next((c for c in CONFIABLES", "B35"),
+    ("M17", "orquestar.mjs (lanza agy y Codex sin pedir permisos) fuera de lo que decide el dueño", "herramientas/validar_aporte.py",
+     '"flujo.js", "orquestar.mjs", "requirements.txt"', '"flujo.js", "requirements.txt"', "B36"),
+    ("M18", "el código que corre fuera de Python (scripts, permiso de ejecución, «#!», páginas con código) pasa sin el dueño",
+     "herramientas/validar_aporte.py", "def ejecutable(ruta, p, modo=None):\n", "def ejecutable(ruta, p, modo=None):\n    return None\n", "B36"),
 ]
 
 

@@ -1332,6 +1332,44 @@ def b35():
                         f"y {len(buenas)} rutas legítimas pasan")
 
 
+@prueba("B36", "aportes → equipo del dueño", "un aporte cambia orquestar.mjs (lanza agy y Codex sin pedir permisos) o trae código que corre fuera de Python: un .sh, un .js, un .ps1, un archivo con permiso de ejecución o con «#!», o una página con <script>, on…= o javascript:; las compuertas solo revisan Python")
+def b36():
+    import validar_aporte as va
+    if not hasattr(va, "ejecutable"):
+        return r("CEDE", "el filtro no mira el código que corre fuera de Python: solo pasan por la compuerta .py, .pyw, .ipy e .ipynb")
+    d = Path(tempfile.mkdtemp(prefix="blindaje-ejecutables-")).resolve()
+    try:
+        def archivo(ruta, texto, modo=0o644):
+            f = (d / ruta.replace("/", "__")).resolve()
+            if not f.is_relative_to(d):
+                raise ValueError(f"{ruta} sale de la carpeta temporal")
+            f.write_text(texto, encoding="utf-8")
+            os.chmod(f, modo)
+            return f
+        # (ruta en el aporte, contenido, permiso); nada se ejecuta: solo se escriben en la carpeta temporal
+        malos = [("clase/preparar.sh", "#!/bin/sh\ntrue\n", 0o644), ("historial/otro.js", "require('child_process')\n", 0o644),
+                 ("ejemplo/tarea.PS1", "Write-Output 1\n", 0o644), ("ejemplo/Makefile", "todo:\n\ttrue\n", 0o644),
+                 ("ejemplo/correr", "#!/usr/bin/env node\n", 0o644), ("ejemplo/notas.txt", "notas\n", 0o755),
+                 ("baterias/seguridad/malos/nueva.py", "import os\n", 0o755), ("clase/pagina.html", "<p>x</p><script>void 0</script>\n", 0o644),
+                 ("ejemplo/figura.svg", '<svg xmlns="http://www.w3.org/2000/svg" onload="void 0"/>\n', 0o644),
+                 ("ejemplo/enlace.htm", '<a href = "javascript:void 0">ver</a>\n', 0o644)]
+        buenos = [("agentes/14-apoyo.md", "# Apoyo\n", 0o644), ("baterias/fechas/caso.csv", "a,b\n1,2\n", 0o644),
+                  ("corridas/x/grafico.html", "<script>/* plotly */</script>\n", 0o644),
+                  ("corridas/x/informe_final.html", "<p>plotly.js quita los enlaces javascript:, así que no corre código</p>\n", 0o644),
+                  ("baterias/seguridad/buenos/lee.py", "#!/usr/bin/env python3\nimport csv\n", 0o644),
+                  ("evidencia/x.py", "import csv\n", 0o755)]
+        pasan = [ruta for ruta, texto, modo in malos if not va.ejecutable(ruta, archivo(ruta, texto, modo))]
+        pasan += [f"{x} (no es del dueño)" for x in ("orquestar.mjs", "Orquestar.mjs", "flujo.js") if not va.es_confiable(x)]
+        falsas = [ruta for ruta, texto, modo in buenos if va.ejecutable(ruta, archivo(ruta, texto, modo))]
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+    if pasan or falsas:
+        return r("CEDE", f"pasan {len(pasan)}: {pasan[:6]}; falsas alarmas: {falsas}")
+    return r("RESISTE", f"orquestar.mjs y flujo.js los decide el dueño y los {len(malos)} archivos con código fuera de Python (scripts, "
+                        "permiso de ejecución, «#!», páginas con código) quedan para él; el gráfico de una corrida, un informe que "
+                        f"nombra «javascript:» y {len(buenos) - 2} archivos más pasan")
+
+
 def main(argv):
     solo = set(argv[argv.index("--solo") + 1].split(",")) if "--solo" in argv else None
     filas = []

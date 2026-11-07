@@ -28,7 +28,10 @@ Revisa:
      lo que encuentre el barrido.
   3. Seguridad de todo código Python agregado o cambiado (compuertas: librerías permitidas, reglas propias y
      Bandit; los cuadernos .ipynb, con el comando de la compuerta). La excepción son las muestras de
-     baterias/seguridad/malos/ y malos_usuario/, que justamente deben bloquearse.
+     baterias/seguridad/malos/ y malos_usuario/, que justamente deben bloquearse. El código que corre fuera de Python
+     no pasa por las compuertas: un script (.sh, .js, .mjs, .ts, .ps1, .bat…), un archivo con permiso de ejecución o con
+     «#!» y una página con código (<script>, on…=, javascript:) fuera de corridas/*/grafico.html quedan como «requiere
+     decisión del dueño», y orquestar.mjs, que lanza agy y Codex sin pedir permisos, es de lo que decide el dueño (L100).
   4. Que no rompa nada: baterías, la corrida sintética verificada desde cero y las 13 mutantes atrapadas. Una
      herramienta que se cae antes de su línea RESUMEN no aprueba nada: es falla, aunque no haya escrito ninguna «✗» (L67).
   5. Lo que el aporte agrega a las baterías: una muestra de código malo nueva la debe bloquear la compuerta
@@ -108,10 +111,20 @@ FICTICIO = re.compile(r"ficticia|ficticio|inventad", re.I)
 CORRIDA_REFERENCIA = "corridas/2026-11-06-ventas-semestre"
 MUTANTES = "evidencia/sintetico/mutantes"
 # Lo que juzga a los aportes. Si un aporte lo cambia, no se juzga con su propia versión: lo decide el dueño.
-CONFIABLES = ("herramientas/", ".github/", ".githooks/", "flujo.js", "requirements.txt", "requirements-compuerta.txt")
+# orquestar.mjs lanza agy y Codex sin pedir permisos en el equipo del dueño: un cambio suyo lo decide el dueño (L100).
+CONFIABLES = ("herramientas/", ".github/", ".githooks/", "flujo.js", "orquestar.mjs", "requirements.txt", "requirements-compuerta.txt")
+# Código que corre fuera de Python: las compuertas solo revisan Python y los cuadernos (L100). Se mira la clave de la ruta.
+PYTHON = (".py", ".pyw", ".ipy", ".ipynb")
+SCRIPTS = re.compile(r"\.(sh|bash|zsh|fish|ksh|csh|command|tool|js|mjs|cjs|jsx|ts|mts|cts|tsx|ps1|psm1|bat|cmd|vbs|wsf"
+                     r"|applescript|scpt|rb|pl|php|lua|jar|exe)$|(^|/)(makefile|gnumakefile|justfile|package\.json)$")
+PAGINAS = (".html", ".htm", ".xhtml", ".svg")
+CODIGO_EN_PAGINA = re.compile(r"<script\b|<[^>]*\son[a-z]+\s*=|(?:href|src|action|formaction|data)\s*=\s*[\"']?\s*javascript:", re.I)
+GRAFICO = re.compile(r"corridas/[^/]+/grafico\.html")   # trae el paquete de Plotly y lo revisa verificar_grafico.py
 ESTADOS = {"A": "agrega", "M": "cambia", "D": "borra", "T": "cambia el tipo de"}
 # Por qué el dueño decide cada grupo de «requiere decisión del dueño» (lo que no está aquí es parte del juez)
-MOTIVO_DUENO = {"rutas que chocan": "en macOS y Windows reemplazan a otra ruta escrita distinto (L99)"}
+MOTIVO_DUENO = {"rutas que chocan": "en macOS y Windows reemplazan a otra ruta escrita distinto (L99)",
+                "orquestar.mjs": "lanza agy y Codex sin pedir permisos en el equipo del dueño (L100)",
+                "código fuera de Python": "corre en el equipo de quien lo lanza o lo abre y las compuertas solo revisan Python (L100)"}
 
 
 def motivo_prohibido(ruta):
@@ -249,6 +262,37 @@ def confiable_de(ruta):
 
 def es_confiable(ruta):
     return confiable_de(ruta) is not None
+
+
+def ejecutable(ruta, p, modo=None):
+    """Por qué un archivo del aporte es código que corre fuera de las compuertas de Python, o None: un script, un archivo
+    con permiso de ejecución (en git, 100755, o en el disco) o que empieza con «#!», o una página con código fuera del
+    gráfico de una corrida. Un .py o un cuaderno pasa por las compuertas, salvo las muestras de código malo, que no se
+    revisan: con permiso de ejecución, también las decide el dueño (L100)."""
+    k = clave(ruta)
+    python = Path(k).suffix in PYTHON and not ruta.startswith(MUESTRAS_MALAS)
+    if not python and (modo == "100755" or p.stat().st_mode & 0o111):
+        return "tiene permiso de ejecución"
+    if Path(k).suffix in PYTHON:
+        return None
+    if SCRIPTS.search(k):
+        return "es un script"
+    with open(p, "rb") as fh:
+        if fh.read(2) == b"#!":
+            return "empieza con «#!»: se ejecuta como programa"
+    if k.endswith(PAGINAS) and not GRAFICO.fullmatch(ruta) and CODIGO_EN_PAGINA.search(p.read_text(encoding="utf-8", errors="ignore")):
+        return "es una página con código (<script>, on…= o javascript:)"
+    return None
+
+
+def modos_en_git(arbol):
+    """El modo de cada ruta del índice (100644, 100755, 120000…)."""
+    modos = {}
+    for e in git(arbol, "ls-files", "-s", "-z").split("\0"):
+        if "\t" in e:
+            cab, ruta = e.split("\t", 1)
+            modos[ruta] = cab.split(" ", 1)[0]
+    return modos
 
 
 def rutas_en(arbol, sha):
@@ -536,6 +580,7 @@ def revisar(arbol, base):
     # rutas que en el disco de macOS caen sobre otra escrita distinto: la base, el aporte y lo que no tiene commit (L99)
     choques = colisiones([r for e, r in archivos if e != "D"], rutas_en(arbol, sha_base) | rutas_en(arbol, "HEAD")
                          | set(versionables(arbol)))
+    modos = modos_en_git(arbol)
     for estado, ruta in archivos:
         c = confiable_de(ruta)
         if c:
@@ -569,6 +614,10 @@ def revisar(arbol, base):
                           "(en GitHub juzga el de la base); el dueño revisa el cambio línea por línea")
         if not p.is_file():
             continue
+        if not c:   # lo de CONFIABLES ya lo decide el dueño
+            por = ejecutable(ruta, p, modos.get(ruta))
+            if por:
+                requiere.setdefault("código fuera de Python", []).append(f"{ESTADOS.get(estado, 'cambia')} {ruta} ({por})")
         fallas += revisar_datos(ruta, p)
         if ruta.endswith(".csv"):
             if not CSV_PERMITIDOS.match(ruta):
@@ -775,6 +824,21 @@ def _rutas_que_chocan(d):
         subprocess.run([*g, "update-index", "--skip-worktree", ruta], cwd=d, check=True, capture_output=True)  # nosec B603 B607
 
 
+def _orquestar_y_scripts(d):
+    """L100: orquestar.mjs con una línea más y código que corre fuera de Python (un .sh, un archivo con permiso de ejecución
+    y una página con <script>). Nada se ejecuta: solo se escriben en el clon temporal. El permiso de ejecución entra por el
+    índice de git, como lo trae un fork (skip-worktree hace que el «git add -A» del caso no lo devuelva a 100644)."""
+    p = d / "orquestar.mjs"
+    p.write_text(p.read_text(encoding="utf-8") + "// comentario de prueba: no cambia nada\n", encoding="utf-8")
+    (d / "clase").mkdir(exist_ok=True)
+    (d / "clase/preparar.sh").write_text("#!/bin/sh\ntrue\n", encoding="utf-8")
+    (d / "ejemplo/notas.txt").write_text("notas de prueba\n", encoding="utf-8")
+    for a in (["add", "ejemplo/notas.txt"], ["update-index", "--chmod=+x", "ejemplo/notas.txt"],
+              ["update-index", "--skip-worktree", "ejemplo/notas.txt"]):
+        subprocess.run(["git", *a], cwd=d, check=True, capture_output=True)  # nosec B603 B607
+    (d / "clase/pagina.html").write_text("<html><body><script>void 0</script></body></html>\n", encoding="utf-8")
+
+
 def _flujo_del_dueno(d):
     p = d / ".github/workflows/vigilancia-diaria.yml"
     p.write_text(p.read_text(encoding="utf-8") + "# comentario de prueba: no cambia nada\n", encoding="utf-8")
@@ -833,6 +897,9 @@ CASOS = {
     "asistentes_flujo_y_enlace": (_asistentes_flujo_y_enlace, 1, [".mcp.json", ".vscode/tasks.json", "CLAUDE.md", ".env.local",
                                   "solo los cambia el dueño", "enlace simbólico", "requiere decisión del dueño"], [], None),
     "flujo_del_dueno": (_flujo_del_dueno, 1, ["requiere decisión del dueño"], ["solo los cambia el dueño"], "del_dueno"),
+    "orquestar_y_scripts": (_orquestar_y_scripts, 1, ["orquestar.mjs: cambia orquestar.mjs", "agrega clase/preparar.sh (es un script)",
+                                                      "agrega ejemplo/notas.txt (tiene permiso de ejecución)",
+                                                      "agrega clase/pagina.html (es una página con código"], [], None),
     "rutas_que_chocan": (_rutas_que_chocan, 1, [".Githooks/pre-commit: en macOS y Windows «.Githooks» y «.githooks» son la misma ruta",
                                                 "Flujo.js: en macOS y Windows «Flujo.js» y «flujo.js» son la misma ruta"], [], None),
     "extracto_y_personas_en_otros_formatos": (_aporte_con_datos, 1, ARCHIVOS_GOB6, [], None),
