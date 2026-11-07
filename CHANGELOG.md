@@ -2,6 +2,11 @@
 
 Cada aporte aceptado queda aquí, con el usuario de GitHub de quien lo propuso (si aceptó aparecer).
 
+## Grill-me con la IA de cada persona · 7 de noviembre de 2026
+
+- `GENERAR-HARNESS.md` (10 preguntas) y `GRILL-ME-DEL-PIPELINE.md` (15 preguntas): la persona le dice a su IA «Conéctate al repositorio… Quiero generar el harness» (o «…el grill-me del pipeline»); la IA hace las preguntas una a la vez, repregunta, arma el archivo con lo que la persona dijo y, al final, hace el fork y lo guarda en `harness/<usuario>.md` o `grill-me/<usuario>.md`. Reemplazan las páginas del sitio del curso que revisaban con la IA del sitio: no gastan tokens del curso.
+- `herramientas/revisar_grill.py`: revisión sin IA del archivo (secciones, datos personales, texto con forma de orden, HTML activo). `herramientas/recoger_grill.py`: el dueño recoge los archivos de los forks y los revisa.
+
 ## v1 · 6 de noviembre de 2026 · semilla
 
 - Pipeline de cinco etapas con once subagentes, herramientas sin IA, directrices, baterías (seguridad, privacidad, FAILFAST y lecciones), dos corridas selladas y evidencia de los experimentos.

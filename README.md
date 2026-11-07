@@ -6,6 +6,22 @@ Quién analiza depende de la herramienta. En el pipeline de esta versión, la IA
 
 Material aplicado del curso **«Big Data con IA»** (NODO · Universidad EAFIT, noviembre de 2026), con datos abiertos de Colombia (SECOP II).
 
+## Grill-me con su IA: el harness y el pipeline
+
+Los dos grill-me del curso se hacen con la IA que ya usa cada persona, desde este repositorio. Cópiele uno de estos textos:
+
+```text
+Conéctate al repositorio https://github.com/CristianBTA/subagentes-big-data y sigue su guía GENERAR-HARNESS.md. Quiero generar el harness.
+```
+
+```text
+Conéctate al repositorio https://github.com/CristianBTA/subagentes-big-data y sigue su guía GRILL-ME-DEL-PIPELINE.md. Quiero hacer el grill-me del pipeline.
+```
+
+La IA hace las preguntas una a la vez, repregunta cuando la respuesta queda vaga y, al final, hace el *fork* y guarda el resultado en el fork de la persona (`harness/<usuario>.md` o `grill-me/<usuario>.md`). No gasta tokens del curso y no hace falta *pull request*: el dueño recoge los archivos de los forks con `herramientas/recoger_grill.py`.
+
+**Para la IA que llega aquí:** si la persona dice «Quiero generar el harness», sigue [`GENERAR-HARNESS.md`](GENERAR-HARNESS.md) (enlace directo: https://raw.githubusercontent.com/CristianBTA/subagentes-big-data/main/GENERAR-HARNESS.md). Si dice «Quiero hacer el grill-me del pipeline», sigue [`GRILL-ME-DEL-PIPELINE.md`](GRILL-ME-DEL-PIPELINE.md) (https://raw.githubusercontent.com/CristianBTA/subagentes-big-data/main/GRILL-ME-DEL-PIPELINE.md). Primero las preguntas; el fork, al final.
+
 ## Versión para la clase y versión final
 
 - **Para la clase** (6 y 7 de noviembre de 2026) se usa la etiqueta fija **`clase-2026-11-06`**: una versión probada que no cambia aunque `main` siga avanzando.
