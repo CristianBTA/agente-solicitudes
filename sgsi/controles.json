@@ -230,7 +230,8 @@
    "pruebas": [
     "corrida-sintetica",
     "B05",
-    "B25"
+    "B25",
+    "B31"
    ]
   },
   {
@@ -312,7 +313,8 @@
    "pruebas": [
     "bateria:seguridad",
     "B15",
-    "B28"
+    "B28",
+    "B30"
    ]
   },
   {
@@ -671,6 +673,10 @@
     },
     {
      "archivo": "evidencia/blindaje/README.md"
+    },
+    {
+     "archivo": "herramientas/mutar_controles.py",
+     "contiene": "MUTANTES"
     }
    ],
    "pruebas": [
