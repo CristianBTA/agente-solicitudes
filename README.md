@@ -4,7 +4,7 @@ Un análisis de datos hecho con IA, de la pregunta al informe, en las cinco etap
 
 Quién analiza depende de la herramienta. En el pipeline de esta versión, la IA también propone las hipótesis de la etapa de análisis y una prueba sin IA las comprueba. En el [agente masivo](#agente-masivo-de-datos-públicos) y en su whitepaper, el análisis es de las personas: la IA deja preguntas y un resumen, sin conclusiones.
 
-Material aplicado del curso **«Big Data con IA»** (NODO · Universidad EAFIT, noviembre de 2026), con datos abiertos de Colombia (SECOP II).
+Material aplicado del curso **«Big Data con IA»** (NODO · Universidad EAFIT, noviembre de 2026). Sirve para cualquier fuente pública de datos masivos o para un archivo propio: **ningún subagente trae un conjunto de datos por defecto.** La fuente se declara en cada corrida (`fuente` o `datos`), y al agente masivo se le puede sugerir de qué se va a tratar (`--tema`). Las corridas de ejemplo se midieron con SECOP II (contratos públicos de datos.gov.co) y con ventas sintéticas.
 
 ## Grill-me con su IA: el harness y el pipeline
 
@@ -70,10 +70,11 @@ Cualquiera con cuenta de GitHub puede hacer [fork](https://github.com/CristianBT
 
 ## Agente masivo de datos públicos
 
-Recorre un catálogo completo de datos abiertos (datos.gov.co tiene 8.470 conjuntos), mide sin IA qué conjuntos son big data de verdad y cuáles permiten decir «este contrato está así, aquí, y tiene tal impacto». A los mejores les pide a la IA una **ficha de oportunidad** (preguntas de costo, calidad e impacto para que las personas analicen) y la valida sin IA contra la fuente real:
+Recorre un catálogo completo de datos abiertos (datos.gov.co tiene 8.470 conjuntos), mide sin IA qué conjuntos son big data de verdad y cuáles permiten decir «esta unidad está así, aquí, y tiene tal impacto» (un contrato, un caso de salud, un trámite). A los mejores les pide a la IA una **ficha de oportunidad** (preguntas de costo, calidad e impacto para que las personas analicen) y la valida sin IA contra la fuente real:
 
 ```bash
-.venv/bin/python herramientas/agente_masivo.py www.datos.gov.co --trabajo fuentes/fichas/mi-corrida --conjuntos jbjy-vk9h --motor claude   # solo las fuentes que autorizas; o agy, codex, ninguno
+.venv/bin/python herramientas/agente_masivo.py www.datos.gov.co --trabajo fuentes/fichas/mi-corrida --descubrir --tema "salud"   # sugiere conjuntos de ese tema; no se conecta a ninguno
+.venv/bin/python herramientas/agente_masivo.py www.datos.gov.co --trabajo fuentes/fichas/mi-corrida --conjuntos <los que autorizas> --motor claude   # o agy, codex, ninguno
 ```
 
 Cómo invocarlo desde la terminal, con agy o con cualquier IA de terminal, y el texto listo para pegar: [`AGENTE-MASIVO.md`](AGENTE-MASIVO.md).
@@ -103,7 +104,7 @@ Las herramientas de `herramientas/` son Python sin IA y se pueden correr solas. 
 }
 ```
 
-Con archivos locales, `datos` reemplaza a `fuente`: `{"ventas": "<ruta>/ventas.csv", "clientes": "<ruta>/clientes.csv"}`.
+Es la corrida de ejemplo, medida con SECOP II. Con otra fuente cambian la petición, el glosario (o ninguno: lo que no se sabe va como pregunta) y `fuente`, que es obligatoria: sin `fuente` ni `datos`, el flujo no arranca. Con archivos locales, `datos` reemplaza a `fuente`: `{"ventas": "<ruta>/ventas.csv", "clientes": "<ruta>/clientes.csv"}`.
 
 ### Con agy o con Codex
 
