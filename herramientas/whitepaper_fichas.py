@@ -12,29 +12,24 @@ dice por qué quedó fuera. Lo demás se arma solo con lo que ya está escrito y
   - el resultado de la validación (<id>.log): chequeos, fallas y cruces medidos.
 Hoja 1: panorama (qué datos, el método, la tabla de conjuntos y cómo leerlo). Hojas 2 y 3: una ficha por conjunto (lo que
 se puede afirmar, las preguntas para el análisis del estudiante, los cruces medidos, la gobernanza y el procesamiento) y una
-guía corta para su análisis. Se imprime a PDF tamaño carta con Chrome y se CUENTAN las páginas: si pasa de tres, se
-ajustan la letra (nunca por debajo de 8,5 pt) y lo que se muestra; si aun así no cabe, salen las últimas
-fichas y el documento las nombra. Escribe WHITEPAPER.html y WHITEPAPER.pdf en la carpeta.
+guía corta para su análisis. Se imprime a PDF tamaño carta con Chrome y se CUENTAN las páginas (el armador común,
+carta.py, el mismo de whitepaper_corrida.py): si pasa de tres, se ajustan la letra (nunca por debajo de 8,5 pt) y lo que
+se muestra; si aun así no cabe, salen las últimas fichas y el documento las nombra. Escribe WHITEPAPER.html y
+WHITEPAPER.pdf en la carpeta.
 """
 import html
 import json
 import re
-import shutil
-import subprocess
 import sys
-import tempfile
 from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import carta  # noqa: E402
 from gobernanza import PATRONES, parece_instruccion  # noqa: E402
 from validar_ficha import CONCLUSION, PERMITIDOS_NUM  # noqa: E402
 
 E = html.escape
-CHROME = [
-    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "google-chrome", "google-chrome-stable",
-    "chromium", "chromium-browser",
-]
 
 
 def cargar(trabajo):
@@ -168,28 +163,6 @@ agente-solicitudes (curso «Big Data con IA», NODO · EAFIT).</p>
 </body></html>"""
 
 
-def paginas(pdf):
-    try:
-        out = subprocess.run(["pdfinfo", str(pdf)], capture_output=True, text=True).stdout  # nosec B603 B607
-        m = re.search(r"Pages:\s+(\d+)", out)
-        if m:
-            return int(m.group(1))
-    except FileNotFoundError:
-        pass
-    return len(re.findall(rb"/Type\s*/Page[^s]", Path(pdf).read_bytes()))
-
-
-def imprimir(html_path, pdf_path):
-    chrome = next((c for c in CHROME if Path(c).exists() or shutil.which(c)), None)
-    if not chrome:
-        return False
-    perfil = tempfile.mkdtemp(prefix="whitepaper-chrome-")
-    subprocess.run([chrome, "--headless=new", "--disable-gpu", f"--user-data-dir={perfil}", "--no-pdf-header-footer",  # nosec B603
-                    f"--print-to-pdf={pdf_path}", html_path.resolve().as_uri()], capture_output=True, timeout=120)
-    shutil.rmtree(perfil, ignore_errors=True)
-    return Path(pdf_path).exists()
-
-
 def main(argv):
     if not argv or argv[0].startswith("--"):
         raise SystemExit(__doc__)
@@ -217,29 +190,23 @@ def main(argv):
         else:
             parrafos = "".join(f"<p>{E(p.strip())}</p>" for p in re.split(r"\n\s*\n", re.sub(r"^#.*\n", "", texto)) if p.strip())
             resumen_html = f"<h2>Resumen</h2><div class='resumen'>{parrafos}<p class='pie'>Escrito por IA y comprobado sin IA: sin conclusiones, sin cifras fuera de las mediciones y sin datos personales.</p></div>"
-    intentos = [(10.0, 4, 3), (9.5, 3, 3), (9.0, 3, 2), (8.5, 3, 2)]   # la letra no baja de 8,5 pt: se lee en papel
+    # la letra no baja de carta.LETRA_MINIMA (8,5 pt): se lee en papel. Con letra más chica caben menos preguntas.
+    intentos = list(zip(carta.PASOS_LETRA, ((4, 3), (3, 3), (3, 2), (3, 2))))
+    # en cada paso, primero la guía a continuación y, si queda corto, la guía en su propia hoja
+    pasos = [[(base, mp, md, salto) for salto in (False, True)] for base, (mp, md) in intentos]
     tope = len(fichas)
-    n = None
     while True:
-        for base, mp, md in intentos:
-            for salto in (False, True):
-                h.write_text(armar(fichas, titulo, fuente, base, mp, md, tope, salto, resumen_html, autorizadas), encoding="utf-8")
-                if not imprimir(h, pdf):
-                    print("Sin Chrome: quedó WHITEPAPER.html; imprímelo en tamaño carta.")
-                    print("RESUMEN " + json.dumps({"html": str(h), "pdf": None}))
-                    return 0
-                n = paginas(pdf)
-                if n == 3:
-                    print(f"WHITEPAPER.pdf: 3 hojas carta · {tope} de {len(fichas)} fichas · letra base {base} pt")
-                    print("RESUMEN " + json.dumps({"paginas": 3, "fichas": tope, "letra_pt": base, "pdf": str(pdf)}, ensure_ascii=False))
-                    return 0
-                if n < 3 and not salto:
-                    continue          # quedó corto: se prueba la guía en su propia hoja
-                if n < 3:
-                    break             # aun con la guía aparte cabe en menos de tres: más letra no hace falta
-            if n is not None and n < 3:
-                break
-        if n is not None and n < 3:
+        r = carta.ajustar(pasos, lambda v: armar(fichas, titulo, fuente, v[0], v[1], v[2], tope, v[3], resumen_html, autorizadas), h, pdf)
+        n, base = r["paginas"], r["variante"][0]
+        if r["estado"] == "sin_chrome":
+            print("Sin Chrome: quedó WHITEPAPER.html; imprímelo en tamaño carta.")
+            print("RESUMEN " + json.dumps({"html": str(h), "pdf": None}))
+            return 0
+        if r["estado"] == "exacto":
+            print(f"WHITEPAPER.pdf: 3 hojas carta · {tope} de {len(fichas)} fichas · letra base {base} pt")
+            print("RESUMEN " + json.dumps({"paginas": 3, "fichas": tope, "letra_pt": base, "pdf": str(pdf)}, ensure_ascii=False))
+            return 0
+        if r["estado"] == "corto":
             print(f"WHITEPAPER.pdf: {n} hojas (el contenido no alcanza para tres)")
             print("RESUMEN " + json.dumps({"paginas": n, "fichas": tope, "pdf": str(pdf)}))
             return 0
@@ -247,7 +214,7 @@ def main(argv):
             print(f"No cupo en tres hojas: {n} páginas con una sola ficha")
             print("RESUMEN " + json.dumps({"paginas": n, "fichas": tope, "pdf": str(pdf)}))
             return 1
-        tope -= 1
+        tope -= 1             # «largo»: sale una ficha menos y el documento nombra las que quedaron fuera
 
 
 if __name__ == "__main__":
