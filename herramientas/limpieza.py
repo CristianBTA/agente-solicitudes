@@ -14,10 +14,10 @@ La IA escribe el plan; este motor lo ejecuta igual cada vez y lo prueba:
 
 Lectura FAILFAST (con el número de línea), con el mismo lector estricto que las reglas y la ingesta
 (reglas_base.leer_tabla): un archivo que no está en UTF-8, sin encabezado o con columnas repetidas, una comilla sin
-cerrar, una línea vacía, una fila con más o menos campos, otro separador o columnas crudas calidad_* detienen la
-limpieza; nunca se lee a medias. La op numero con decimal «.» se detiene ante montos con punto de miles mezclados con
-números sin separador (78.000 junto a 1628100), que leídos así se dividirían por mil (L46; si el punto ya es decimal
-en la columna, como 12.5, 1.250 es un decimal: L49).
+cerrar, una línea vacía, una fila con más o menos campos, otro separador, un \\r suelto fuera de comillas (el CSV de
+Excel para Mac, L107) o columnas crudas calidad_* detienen la limpieza; nunca se lee a medias. La op numero con
+decimal «.» se detiene ante montos con punto de miles mezclados con números sin separador (78.000 junto a 1628100),
+que leídos así se dividirían por mil (L46; si el punto ya es decimal en la columna, como 12.5, 1.250 es un decimal: L49).
 
 Operaciones (en orden):
   {"op": "texto", "columna", "recortar": true, "unicode": true, "invisibles": true, "espacios_internos": true}

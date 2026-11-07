@@ -147,7 +147,7 @@ def ingerir_local(p, carpeta):
 # Las autopruebas de los lectores que escriben o describen los datos del pipeline: sus casos FAILFAST (UTF-8, carácter
 # nulo, solo el encabezado, la línea donde se abre una comilla, la fórmula que la limpieza neutraliza…) no viven en
 # baterias/failfast. Cada una con su piso de casos: una autoprueba que pierde casos también es una regresión (DB3).
-AUTOPRUEBAS = {"ingesta.py": 101, "limpieza.py": 35}
+AUTOPRUEBAS = {"ingesta.py": 102, "limpieza.py": 36}
 
 
 def autoprueba(herramienta, minimo):

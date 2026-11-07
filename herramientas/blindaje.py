@@ -1136,6 +1136,13 @@ LECTORES_LAXOS = {
         "    problema = lector_de_reglas(contenido, salida, lambda c, v: ver_valor(c, v, descripciones))\n",
         "    problema = lector_de_reglas(contenido, salida, lambda c, v: ver_valor(c, v, descripciones)) "
         "if fuente[\"tipo\"] == \"local\" else None\n"),
+    # el lector común con newline="" (antes de L107, recorrer_csv): un \r suelto parte la fila en dos y un CSV con fin
+    # de línea \r solo se lee, mientras el otro lector lo detiene
+    "reglas: recorrer_csv parte la fila en un \\r suelto (newline=\"\")": (
+        "herramientas/reglas_base.py", '    with open(ruta, newline="\\n", encoding="utf-8-sig") as fh:\n',
+        '    with open(ruta, newline="", encoding="utf-8-sig") as fh:\n'),
+    "reglas, ingesta, limpieza y perfil: leer_tabla parte la fila en un \\r suelto (newline=\"\")": (
+        "herramientas/reglas_base.py", 'io.StringIO(texto, newline="\\n")', 'io.StringIO(texto, newline="")'),
 }
 CORRER_FAILFAST = ("import json, sys\nsys.path.insert(0, sys.argv[1])\nimport baterias\n"
                    "r = baterias.correr_bateria(baterias.bateria_failfast)\n"
@@ -1174,7 +1181,7 @@ def _failfast_con(lector):
         shutil.rmtree(d, ignore_errors=True)
 
 
-@prueba("B33", "baterías → filtro", "un lector de la ingesta, de la limpieza o del perfil se afloja (otra codificación sin avisar, la fila corta rellenada, la larga recortada, los tipos con float() y la fecha recortada, lo que llega de Socrata sin el lector estricto): ¿cae la batería FAILFAST y con ella el filtro de aportes?")
+@prueba("B33", "baterías → filtro", "un lector de las reglas, de la ingesta, de la limpieza o del perfil se afloja (otra codificación sin avisar, la fila corta rellenada, la larga recortada, los tipos con float() y la fecha recortada, lo que llega de Socrata sin el lector estricto, un \\r suelto que parte la fila): ¿cae la batería FAILFAST y con ella el filtro de aportes?")
 def b33():
     import concurrent.futures
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(LECTORES_LAXOS) + 1) as ex:

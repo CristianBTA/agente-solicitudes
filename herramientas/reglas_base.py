@@ -27,6 +27,7 @@ def regla(id, tipo, descripcion):
 
 _PUNTO_DE_MILES = re.compile(r"^[-+]?[1-9]\d{0,2}(\.\d{3})+(,\d+)?$")   # 78.000 · 1.250.000 · 1.250,50
 _ENTERO_LARGO = re.compile(r"^[-+]?\d{4,}$")                            # 1628100
+_ENTERO = re.compile(r"^[-+]?\d+$")
 _NUMERICO = re.compile(r"^[-+]?\d[\d.]*(,\d+)?$")                  # solo cifras, puntos y una coma decimal
 _PUNTO_DECIMAL = re.compile(r"\.(\d{1,2}|\d{4,})(?!\d)")         # 12.5 · 3.14159: en esa columna el punto es decimal
 
@@ -35,7 +36,10 @@ def _lector_estricto(fh, origen, formulas=True):
     """El encabezado y un generador de (línea, campos) con las detenciones de FAILFAST que comparten leer_tabla (y con
     ella leer_csv, la ingesta local y la limpieza) y recorrer_csv: archivo vacío, separador que no es la coma, columnas
     repetidas en el encabezado, una comilla sin cerrar, una línea vacía, una fila con más o menos campos que el
-    encabezado o una celda con una fórmula de Excel como texto («=DAY(J2)»), todas con el número de la línea física.
+    encabezado, una celda con una fórmula de Excel como texto («=DAY(J2)»), un fin de línea \\r solo o un \\r suelto
+    fuera de comillas, o un campo de más de 128 KB, todas con el número de la línea física.
+    fh separa las líneas solo en «\\n» (StringIO, o open con newline="\\n"): el \\r\\n y el \\r dentro de comillas se
+    leen igual que con newline="", y un \\r suelto fuera de comillas no parte la fila en dos en silencio (L107).
     Con formulas=False la fórmula no detiene la lectura: la limpieza la neutraliza y la marca (DB5)."""
     lector = csv.reader(fh, strict=True)
     fin = 0     # la última línea física leída: el registro siguiente empieza en fin + 1
@@ -50,6 +54,15 @@ def _lector_estricto(fh, origen, formulas=True):
             if "unexpected end of data" in str(e):   # la comilla abierta se come el archivo: se dice dónde se abrió
                 raise ValueError(f"la línea {fin + 1} {origen} abre una comilla que no se cierra: el registro se come el "
                                  f"archivo hasta la línea {lector.line_num}") from None
+            if "new-line character seen in unquoted field" in str(e):   # el CSV de Excel para Mac o un \r en un campo
+                raise ValueError(f"la línea {lector.line_num} {origen} trae un \\r (retorno de carro) suelto fuera de comillas: "
+                                 "un CSV con fin de línea \\r solo (el de Excel para Mac) o un \\r dentro de un campo sin "
+                                 "comillas; hay que guardarlo como «CSV UTF-8» (fin de línea \\n o \\r\\n) antes de leer") from None
+            if "field larger than field limit" in str(e):
+                tope = f"{csv.field_size_limit():,}".replace(",", ".")
+                raise ValueError(f"la línea {fin + 1} {origen} abre un campo de más de {tope} caracteres (128 KB), el tope del "
+                                 f"lector: o una comilla sin cerrar se come el archivo hasta la línea {lector.line_num}, o el "
+                                 "campo es así de largo y hay que partirlo antes de leer") from None
             raise ValueError(f"la línea {lector.line_num} {origen} no se puede leer ({e}): ¿una comilla sin cerrar?") from None
         fin = lector.line_num
         return f
@@ -88,7 +101,7 @@ def leer_tabla(texto, origen="del CSV", miles=True, formulas=True, ver=None):
     miles=False y formulas=False dejan esas dos revisiones a quien llama (la limpieza: su operación numero declara el
     decimal y las fórmulas se neutralizan); ver(columna, valor) decide cómo sale un valor en el mensaje (la ingesta
     enmascara los de las columnas personales)."""
-    cab, recorrido = _lector_estricto(io.StringIO(texto), origen, formulas=formulas)
+    cab, recorrido = _lector_estricto(io.StringIO(texto, newline="\n"), origen, formulas=formulas)   # solo «\\n» parte líneas
     filas, lineas = [], []
     for n, f in recorrido:
         filas.append(f)
@@ -143,9 +156,8 @@ class _Columna:
         v = v.strip()
         if not v:
             return
-        sin_signo = v[1:] if v[0] in "+-" else v
-        if sin_signo.isdigit():
-            if len(sin_signo) >= 4:
+        if _ENTERO.match(v):     # con \d, como leer_tabla: «²³⁴⁵» cumple str.isdigit() y no es un entero (L107)
+            if _ENTERO_LARGO.match(v):
                 self.entero_largo = True
             return
         if not _NUMERICO.match(v) or ("." in v and _PUNTO_DECIMAL.search(v)):
@@ -164,12 +176,13 @@ class _Columna:
 def recorrer_csv(ruta):
     """Las mismas filas y detenciones que leer_csv, una por una: la memoria no crece con el tamaño de la fuente.
     Usa el mismo lector estricto que leer_tabla (línea vacía, campos de más o de menos, comilla sin cerrar, columnas
-    repetidas, otro separador o una fórmula de Excel, con su línea).
+    repetidas, otro separador, una fórmula de Excel o un \\r suelto, con su línea), y abre el archivo como lo
+    lee leer_tabla: con newline="" partía la fila en un \\r suelto que leer_csv detiene (L107).
     Para fuentes de millones de filas (leer_csv carga todo, unos 1,3 a 3,6 KB por fila, y la caja tiene 1.536 MB).
     La regla del punto de miles mira la columna completa: se cierra al final del recorrido, así que el código debe
     recorrer todas las filas (sumar, contar) para que una detención llegue; nunca cortar el recorrido a la mitad."""
     origen = "del CSV"
-    with open(ruta, newline="", encoding="utf-8-sig") as fh:
+    with open(ruta, newline="\n", encoding="utf-8-sig") as fh:
         cab, recorrido = _lector_estricto(fh, origen)
         columnas = {col: _Columna() for col in cab}
         vivas = [(j, c) for j, c in enumerate(columnas.values())]
