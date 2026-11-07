@@ -136,7 +136,7 @@ pandas y Python puro. Un error propio de una herramienta no se repite en la otra
 Que concuerden no basta: cada valor de la salida tiene que ser un número finito. Un infinito, un «NaN» o un «1e400» en texto, un entero que no cabe en un float o una suma que desborda detienen la corrida, aunque A y B den lo mismo (inf menos inf no supera la tolerancia) y la conservación no mire esa columna (B31, L92).
 
 **D12 · Todo conteo cierra; limpiar es marcar.**
-Cada implementación concilia: filas leídas = usadas + excluidas por motivo. Nada se borra en silencio. La conciliación no se autodeclara: el verificador cuenta las filas reales de la entrada (y las compara con las de la procedencia), en los datos reales y en el caso conocido, y A y B deben conciliar igual motivo por motivo (B25, L82).
+Cada implementación concilia: filas leídas = usadas + excluidas por motivo. Nada se borra en silencio. La conciliación no se autodeclara: el verificador cuenta las filas reales de la entrada (y las compara con las de la procedencia), en los datos reales y en el caso conocido, y A y B deben conciliar igual motivo por motivo (B25, L82). Cada conteo es un número entero (un `int`, o un decimal sin parte decimal como 1520.0): 1520,9, «1520» en texto, un booleano o un infinito son un motivo, no se truncan ni tumban el verificador (B25, L112).
 *Dónde:* `conciliar(datos)` en `impl_a.py` e `impl_b.py`; tabla de conciliación en el informe.
 *Por qué:* quitar «duplicados» por (entidad, valor, fecha) borró 25.824 contratos legítimos en una de las mutantes (lección L08).
 

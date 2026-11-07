@@ -666,6 +666,12 @@
       "leccion": "Un filtro que no señala ninguna fila no es un cero. En la presentación, un «donde» con el nombre mal escrito (DISTRITO DE MEDELLIN en lugar del nombre completo de la entidad) dejaba la suma y el conteo en 0, y la presentación aprobaba con «0,0 billones» y «0 registros»; el máximo, el mínimo y el valor sí fallaban. Además, el filtro comparaba por el texto: 2025 no era igual a 2025.0, así que un número escrito sin decimales no encontraba su fila. Ahora un «donde» sin filas hace fallar la cifra, cualquiera que sea la operación, y un número se compara con un número como número; un número con un texto se sigue comparando por el texto, y una celda vacía o booleana no coincide con nada. Un conteo que de verdad es 0 no se publica con «donde».",
       "origen": "verificación de las salidas de la versión final, 7-nov-2026: en una copia de la corrida completa, alcaldia = {op: suma, donde: {entidad: DISTRITO DE MEDELLIN}} y su conteo salían en 0 y verificar_presentacion.py daba «aprobado»",
       "prueba": "herramientas/verificar_presentacion.py --autoprueba «mal escrito (daba 0)» «que compara un número con el texto de una celda decimal» «numérico sobre una columna decimal»"
+    },
+    {
+      "id": "L112",
+      "leccion": "Un conteo se lee como entero, no se convierte a la fuerza. La conciliación (PIP-3) leía filas_leidas, usadas y excluidas con int(): 1520,9 se truncaba a 1520 y pasaba el ancla contra las filas reales, «1520» en texto y True contaban como números, y un infinito tumbaba verificar.py con OverflowError (también un entero de 400 cifras, al escribir el mensaje con fmt). Ahora una sola función, entero_estricto, acepta un int que no es bool o un float finito sin parte decimal (1520.0); lo demás es un motivo de conciliación inválida, en revisar_conciliacion, anclar_conciliacion, forma_conciliacion, describir_conciliacion y robustez.py, y fmt escribe los enteros sin pasar por float.",
+      "origen": "verificación de las salidas de la versión final, 7-nov-2026: en una copia de la corrida de ventas, conciliar() con filas_leidas infinito daba OverflowError en revisar_conciliacion, y con filas_leidas = usadas = 1520,9 conciliacion_problemas quedaba vacío",
+      "prueba": "B25 · herramientas/blindaje.py «decimal (2,9 = 2,9 + 0)» «infinito (inf = inf + 0)» «entero de 400 cifras» · herramientas/verificar.py «def entero_estricto»"
     }
   ]
 }

@@ -382,17 +382,31 @@ def compuertas(ruta):
     return fallas
 
 
+def entero_estricto(v):
+    """Un conteo de la conciliación tal como llega: un int que no es bool, o un float finito sin parte decimal (1520.0).
+    Lo demás lanza ValueError: int() truncaba 1520.9 a 1520 (y el ancla lo daba por bueno), aceptaba «1520» en texto y
+    True como 1, y con infinito se caía con OverflowError (L112)."""
+    if isinstance(v, bool):
+        raise ValueError("un booleano no es un conteo")
+    if isinstance(v, int):
+        return v
+    if isinstance(v, float) and math.isfinite(v) and v.is_integer():
+        return int(v)
+    raise ValueError("el conteo no es un número entero")
+
+
 def revisar_conciliacion(conc):
     """R3 y R5 del curso: toda fila leída se usa o se excluye con su motivo; nada se borra en silencio.
-    Los motivos y los valores los escribe el código de la IA: el mensaje no los copia tal cual (van al informe)."""
+    Los motivos y los valores los escribe el código de la IA: el mensaje no los copia tal cual (van al informe).
+    Cada conteo es un entero (entero_estricto): un decimal, un texto, un booleano o un infinito son un motivo."""
     if not isinstance(conc, dict):
         return "conciliar(datos) no devolvió un diccionario"
     try:
-        leidas, usadas = int(conc["filas_leidas"]), int(conc["usadas"])
-        excl = {k: int(v) for k, v in (conc.get("excluidas") or {}).items()}
+        leidas, usadas = entero_estricto(conc["filas_leidas"]), entero_estricto(conc["usadas"])
+        excl = {k: entero_estricto(v) for k, v in (conc.get("excluidas") or {}).items()}
     except KeyError as e:
         return f"conciliación incompleta: falta {sanear(e)}"
-    except (TypeError, ValueError, AttributeError) as e:
+    except (TypeError, ValueError, AttributeError, OverflowError) as e:
         return f"conciliación con conteos que no son números enteros ({type(e).__name__})"
     if min([leidas, usadas, *excl.values()]) < 0:
         return "la conciliación trae conteos negativos"
@@ -442,8 +456,8 @@ def anclar_conciliacion(conc, conteos):
     if err:
         return f"no se pudieron contar las filas reales de {_tabla_md(tabla)} ({err}): la conciliación no se puede comprobar"
     try:
-        leidas = int(conc["filas_leidas"])
-    except (KeyError, TypeError, ValueError):
+        leidas = entero_estricto(conc["filas_leidas"])
+    except (KeyError, TypeError, ValueError, OverflowError):
         return None   # ya lo reporta revisar_conciliacion
     if leidas != n:
         return f"filas_leidas {fmt(leidas)} ≠ {fmt(n)} filas reales de {_tabla_md(tabla)} (las contó el verificador en el archivo)"
@@ -452,15 +466,16 @@ def anclar_conciliacion(conc, conteos):
 
 def forma_conciliacion(conc):
     """Lo que dos conciliaciones deben compartir: filas leídas, usadas y excluidas por motivo (un motivo en 0 es como
-    si no estuviera). Lanza KeyError, TypeError o ValueError si la conciliación no se puede leer."""
-    excl = sorted((str(k), int(v)) for k, v in (conc.get("excluidas") or {}).items() if int(v) != 0)
-    return int(conc["filas_leidas"]), int(conc["usadas"]), tuple(excl)
+    si no estuviera). Lanza KeyError, TypeError o ValueError si la conciliación no se puede leer (un conteo que no es
+    un entero, entero_estricto)."""
+    excl = sorted((str(k), entero_estricto(v)) for k, v in (conc.get("excluidas") or {}).items() if entero_estricto(v) != 0)
+    return entero_estricto(conc["filas_leidas"]), entero_estricto(conc["usadas"]), tuple(excl)
 
 
 def describir_conciliacion(conc):
     try:
         leidas, usadas, excl = forma_conciliacion(conc)
-    except (KeyError, TypeError, ValueError, AttributeError):
+    except (KeyError, TypeError, ValueError, AttributeError, OverflowError):
         return "no se puede leer"
     motivos = ", ".join(f"{motivo_md(k)} {fmt(v)}" for k, v in excl[:6]) or "ninguna"
     return f"{fmt(leidas)} leídas, {fmt(usadas)} usadas, excluidas: {motivos}"
@@ -663,8 +678,10 @@ def evaluar_impl(nombre, ruta, spec, reglas, caso, conteos=None):
 def fmt(v):
     if v is None:
         return "—"
-    if isinstance(v, (int, float)):
-        if float(v).is_integer():
+    if isinstance(v, int):        # exacto y sin pasar por float: un conteo de 400 cifras no tumba el informe (L112)
+        return f"{v:,}".replace(",", ".")
+    if isinstance(v, float):
+        if v.is_integer():
             return f"{v:,.0f}".replace(",", ".")
         return f"{v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
     return str(v)
@@ -860,7 +877,7 @@ def verificar(c, impls, extra=False):
         # A y B leen la misma entrada con la misma spec: deben dar las mismas filas leídas, usadas y excluidas POR MOTIVO
         try:
             conciliaciones_iguales = forma_conciliacion(concs[0]) == forma_conciliacion(concs[1])
-        except (KeyError, TypeError, ValueError, AttributeError):
+        except (KeyError, TypeError, ValueError, AttributeError, OverflowError):
             conciliaciones_iguales = False   # una no se puede leer: ya es una falla de esa implementación
         if not conciliaciones_iguales:
             motivos.append("las dos implementaciones no concilian igual (filas leídas, usadas o excluidas por motivo): "

@@ -499,9 +499,21 @@ def b24():
                         f"(junto a ellos no hay esperado.json) y la lectura por su ruta real se niega: {vistos[:90]}")
 
 
-@prueba("B25", "verificador", "la implementación declara en conciliar() más filas leídas de las que tiene el archivo, y la cuenta cierra")
+# B25, también con conteos que no son enteros (L112): int() truncaba 2,9 a 2 y el ancla lo daba por bueno, aceptaba «2» en
+# texto y True como 1, y con infinito (o un entero de 400 cifras, al escribir el mensaje) tumbaba verificar.py
+CONTEOS_NO_ENTEROS = {
+    "decimal (2,9 = 2,9 + 0)": "{'filas_leidas': 2.9, 'usadas': 2.9, 'excluidas': {}}",
+    "infinito (inf = inf + 0)": "{'filas_leidas': float('inf'), 'usadas': float('inf'), 'excluidas': {}}",
+    "texto («2» = «2» + 0)": "{'filas_leidas': '2', 'usadas': '2', 'excluidas': {}}",
+    "booleano entre las excluidas (2 = 1 + True)": "{'filas_leidas': 2, 'usadas': 1, 'excluidas': {'anulada': True}}",
+    "entero de 400 cifras (10^400 = 10^400 + 0)": "{'filas_leidas': 10 ** 400, 'usadas': 10 ** 400, 'excluidas': {}}",
+}
+
+
+@prueba("B25", "verificador", "la implementación declara en conciliar() más filas leídas de las que tiene el archivo, y la cuenta cierra; o declara conteos que no son enteros (2,9, infinito, «2», un booleano, un entero de 400 cifras)")
 def b25():
     d = Path(tempfile.mkdtemp(prefix="blindaje-conc-"))
+    no_enteros = {}
     try:
         datos = d / "t.csv"
         datos.write_text("a,b\n1,2\n3,4\n", encoding="utf-8")
@@ -517,6 +529,17 @@ def b25():
         for nombre, impl in (("honesta", honesta), ("mentirosa", mentirosa)):
             _, err, conc, _ = verificar.ejecutar_impl(impl, {"t": str(datos)}, detalle=True)
             out[nombre] = (err, conc, verificar.revisar_conciliacion(conc), verificar.anclar_conciliacion(conc, conteos))
+        for i, (nombre, conc_txt) in enumerate(CONTEOS_NO_ENTEROS.items()):
+            impl = d / f"no_entero_{i}.py"
+            impl.write_text(base + f"def conciliar(datos):\n    return {conc_txt}\n", encoding="utf-8")
+            _, err, conc, _ = verificar.ejecutar_impl(impl, {"t": str(datos)}, detalle=True)
+            try:   # lo que hace verificar.py con ella: revisarla, anclarla y describirla al comparar A con B
+                motivo = verificar.revisar_conciliacion(conc) or verificar.anclar_conciliacion(conc, conteos)
+                verificar.describir_conciliacion(conc)
+                caida = None
+            except Exception as e:
+                motivo, caida = None, f"{type(e).__name__}: {str(e)[:60]}"
+            no_enteros[nombre] = (err, conc, motivo, caida)
     finally:
         shutil.rmtree(d, ignore_errors=True)
     (err_h, conc_h, arit_h, ancla_h), (err_m, conc_m, arit_m, ancla_m) = out["honesta"], out["mentirosa"]
@@ -528,8 +551,17 @@ def b25():
         return r("CEDE", "prueba inválida: la conciliación mentirosa ya no cierra por aritmética; el ataque no prueba el ancla")
     if not ancla_m:
         return r("CEDE", "la conciliación autodeclarada (1.000 leídas de un archivo de 2 filas) pasa: nadie cuenta las filas reales")
+    sin_correr = [n for n, (err, conc, _, _) in no_enteros.items() if err or not isinstance(conc, dict)]
+    if sin_correr:
+        return r("CEDE", f"prueba inválida: las conciliaciones con conteos que no son enteros no corrieron en la caja: {sin_correr}")
+    caidas = [f"{n} ({caida})" for n, (_, _, _, caida) in no_enteros.items() if caida]
+    pasan = [n for n, (_, _, motivo, caida) in no_enteros.items() if not caida and not motivo]
+    if caidas or pasan:
+        return r("CEDE", "; ".join((["el verificador se cae con " + ", ".join(caidas)] if caidas else [])
+                                   + (["pasan como conciliación válida: " + ", ".join(pasan)] if pasan else [])))
     return r("RESISTE", f"la cuenta interna cierra (1.000 = 1.000 + 0), pero el verificador cuenta el archivo: {ancla_m[:110]}; "
-                        "la conciliación honesta pasa")
+                        f"los {len(no_enteros)} conteos que no son enteros (2,9, infinito, «2», un booleano, 10^400) son un motivo, "
+                        "sin caerse; la conciliación honesta pasa")
 
 
 @prueba("B26", "salidas", "el error de una implementación copia el texto de una celda sin comillas al informe")
