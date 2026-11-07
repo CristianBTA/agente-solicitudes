@@ -18,7 +18,7 @@ La IA escribe el lector: un **contrato de datos** que dice qué traer, con qué 
   - `tabla`: un nombre simple (letras, números, «_» o «-»).
   - `columnas`, cada una con su tipo: `texto`, `entero`, `decimal` o `fecha`.
   - `llave`: una columna o una lista de columnas (**llave compuesta**, p. ej. `["codigo_estacion", "fecha"]`). La combinación no se repite y ninguna de sus partes viene vacía.
-  - `dominios` y `rangos` duros, `avisos` blandos y, si hiciera falta, `personales_justificadas` (cuasi-identificadoras o de texto libre) y `base_legal_sensibles` (datos sensibles).
+  - `dominios` y `rangos` duros, `avisos` blandos (un dominio es una lista de valores escritos como texto; un rango o un aviso, `[mín, máx]` con números en una columna entera o decimal y fechas `aaaa-mm-dd` en una de fecha, y `null` deja un lado abierto) y, si hiciera falta, `personales_justificadas` (cuasi-identificadoras o de texto libre) y `base_legal_sensibles` (datos sensibles).
   - `agregado` (opcional, solo Socrata): la consulta que calcula el servidor; ver abajo.
 - La carga, `datos/<tabla>.csv`, y su procedencia, `datos/procedencia_<tabla>.json`: las escribe la herramienta, no el agente.
 
@@ -47,7 +47,7 @@ Para conjuntos de nivel 3 que no caben en memoria, o donde la unidad de la petic
 - Escribir en `fuente.conteo` un número que no declaró quien entrega el archivo.
 
 ## Prueba sin IA que lo comprueba
-`python herramientas/ingesta.py contrato_<tabla>.json --salida datos --repetir`. Antes de pedir una sola fila, un contrato roto (JSON inválido, tipo desconocido, llave o agregado mal escritos, una tabla con «/» o «..») y una columna personal, cuasi-identificadora o de texto libre sin justificar, o sensible sin base legal, rechazan la carga con su motivo, sin traceback. En Socrata, la columna también se clasifica por su descripción en los metadatos, y una columna que no existe en la fuente rechaza la carga. En un agregado, la justificación se pide para las columnas cuyos valores salen (las del `group` y las de `min` o `max`), y la base legal de un dato sensible, en cualquier parte de la consulta, aunque solo se cuente o se sume.
+`python herramientas/ingesta.py contrato_<tabla>.json --salida datos --repetir`. Antes de pedir una sola fila, un contrato roto (JSON inválido, tipo desconocido, llave o agregado mal escritos, dominios, rangos o avisos con otra forma, como un rango con textos, de un solo lado o sobre una columna de texto, una tabla con «/» o «..») y una columna personal, cuasi-identificadora o de texto libre sin justificar, o sensible sin base legal, rechazan la carga con su motivo, sin traceback. En Socrata, la columna también se clasifica por su descripción en los metadatos, y una columna que no existe en la fuente rechaza la carga. En un agregado, la justificación se pide para las columnas cuyos valores salen (las del `group` y las de `min` o `max`), y la base legal de un dato sensible, en cualquier parte de la consulta, aunque solo se cuente o se sume.
 
 Luego, con la carga:
 - **Las pruebas de siempre:** conteo contra la fuente, llave única y llave sin nulos (en una llave compuesta, la combinación; el detalle cuenta los vacíos de cada parte), tipos declarados (FAILFAST), rangos y dominios, y correr dos veces da el mismo archivo, byte a byte.
@@ -56,6 +56,6 @@ Luego, con la carga:
 - **Agregado:** la suma de `count(*)` de los grupos es el `count(*)` del servidor sin agrupar, con el mismo filtro; `sum` y `count(columna)` se concilian igual y `min` y `max` coinciden (`avg` y `count(distinct)` no son aditivos); la fuente no cambió durante la descarga, y el k-anonimato, si se declara `k_minimo`.
 - **Sin datos privados en los mensajes:** los ejemplos de valores que no cumplen su tipo o su dominio salen enmascarados si la columna es personal, cuasi-identificadora, de texto libre o sensible (por su nombre o por su descripción), y el ejemplo de un mensaje de detención del lector (el monto con punto de miles), si lo es por su nombre.
 
-Si algo falla, la carga se rechaza: el CSV no se escribe, se retira el de una carga anterior y `procedencia_<tabla>.json` queda en «rechazada». La procedencia de una carga aprobada guarda la consulta exacta (en Socrata, con su orden y sus páginas), cada URL pedida, la versión de la fuente, la hora con zona y la huella SHA-256; en un agregado, también la consulta SoQL y el control sin agrupar.
+Si algo falla, la carga se rechaza: el CSV no se escribe, se retira el de una carga anterior y `procedencia_<tabla>.json` queda en «rechazada». También ante un error que no se previó al probar o escribir la carga: el motivo dice su tipo y su lugar, sin traceback. La procedencia de una carga aprobada guarda la consulta exacta (en Socrata, con su orden y sus páginas), cada URL pedida, la versión de la fuente, la hora con zona y la huella SHA-256; en un agregado, también la consulta SoQL y el control sin agrupar.
 
 Además, las [reglas comunes](00-reglas-comunes.md) y la bitácora de su etapa.

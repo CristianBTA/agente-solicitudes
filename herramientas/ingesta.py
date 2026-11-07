@@ -13,9 +13,11 @@ El contrato de datos (el «lector» que escribe la IA y revisa una persona) decl
   columnas: {columna: "texto" | "entero" | "decimal" | "fecha"}
   llave:    una columna ("id_contrato") o una lista (["codigo_estacion", "fecha"]): la combinación no se repite y
             ninguna de sus partes viene vacía
-  dominios: {columna: [valores]}        duros: si un valor no está, la carga se rechaza
-  rangos:   {columna: [min, max]}       duros (fechas como "aaaa-mm-dd")
-  avisos:   {columna: [min, max]}       blandos: se cuentan y se reportan (R7), no se corrigen
+  dominios: {columna: [valores]}        duros: si un valor no está, la carga se rechaza (valores como texto, tal como
+                                        vienen en el archivo)
+  rangos:   {columna: [min, max]}       duros: números en una columna entera o decimal, fechas como "aaaa-mm-dd";
+                                        null deja ese lado abierto; una columna de texto no tiene rango
+  avisos:   {columna: [min, max]}       blandos, con la misma forma: se cuentan y se reportan (R7), no se corrigen
   personales_justificadas: {columna: motivo}   sin esto, una columna personal, cuasi-identificadora o de texto libre
                                                (por su nombre o por su descripción en los metadatos) se rechaza
   base_legal_sensibles: {columna: base legal}  sin esto, un dato sensible (origen étnico, salud o discapacidad, vida
@@ -27,8 +29,10 @@ rangos y dominios; además, tipos declarados como FAILFAST (R11), columnas que e
 («el esquema desmiente la columna inventada») y minimización de datos personales.
 La escritura es atómica y repetible (R12): con la fuente igual, correr dos veces deja el mismo archivo. El CSV se
 escribe solo si la carga se aprueba; un rechazo deja procedencia_<tabla>.json en «rechazada» y retira, avisando, el
-CSV de una carga anterior. Un contrato roto (JSON inválido, tipo desconocido, llave mal escrita) se rechaza con su
-motivo, sin traceback.
+CSV de una carga anterior. Un contrato roto (JSON inválido, tipo desconocido, llave mal escrita, dominios, rangos o
+avisos con otra forma, como un rango con textos o de un solo lado) se rechaza con su motivo, sin traceback. Y lo que no
+se previó también: un error al probar o escribir la carga la rechaza, con el tipo y el lugar del error (no su texto, que
+puede traer un valor), retira el CSV anterior y deja la procedencia en «rechazada», nunca la «aprobada» de antes.
 
 CSV local (FAILFAST): nada se rellena ni se recorta. Se lee con el lector estricto de las reglas (reglas_base.leer_tabla)
 desde los bytes (un \\r\\n dentro de un campo entre comillas se conserva tal cual). Rechazan la carga, con su número de
@@ -72,12 +76,14 @@ import csv
 import hashlib
 import io
 import json
+import math
 import os
 import re
 import shutil
 import sys
 import tempfile
 import time
+import traceback
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -95,6 +101,7 @@ RAIZ = AQUI.parent
 AGENTE = {"User-Agent": "agente-solicitudes (analisis de datos abiertos)"}
 TIPOS = ("texto", "entero", "decimal", "fecha")
 TABLA = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_-]{0,63}")
+FECHA_LIMITE = re.compile(r"\d{4}-\d{2}-\d{2}")     # los límites de una fecha en rangos y avisos
 # consultas agregadas: una columna, date_trunc de una fecha o una función de agregación sobre una columna
 _ID = r"[a-z_][a-z0-9_]*"
 _EXPR = re.compile(
@@ -549,6 +556,64 @@ def tabla_valida(tabla):
     return isinstance(tabla, str) and bool(TABLA.fullmatch(tabla))
 
 
+def limite_valido(tipo, x):
+    """Un lado de un rango o de un aviso: null (abierto), un número finito en una columna entera o decimal (no un
+    texto: "0" no se compara con 5) o una fecha «aaaa-mm-dd» que existe en el calendario en una de fecha."""
+    if x is None:
+        return True
+    if tipo == "fecha":
+        if not isinstance(x, str) or not FECHA_LIMITE.fullmatch(x):
+            return False
+        try:
+            date.fromisoformat(x)
+            return True
+        except ValueError:
+            return False
+    if isinstance(x, bool) or not isinstance(x, (int, float)):
+        return False
+    return isinstance(x, int) or math.isfinite(x)
+
+
+def revisar_limites(contrato, cols):
+    """dominios, rangos y avisos bien escritos, antes de leer nada: un límite mal escrito se rechaza aquí, con su
+    motivo, y no como un traceback al probar la carga (que dejaba la carga anterior en «aprobada»). dominios es
+    {columna declarada: [valores escritos como texto, tal como vienen en el archivo]}; rangos y avisos son {columna
+    declarada: [mín, máx]}, con números en una columna entera o decimal y fechas «aaaa-mm-dd» en una de fecha (null
+    deja ese lado abierto); una columna de texto no tiene rango."""
+    p = []
+    dominios = contrato.get("dominios")
+    if dominios is not None and not isinstance(dominios, dict):
+        p.append("«dominios» es {columna: [valores]}")
+    for col, vals in (dominios.items() if isinstance(dominios, dict) else ()):
+        if col not in cols:
+            p.append(f"dominios: «{col[:40]}» no está entre las columnas declaradas")
+        elif not isinstance(vals, list) or not vals or not all(isinstance(v, str) for v in vals):
+            p.append(f"dominios.{col[:40]} es una lista no vacía de valores escritos como texto, tal como vienen en el archivo")
+    for clave in ("rangos", "avisos"):
+        limites = contrato.get(clave)
+        if limites is None:
+            continue
+        if not isinstance(limites, dict):
+            p.append(f"«{clave}» es {{columna: [mín, máx]}}")
+            continue
+        for col, lim in limites.items():
+            tipo = cols.get(col)
+            if col not in cols:
+                p.append(f"{clave}: «{col[:40]}» no está entre las columnas declaradas")
+            elif tipo not in TIPOS:
+                continue     # ya se rechaza por su tipo desconocido
+            elif tipo == "texto":
+                p.append(f"{clave}.{col[:40]}: la columna es texto; un rango es para una columna entera, decimal o de fecha")
+            elif not isinstance(lim, list) or len(lim) != 2:
+                p.append(f"{clave}.{col[:40]} es [mín, máx] (null deja ese lado abierto)")
+            elif not all(limite_valido(tipo, x) for x in lim):
+                forma = "fechas «aaaa-mm-dd»" if tipo == "fecha" else "números finitos, no textos"
+                p.append(f"{clave}.{col[:40]}: los límites de una columna {tipo} son {forma}, o null")
+            elif None not in lim and limite(tipo, lim[0]) > limite(tipo, lim[1]):
+                p.append(f"{clave}.{col[:40]}: el mínimo es mayor que el máximo")
+    return p
+
+
 def revisar_contrato(contrato):
     """Problemas del contrato antes de leer nada. Devuelve (problemas, llaves, consulta agregada o None)."""
     faltan = [k for k in ("fuente", "tabla", "columnas") if k not in contrato]
@@ -566,6 +631,7 @@ def revisar_contrato(contrato):
     for k in ("personales_justificadas", "base_legal_sensibles"):
         if not isinstance(contrato.get(k) or {}, dict):
             p.append(f"«{k}» es {{columna: texto}}")
+    p += revisar_limites(contrato, cols)
     tipo = fuente.get("tipo") if isinstance(fuente, dict) else None
     if tipo not in ("socrata", "local"):
         return p + ["fuente.tipo es «socrata» o «local»"], [], None
@@ -645,9 +711,9 @@ def probar(contrato, columnas, llaves, filas, leido, consulta=None, descripcione
         tipo = tipos[col]
         d = descripciones.get(col)
         privada = clasificar_columna(col, d) is not None or es_sensible(col, d)   # sus ejemplos salen enmascarados
-        dom = set(contrato.get("dominios", {}).get(col, []))
-        rango = contrato.get("rangos", {}).get(col)
-        aviso = contrato.get("avisos", {}).get(col)
+        dom = set((contrato.get("dominios") or {}).get(col, []))
+        rango = (contrato.get("rangos") or {}).get(col)
+        aviso = (contrato.get("avisos") or {}).get(col)
         for f in filas:
             v = f[j].strip()
             if not v:
@@ -731,6 +797,18 @@ def ingerir(ruta_contrato, salida, repetir=False):
         return rechazar(f"el contrato no se puede leer: {type(e).__name__}: {str(e)[:160]}")
     if not isinstance(contrato, dict):
         return rechazar("el contrato es un objeto JSON {fuente, tabla, llave, columnas, ...}")
+    try:
+        return cargar(contrato, salida, repetir)
+    except Exception as e:  # noqa: BLE001 (FAILFAST: lo que no se previó también rechaza la carga, sin traceback)
+        # nunca queda la carga anterior en «aprobada»: se retira su CSV y la procedencia pasa a «rechazada». El motivo
+        # dice el tipo y el lugar del error, no su texto, que puede traer un valor de la fuente.
+        donde = traceback.extract_tb(e.__traceback__)[-1]
+        return rechazar(f"la carga se detuvo antes de terminar sus pruebas ({type(e).__name__} en {donde.name}, "
+                        f"{Path(donde.filename).name}:{donde.lineno}): no se aprueba", salida, contrato.get("tabla"))
+
+
+def cargar(contrato, salida, repetir):
+    """ingerir() con el contrato ya leído: revisarlo, leer la fuente, probar la carga, escribirla y dejar su procedencia."""
     problemas, llaves, consulta = revisar_contrato(contrato)
     tabla = contrato.get("tabla")
     if problemas:
@@ -1202,6 +1280,68 @@ def autoprueba(mod=None):
     except BaseException as e:  # noqa: BLE001
         ok = False
     resultados.append(("contrato que no es JSON: RESUMEN «rechazada», no traceback", ok, buf.getvalue()[-110:]))
+    # dominios, rangos y avisos mal escritos: se rechazan con su motivo antes de leer, nunca con un traceback al probar
+    ruta = archivo("limites.csv", "id,valor,fecha\n1,10,2024-01-15\n2,20,2024-02-01\n")
+    tipos_lim = {"id": "texto", "valor": "decimal", "fecha": "fecha"}
+    limites_malos = {
+        "un rango con textos ([\"0\", \"1000\"])": ({"rangos": {"valor": ["0", "1000"]}}, "rangos.valor"),
+        "un rango de un solo lado ([0])": ({"rangos": {"valor": [0]}}, "rangos.valor"),
+        "un rango de fecha que no es aaaa-mm-dd": ({"rangos": {"fecha": ["01/01/2024", "2024-12-31"]}}, "rangos.fecha"),
+        "rangos como lista": ({"rangos": [["valor", 0, 1000]]}, "«rangos»"),
+        "un rango sobre una columna de texto": ({"rangos": {"id": [0, 10]}}, "rangos.id"),
+        "un rango con el mínimo mayor que el máximo": ({"rangos": {"valor": [1000, 0]}}, "mínimo"),
+        "un aviso con NaN": ({"avisos": {"valor": [float("nan"), 5]}}, "avisos.valor"),
+        "un aviso de una columna no declarada": ({"avisos": {"otra": [0, 1]}}, "avisos"),
+        "un dominio que no es una lista de textos": ({"dominios": {"valor": 5}}, "dominios.valor"),
+        "dominios null en una columna": ({"dominios": {"valor": None}}, "dominios.valor"),
+    }
+    for nombre, (extra, clave) in limites_malos.items():
+        correr(f"contrato con {nombre}: se rechaza con su motivo, sin traceback", {**local_(ruta, tipos_lim, "id"), **extra},
+               "rechazada", lambda r, *_, c=clave: c in str(r.get("motivo")))
+    correr("control: dominios, rangos y avisos bien escritos (números, fechas aaaa-mm-dd y null) se aplican y la carga se aprueba",
+           {**local_(ruta, tipos_lim, "id"), "dominios": {"id": ["1", "2"]}, "rangos": {"valor": [0, 1000], "fecha": ["2024-01-01", None]},
+            "avisos": {"valor": [15, None]}}, "aprobada", lambda r, p, *_: p.get("avisos") and "valor: 1 valores" in p["avisos"][0])
+
+    def tras_una_aprobada(nombre, malo, condicion, romper=None):
+        """Primero una carga aprobada en la misma --salida; luego la de hoy, con el CSV cambiado (la llave se repite) y
+        el contrato con `malo` (o con probar() roto a propósito): se rechaza con su motivo, sin traceback, retira el CSV
+        anterior y la procedencia queda en «rechazada», nunca en la «aprobada» de antes."""
+        d = tmp / f"previa{len(resultados):02d}"
+        d.mkdir()
+        csv_ = d / "d.csv"
+        csv_.write_text("id,valor\n1,10\n2,20\n", encoding="utf-8")
+        (d / "bueno.json").write_text(json.dumps(local_(csv_, {"id": "texto", "valor": "decimal"}, "id")), encoding="utf-8")
+        (d / "malo.json").write_text(json.dumps({**local_(csv_, {"id": "texto", "valor": "decimal"}, "id"), **malo}),
+                                     encoding="utf-8")
+        buf, error, rc1, rc2, viejo = io.StringIO(), None, None, None, mod.probar
+        try:
+            with contextlib.redirect_stdout(io.StringIO()):
+                rc1 = mod.ingerir(str(d / "bueno.json"), str(d / "salida"))
+            csv_.write_text("id,valor\n1,10\n1,30\n", encoding="utf-8")
+            if romper:
+                mod.probar = romper
+            with contextlib.redirect_stdout(buf):
+                rc2 = mod.ingerir(str(d / "malo.json"), str(d / "salida"))
+        except BaseException as e:  # noqa: BLE001 (la versión anterior revienta; eso también es una falla)
+            error = f"{type(e).__name__}: {str(e)[:120]}"
+        finally:
+            mod.probar = viejo
+        linea = next((x for x in reversed(buf.getvalue().splitlines()) if x.startswith("RESUMEN ")), None)
+        resumen = json.loads(linea[len("RESUMEN "):]) if linea else {}
+        p_proc = d / "salida" / "procedencia_caso.json"
+        estado = json.loads(p_proc.read_text(encoding="utf-8")).get("estado") if p_proc.exists() else None
+        ok = (error is None and rc1 == 0 and rc2 == 1 and resumen.get("estado") == "rechazada" and estado == "rechazada"
+              and not (d / "salida" / "caso.csv").exists() and condicion(str(resumen.get("motivo"))))
+        resultados.append((nombre, ok, error or f"códigos {rc1} y {rc2} · procedencia {estado} · {str(resumen.get('motivo'))[:110]}"))
+
+    tras_una_aprobada("un rango con textos tras una carga aprobada: se rechaza, retira el CSV anterior y la procedencia queda "
+                      "en «rechazada»", {"rangos": {"valor": ["0", "1000"]}}, lambda m: "rangos.valor" in m)
+
+    def probar_roto(*_a, **_k):
+        raise RuntimeError("valor de la fuente 1.035.233.887")
+    tras_una_aprobada("un error que no se previó al probar la carga la rechaza: retira el CSV anterior, la procedencia queda en "
+                      "«rechazada» y el motivo no trae el texto del error", {},
+                      lambda m: "se detuvo" in m and "RuntimeError" in m and "035" not in m, romper=probar_roto)
     # 2. llaves compuestas
     clientes = AQUI.parent / "ejemplo" / "datos" / "clientes.csv"
     tipos_cli = {"cliente_id": "texto", "nombre": "texto", "region": "texto", "fecha_actualizacion": "fecha"}
