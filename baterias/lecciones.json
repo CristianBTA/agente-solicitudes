@@ -1,59 +1,59 @@
 {
-  "_nota": "Cada error real se vuelve una lección con su prueba. Los agentes la leen antes de escribir (control blando) y la prueba la hace cumplir (control duro). Se agrega con: python herramientas/baterias.py --leccion '<texto>' --origen '<de dónde salió>' --prueba '<dónde se prueba>'.",
+  "_nota": "Cada error real se vuelve una lección con su prueba. Los agentes la leen antes de escribir (control blando) y la prueba la hace cumplir (control duro). Se agrega con: python herramientas/baterias.py --leccion '<texto>' --origen '<de dónde salió>' --prueba '<la prueba que lo atrapa>'. La prueba cita algo que existe y la batería lo comprueba: un id del blindaje (B05), un mutante de los controles (M12), un caso de una batería (bateria:failfast/campo_de_mas.csv), una herramienta con --autoprueba (con su caso «…») o un archivo versionado; una cita entre « » tiene que estar en el archivo que la precede (L96).",
   "lecciones": [
     {
       "id": "L01",
       "leccion": "pandas.to_datetime(format='mixed', dayfirst=True) invierte las fechas ISO con día <= 12 (2026-04-05 queda 4 de mayo). Con formatos mezclados se lee cada formato por separado.",
       "origen": "implementación de prueba, 6-nov-2026; la atrapó la regla de conservación",
-      "prueba": "caso conocido con una fecha ISO de día <= 12 y otra dd/mm/aaaa; regla de conservación"
+      "prueba": "herramientas/verificar.py corridas/2026-11-06-ventas-semestre --impl m06_fechas_iso_invertidas=evidencia/sintetico/mutantes/m06_fechas_iso_invertidas.py «format=\"mixed\", dayfirst=True» (fallan R1, la conservación, y el caso conocido, que trae fechas ISO con día <= 12 y otras dd/mm/aaaa) · herramientas/validar_aporte.py (mutantes)"
     },
     {
       "id": "L02",
       "leccion": "Si las fechas traen hora, compararlas contra 'aaaa-mm-dd' como texto deja por fuera el último día (5 contratos y 882 millones en SECOP Medellín 2025).",
       "origen": "SECOP II, 6-nov-2026",
-      "prueba": "perfilar.py marca 'con_hora'; caso conocido con 31-dic a las 23:59"
+      "prueba": "herramientas/perfilar.py «con_hora» · herramientas/verificar.py corridas/2026-11-06-secop-medellin-2025 --impl s_corte_texto_31_dic=evidencia/secop/mutantes/s_corte_texto_31_dic.py (comparar como texto deja fuera 5 contratos y 882 millones: fallan R1, R2, R8 y el caso conocido, con contratos del 31-dic a las 23:59:59; necesita los datos de SECOP)"
     },
     {
       "id": "L03",
       "leccion": "Un nombre de paquete inventado (pandas-secop-tools) lo puede registrar un atacante: solo se importan librerías de permitidas.json, con versiones de requirements.txt.",
       "origen": "curso Big Data con IA, módulo 1 (slopsquatting)",
-      "prueba": "bateria:seguridad/malos/paquete_inventado.py y instala_desde_codigo.py"
+      "prueba": "bateria:seguridad/malos/paquete_inventado.py bateria:seguridad/malos/instala_desde_codigo.py"
     },
     {
       "id": "L04",
       "leccion": "Unir con un maestro que tiene códigos repetidos multiplica filas sin dar error. La conservación se calcula sin unir tablas.",
       "origen": "ejemplo sintético, 6-nov-2026",
-      "prueba": "regla de tipo conservación"
+      "prueba": "herramientas/verificar.py corridas/2026-11-06-ventas-semestre --impl m09_maestro_sin_depurar=evidencia/sintetico/mutantes/m09_maestro_sin_depurar.py (falla R1, la conservación, que se calcula sin unir tablas) · herramientas/validar_aporte.py (mutantes)"
     },
     {
       "id": "L05",
       "leccion": "Un NIT puede agrupar varias unidades que contratan (Concejo y Personería dentro del Distrito; Asamblea dentro del Departamento): «entidad» es una decisión de negocio y se declara.",
       "origen": "SECOP II, 6-nov-2026",
-      "prueba": "perfilar.py: código con varios nombres (nit_entidad → codigo_entidad); pregunta en la spec"
+      "prueba": "herramientas/perfilar.py «codigo_con_varios_valores» (nit_entidad → codigo_entidad) · corridas/2026-11-06-secop-medellin-2025/spec.json, pregunta P1 «¿La Personería y el Concejo de Medellín» · herramientas/verificar.py corridas/2026-11-06-secop-medellin-2025 --impl s_agrupar_por_nombre=evidencia/secop/mutantes/s_agrupar_por_nombre.py (fallan R3, R4, R5, R6, R8 y el caso conocido; necesita los datos de SECOP)"
     },
     {
       "id": "L06",
       "leccion": "«Entidad pública» no garantiza que todo el archivo lo sea: la Universidad Pontificia Bolivariana (privada) publica en SECOP II. Se pregunta, no se supone.",
       "origen": "SECOP II, 6-nov-2026; lo vio un generador de un solo disparo, no la referencia humana",
-      "prueba": "pregunta en la spec"
+      "prueba": "corridas/2026-11-06-secop-medellin-2025/spec.json, pregunta P2 «¿Se excluye la Universidad Pontificia Bolivariana» · herramientas/verificar.py: el informe dice cuántas «pregunta(s) abierta(s)» hay y el valor por defecto de cada una"
     },
     {
       "id": "L07",
       "leccion": "En «contratos» de SECOP también hay operaciones de crédito público (deuda): un billón en el Distrito en 2025. Es una pregunta de negocio.",
       "origen": "SECOP II, 6-nov-2026",
-      "prueba": "pregunta en la spec"
+      "prueba": "corridas/2026-11-06-pipeline-secop-medellin-2025/spec.json, pregunta P3 «¿Las operaciones de crédito público (deuda)» · herramientas/verificar.py corridas/2026-11-06-secop-medellin-2025 --impl s_excluir_credito_publico=evidencia/secop/mutantes/s_excluir_credito_publico.py (excluirlas sin declararlo: fallan R1, R2 y R8; necesita los datos de SECOP)"
     },
     {
       "id": "L08",
       "leccion": "Quitar «duplicados» por (entidad, valor, fecha) borra contratos legítimos (−25.824 en SECOP Medellín 2025). Solo se depura por la llave declarada, y se concilia.",
       "origen": "mutante de SECOP, 6-nov-2026",
-      "prueba": "conciliar(datos) y regla de conservación del número de contratos"
+      "prueba": "herramientas/verificar.py corridas/2026-11-06-secop-medellin-2025 --impl s_sobre_depurar=evidencia/secop/mutantes/s_sobre_depurar.py (falla R2, la conservación del número de contratos: 23.838 de 49.662; necesita los datos de SECOP) · herramientas/blindaje.py --solo B25 (conciliar() contra las filas reales)"
     },
     {
       "id": "L09",
       "leccion": "Las variantes de escritura de una categoría parten los grupos sin dar error. Va una lista cerrada en la spec y una regla de dominio.",
       "origen": "ejemplo sintético, 6-nov-2026",
-      "prueba": "regla de tipo dominio"
+      "prueba": "herramientas/verificar.py corridas/2026-11-06-ventas-semestre --impl m12_regiones_sin_unificar=evidencia/sintetico/mutantes/m12_regiones_sin_unificar.py (falla R4, el dominio con la lista cerrada de la spec) · herramientas/validar_aporte.py (mutantes)"
     },
     {
       "id": "L10",
@@ -83,7 +83,7 @@
       "id": "L14",
       "leccion": "Una regla de limpieza mal planteada (IVA mayor que el subtotal) marcó 1.150 de 1.520 filas en una prueba. El plan de limpieza lo revisa alguien distinto antes de sellarlo, y las reglas calculan desde el dato crudo.",
       "origen": "plan de limpieza de prueba, 6-nov-2026",
-      "prueba": "revisor de la especificación (agentes/04) y reglas sobre el dato crudo"
+      "prueba": "agentes/04-revisor-de-la-especificacion.md «los planes de limpieza con su informe» · herramientas/verificar.py corre las reglas sobre el crudo: «correr_reglas(reglas, spec.get(\"datos_crudos\")»"
     },
     {
       "id": "L15",
@@ -570,6 +570,12 @@
       "leccion": "La ficha de un subagente y su instrucción en flujo.js se quedan atrás sin que nada se ponga rojo cuando el motor que lo comprueba gana una opción o una protección. Tras PIP-4 y PIP-5, la ficha del lector no nombraba el modo de agregados del servidor, k_minimo ni el conteo aparte, y su instrucción no nombraba personales_justificadas ni base_legal_sensibles; la ficha del limpiador no nombraba vacios_maximo, umbrales_caso, la holgura ni el umbral mal escrito que detiene, y su instrucción traía la lista vieja de umbrales, sin vacios_maximo: una IA nueva escribiría el contrato o el plan con lo de antes. Tampoco se decía que verificar.py limpia el caso conocido con los umbrales del dato real: umbrales_caso solo se aplica si quien llama lo pide, y verificar.py no lo pide (L75 dice que «solo se aplican al caso conocido»). Ahora las dos fichas y D5, D6, DL3 y DL6 dicen lo que hace el código, la instrucción de cada uno manda a su ficha, y B34 saca del código de ingesta.py y limpieza.py lo que admiten (tipos y claves del contrato y del agregado, claves de la fuente, claves del plan, operaciones y umbrales) y exige que la ficha y la instrucción lo nombren: con la documentación de antes faltaban 42 (19 del lector y 23 del limpiador), y con una opción nueva en cada motor la prueba la echa de menos.",
       "origen": "documentación del motor de la ingesta y la limpieza (PIP-4, PIP-5) en las fichas del lector y del limpiador, que la integración dejó fuera, 7-nov-2026",
       "prueba": "herramientas/blindaje.py --solo B34"
+    },
+    {
+      "id": "L96",
+      "leccion": "Una lección que cita una prueba que no existe no la hace cumplir nadie. La batería de lecciones solo miraba los «bateria:…»: «pregunta en la spec», «regla de tipo dominio», «agentes/04» o un B99 pasaban, y 8 de 95 lecciones citaban texto libre o un archivo que no existía, aunque la prueba real sí estaba (las mutantes m06, m09 y m12 del banco sintético, las de SECOP, B25). Ahora cada lección cita algo que se comprueba (un id del blindaje, un mutante de los controles, un caso de una batería, una herramienta con su autoprueba o un archivo versionado), cada cita textual tiene que estar en su archivo, y una cita rota es falla también en un aporte.",
+      "origen": "revisión de las baterías de la versión final, 7-nov-2026: bateria_lecciones aceptaba cualquier texto como prueba",
+      "prueba": "herramientas/baterias.py «def bateria_lecciones» · bateria:citas/casos.json (las citas buenas pasan y cada mala falla justo por lo que ataca)"
     }
   ]
 }

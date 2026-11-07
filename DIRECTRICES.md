@@ -238,7 +238,7 @@ Un agente que no conoce a los autores revisa todo el código generado. Cada hall
 **D26 · Baterías: lo que falló una vez se vuelve prueba para siempre.**
 - Seguridad: código malo que debe bloquearse y código bueno que debe pasar. Así se prueba al probador: el falso positivo de `re.compile` es un caso.
 - Privacidad: datos personales que no pueden salir y textos que no son personales.
-- Lecciones: cada error real, con la prueba que lo atrapa.
+- Lecciones: cada error real, con la prueba que lo atrapa. Esa prueba tiene que existir y la batería lo comprueba: un id del blindaje, un mutante de los controles, un caso de una batería, una herramienta con su autoprueba o un archivo versionado; el texto libre solo no cuenta (L96).
 *Dónde:* `baterias/`, `herramientas/baterias.py`.
 
 **D27 · Bitácora del copiloto.** Por etapa: qué se pidió, qué devolvió, cómo se probó, qué se corrigió y qué quedó sin verificar (`bitacora/`). Va en el informe final.

@@ -4,7 +4,7 @@
 Uso:
   python baterias.py                         corre todas las baterías
   python baterias.py --agregar-malo nombre archivo.py   guarda un hallazgo confirmado como código que debe bloquearse
-  python baterias.py --leccion "texto" --origen "..." --prueba "..."   agrega una lección
+  python baterias.py --leccion "texto" --origen "..." --prueba "..."   agrega una lección (si su prueba existe)
 
 1. Seguridad: todo lo de baterias/seguridad/malos debe quedar bloqueado y todo lo de buenos debe pasar
    (así también se prueba al probador: un falso positivo es una falla de la compuerta). Lo mismo con el perfil de
@@ -14,7 +14,10 @@ Uso:
    perfil.json, y el barrido de gobernanza tiene que encontrarlos.
 2b. FAILFAST: cada CSV de baterias/failfast detiene, con su línea, a los lectores de las reglas, al del perfil y a la
    ingesta local, y corren las autopruebas de la ingesta y de la limpieza (B33).
-3. Lecciones: cada lección apunta a una prueba; si apunta a un archivo de la batería, el archivo existe.
+3. Lecciones: la prueba que cita cada lección existe de verdad: un id del blindaje (B05), un mutante de los controles
+   (M12), un caso de una batería (bateria:failfast/campo_de_mas.csv), una herramienta con --autoprueba o un archivo o
+   una carpeta versionados; una cita textual («…») está en el archivo que la precede, y el texto libre solo no cuenta.
+   Las citas buenas y malas de baterias/citas/casos.json prueban al probador (L96).
 4. Cruces: el perfil explica por qué no cruza cada valor (baterias/cruces/esperado.json) y no explica un ausente.
 5. Fechas: el perfil cuenta aparte las fechas que no existen en el calendario (baterias/fechas/casos.json).
 6. Repetidos: una llave repetida nunca se resuelve por el orden del archivo sin aviso (baterias/limpieza/).
@@ -24,6 +27,7 @@ Uso:
 """
 import csv
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -353,22 +357,165 @@ def bateria_grafico():
     return {"bateria": "grafico", "casos": len(buenos) + len(malos), "fallas": fallas}
 
 
+# Lo que cita la prueba de una lección (L96), sin correr nada: un id del blindaje (B05), un mutante de los controles
+# (M12), un caso de una batería (bateria:failfast/campo_de_mas.csv), una herramienta con su autoprueba
+# (herramientas/ingesta.py --autoprueba), un archivo o una carpeta versionados, y una cita textual («…») que tiene que
+# estar en el archivo que la precede. El resto del texto describe; no cuenta como prueba.
+EXTENSIONES_CITA = r"(?:py|json|md|csv|txt|js|mjs|yml|yaml|html|sh)"
+CITA_BLINDAJE = re.compile(r"\bB\d{2}\b")
+CITA_MUTANTE = re.compile(r"\bM\d{2}\b")
+CITA_BATERIA = re.compile(r"\bbateria:([\w./-]+)")
+CITA_RUTA = re.compile(rf"(?<![\w/.:-])([\w-][\w.-]*(?:/[\w.-]+)+|[\w-][\w.-]*\.{EXTENSIONES_CITA})(?![\w/-])")
+CON_EXTENSION = re.compile(rf"\.{EXTENSIONES_CITA}$")
+CITA_AUTOPRUEBA = re.compile(r"([\w./-]+\.py):?\s+--autoprueba\b")
+CITA_TEXTUAL = re.compile(r"«([^»]+)»")
+TIPOS_DE_CITA = ("blindaje", "mutante", "archivo", "autoprueba", "cita", "vaga")
+
+
+def versionados(raiz):
+    """Lo que git versiona o versionaría en `raiz` (lo ignorado no: los datos de SECOP no viajan con un clon), o None si
+    no es un repositorio. Un archivo nuevo sin agregar cuenta: lo que importa es que viaje con el aporte."""
+    try:
+        p = subprocess.run(["git", "-C", str(raiz), "ls-files", "-z", "--cached", "--others", "--exclude-standard"],  # nosec B603 B607
+                           capture_output=True, timeout=120)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return {os.fsdecode(x) for x in p.stdout.split(b"\0") if x} if p.returncode == 0 else None
+
+
+class Citas:
+    """Comprueba que lo que cita la prueba de una lección exista de verdad en el repositorio `raiz`."""
+
+    def __init__(self, raiz=RAIZ):
+        self.raiz = Path(raiz).resolve()
+        self.versionados = versionados(self.raiz)
+        v = self.versionados or set()
+        self.carpetas = {"/".join(x.split("/")[:i]) for x in v for i in range(1, x.count("/") + 1)}
+        self._textos = {}
+        self.blindaje = set(re.findall(r'@prueba\("(B\d+)"', self.texto("herramientas/blindaje.py")))
+        self.mutantes = set(re.findall(r'^\s*\("(M\d+)",', self.texto("herramientas/mutar_controles.py"), re.M))
+
+    def existe(self, rel):
+        """La ruta relativa `rel`, si existe dentro del repositorio y está versionada (sin git: si existe)."""
+        rel = rel.rstrip("/")
+        if not rel or rel.startswith("/") or ".." in rel.split("/"):
+            return None
+        p = (self.raiz / rel).resolve()
+        if not p.is_relative_to(self.raiz) or not p.exists():
+            return None
+        if self.versionados is not None and rel not in self.versionados and rel not in self.carpetas:
+            return None
+        return rel
+
+    def es_carpeta_de_arriba(self, nombre):
+        if self.versionados is None:
+            return (self.raiz / nombre).is_dir()
+        return nombre in self.carpetas
+
+    def resolver(self, ref, bateria=False):
+        ref = ref.rstrip(".,:")
+        candidatas = [f"baterias/{ref}", ref] if bateria else ([ref] if "/" in ref else [ref, f"herramientas/{ref}"])
+        return next((r for r in map(self.existe, candidatas) if r), None)
+
+    def texto(self, rel):
+        """El texto del archivo; de un JSON, también sus textos ya decodificados (una cita no depende de los escapes)."""
+        if rel not in self._textos:
+            p = (self.raiz / rel).resolve()
+            t = p.read_text(encoding="utf-8", errors="replace") if p.is_relative_to(self.raiz) and p.is_file() else ""
+            if rel.endswith(".json") and t:
+                def textos(x):
+                    if isinstance(x, str):
+                        yield x
+                    elif isinstance(x, dict):
+                        for k, v in x.items():
+                            yield k
+                            yield from textos(v)
+                    elif isinstance(x, list):
+                        for v in x:
+                            yield from textos(v)
+                try:
+                    t += "\n" + "\n".join(textos(json.loads(t)))
+                except ValueError:
+                    pass
+            self._textos[rel] = t
+        return self._textos[rel]
+
+    def revisar(self, prueba):
+        """[(tipo, problema)] de la prueba citada; vacía si todo lo que cita existe y cita al menos algo comprobable."""
+        prueba = prueba if isinstance(prueba, str) else ""
+        problemas, refs = [], 0
+        for b in CITA_BLINDAJE.findall(prueba):
+            refs += 1
+            if b not in self.blindaje:
+                problemas.append(("blindaje", f"cita {b}, que no es una prueba de herramientas/blindaje.py"))
+        for m in CITA_MUTANTE.findall(prueba):
+            refs += 1
+            if m not in self.mutantes:
+                problemas.append(("mutante", f"cita {m}, que no es un mutante de herramientas/mutar_controles.py"))
+        for parte in re.split(r"\s·\s|;", prueba):
+            archivos = []   # (posición, ruta resuelta o None) en el orden del texto: la cita textual va con el anterior
+            for m in CITA_BATERIA.finditer(parte):
+                refs += 1
+                r = self.resolver(m.group(1), bateria=True)
+                archivos.append((m.start(), r))
+                if not r:
+                    problemas.append(("archivo", f"cita bateria:{m.group(1).rstrip('.,:')}, que no existe o no está versionado"))
+            for m in CITA_RUTA.finditer(parte):
+                ref = m.group(1).rstrip(".,:")
+                if not CON_EXTENSION.search(ref) and not self.es_carpeta_de_arriba(ref.split("/")[0]):
+                    continue   # «dd/mm/aaaa» no es una ruta; «agentes/04» sí, y tiene que existir
+                refs += 1
+                r = self.resolver(ref)
+                archivos.append((m.start(), r))
+                if not r:
+                    problemas.append(("archivo", f"cita {ref}, que no existe o no está versionado"))
+            for m in CITA_AUTOPRUEBA.finditer(parte):
+                r = self.resolver(m.group(1))
+                if r and "--autoprueba" not in self.texto(r):
+                    problemas.append(("autoprueba", f"cita {m.group(1)} --autoprueba, y {r} no tiene autoprueba"))
+            for m in CITA_TEXTUAL.finditer(parte):
+                antes = [r for pos, r in sorted(archivos, key=lambda x: x[0]) if pos < m.start()]
+                if not antes:
+                    problemas.append(("cita", f"la cita «{m.group(1)[:60]}» no va después de un archivo que la contenga"))
+                elif antes[-1] and m.group(1) not in self.texto(antes[-1]):
+                    problemas.append(("cita", f"la cita «{m.group(1)[:60]}» no está en {antes[-1]}"))
+        if not refs:
+            problemas.append(("vaga", f"no cita nada que se pueda comprobar (un id B.. del blindaje, bateria:<archivo>, una "
+                                      f"herramienta con --autoprueba o un archivo versionado): «{prueba[:80]}»"))
+        return problemas
+
+
 def bateria_lecciones():
+    """Cada lección cita una prueba que existe de verdad (L96): un id del blindaje que está en blindaje.py, un mutante de
+    mutar_controles.py, un caso de una batería, una herramienta que tiene --autoprueba o un archivo versionado, y cada
+    cita textual está en su archivo. Antes solo se miraba que existieran los «bateria:…»: «B99», «pregunta en la spec» o
+    un archivo borrado pasaban. Una cita rota de una lección va sin caso: es un error de quien la escribe, nunca un hueco
+    que encontró un aporte, y el filtro la cuenta siempre como falla. Control positivo (L27): baterias/citas/casos.json
+    trae citas buenas, que deben pasar, y malas, que deben fallar justo por lo que atacan."""
     d = json.loads((BAT / "lecciones.json").read_text(encoding="utf-8"))
+    casos = json.loads((BAT / "citas" / "casos.json").read_text(encoding="utf-8"))
+    citas = Citas(RAIZ)
     fallas, vistas = [], set()
+    if not citas.blindaje or not citas.mutantes:
+        fallas.append(falla("", "control positivo: no se leyeron los ids de herramientas/blindaje.py o de herramientas/mutar_controles.py"))
     for l in d["lecciones"]:
-        if l["id"] in vistas:   # al unir ramas, dos lecciones distintas pueden traer el mismo número
-            fallas.append(falla(l["id"], f"{l['id']} está repetida: cada lección lleva su propio id"))
-        vistas.add(l["id"])
-        prueba = l.get("prueba", "")
-        if not prueba:
-            fallas.append(falla(l['id'], f"{l['id']} no tiene prueba"))
-        for parte in prueba.split():
-            if parte.startswith("bateria:"):
-                ruta = parte.split(":", 1)[1]
-                if not ((BAT / ruta).exists() or (RAIZ / ruta).exists()):
-                    fallas.append(falla(l['id'], f"{l['id']}: no existe {parte}"))
-    return {"bateria": "lecciones", "casos": len(d["lecciones"]), "fallas": fallas}
+        ident = l.get("id", "?")
+        if ident in vistas:   # al unir ramas, dos lecciones distintas pueden traer el mismo número
+            fallas.append(falla("", f"{ident} está repetida: cada lección lleva su propio id"))
+        vistas.add(ident)
+        fallas += [falla("", f"{ident}: {p}") for _, p in citas.revisar(l.get("prueba", ""))]
+    for c in casos["buenas"]:
+        problemas = citas.revisar(c["prueba"])
+        if problemas:
+            fallas.append(falla(c["nombre"], f"falso positivo en la cita buena {c['nombre']}: {problemas[0][1]}"))
+    atacados = set()
+    for c in casos["malas"]:
+        tipos, esperados = sorted({t for t, _ in citas.revisar(c["prueba"])}), sorted(c["debe_fallar"])
+        atacados |= set(esperados)
+        if tipos != esperados:
+            fallas.append(falla(c["nombre"], f"la cita mala {c['nombre']} falla {tipos or 'ninguna comprobación'}; se esperaba {esperados}"))
+    fallas += [falla(t, f"sin cita mala para «{t}»") for t in TIPOS_DE_CITA if t not in atacados]
+    return {"bateria": "lecciones", "casos": len(d["lecciones"]) + len(casos["buenas"]) + len(casos["malas"]), "fallas": fallas}
 
 
 def main(argv):
@@ -383,8 +530,12 @@ def main(argv):
         d = json.loads((BAT / "lecciones.json").read_text(encoding="utf-8"))
         g = lambda k: argv[argv.index(k) + 1] if k in argv else ""
         ident = g("--id") or f"L{len(d['lecciones']) + 1:02d}"   # en un aporte: --id L-<usuario>-<tema>; el dueño renumera al aceptar
+        problemas = Citas(RAIZ).revisar(g("--prueba"))
+        if problemas:   # la misma comprobación de la batería: una lección sin una prueba que exista no se agrega
+            print("No se agregó la lección: " + "; ".join(p for _, p in problemas))
+            return 1
         d["lecciones"].append({"id": ident, "leccion": g("--leccion"), "origen": g("--origen"), "prueba": g("--prueba")})
-        (BAT / "lecciones.json").write_text(json.dumps(d, ensure_ascii=False, indent=2), encoding="utf-8")
+        (BAT / "lecciones.json").write_text(json.dumps(d, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         print(f"Lección {d['lecciones'][-1]['id']} agregada.")
         return 0
     res = [correr_bateria(fn) for fn in (bateria_seguridad, bateria_privacidad, bateria_failfast, bateria_inyeccion,

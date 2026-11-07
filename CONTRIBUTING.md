@@ -21,7 +21,7 @@ Copia en tu asistente (Claude, ChatGPT, Copilot, Gemini…) el texto de [«Conec
 
 | Aporte | Dónde va | Su prueba |
 |---|---|---|
-| Lección: un error real que viste | `baterias/lecciones.json` (con `herramientas/baterias.py --leccion`) | La lección apunta a la prueba que lo atrapa |
+| Lección: un error real que viste | `baterias/lecciones.json` (con `herramientas/baterias.py --leccion`) | La lección cita la prueba que lo atrapa, y esa prueba existe: un id del blindaje (`B05`), un caso de una batería (`bateria:failfast/<archivo>.csv`), una herramienta con `--autoprueba` o un archivo versionado. La batería de lecciones lo comprueba |
 | Código peligroso que debería bloquearse | `baterias/seguridad/malos/<nombre>.py` | La compuerta debe bloquearlo; si hoy no lo bloquea, encontraste un hueco |
 | Código legítimo que se bloquea por error | `baterias/seguridad/buenos/<nombre>.py` | Debe pasar la compuerta |
 | Caso de privacidad | `baterias/privacidad/` | El barrido debe detectarlo, o no marcarlo si no es personal |
