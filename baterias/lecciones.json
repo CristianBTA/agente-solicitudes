@@ -576,6 +576,12 @@
       "leccion": "Una lección que cita una prueba que no existe no la hace cumplir nadie. La batería de lecciones solo miraba los «bateria:…»: «pregunta en la spec», «regla de tipo dominio», «agentes/04» o un B99 pasaban, y 8 de 95 lecciones citaban texto libre o un archivo que no existía, aunque la prueba real sí estaba (las mutantes m06, m09 y m12 del banco sintético, las de SECOP, B25). Ahora cada lección cita algo que se comprueba (un id del blindaje, un mutante de los controles, un caso de una batería, una herramienta con su autoprueba o un archivo versionado), cada cita textual tiene que estar en su archivo, y una cita rota es falla también en un aporte.",
       "origen": "revisión de las baterías de la versión final, 7-nov-2026: bateria_lecciones aceptaba cualquier texto como prueba",
       "prueba": "herramientas/baterias.py «def bateria_lecciones» · bateria:citas/casos.json (las citas buenas pasan y cada mala falla justo por lo que ataca)"
+    },
+    {
+      "id": "L97",
+      "leccion": "Una regla que se comprueba en unas salidas y no en otras se salta por la que no la comprueba. D15 tenía barrera en el whitepaper (W3) y en la presentación, pero no en el gráfico: un título «Valor contratado en 2025 por entidad con sede en Medellín: se concluye que hay sobrecosto, se recomienda auditar» aprobaba verificar_grafico.py y llegaba a la lámina de la medición 1, porque la presentación muestra grafico.html en un iframe y solo mira que esté aprobado. Ahora el verificador del gráfico busca las mismas listas en todo el texto de la figura (título, subtítulo, ejes, leyenda, anotaciones, nombres, plantillas del texto y del hover, etiquetas y customdata, también los de la plantilla) sobre lo que se ve: sin etiquetas HTML, porque Plotly muestra «sobre<b>costo</b>» como una palabra. Un texto de una lista de valores que repite una frase de los datos (una entidad «… contra la corrupción») es un dato y no cuenta; un texto suelto, como el título, cuenta siempre.",
+      "origen": "verificación de D15 en las salidas de la versión final (graficador), 7-nov-2026: el título del gráfico con una conclusión y una recomendación aprobaba",
+      "prueba": "bateria:grafico/malos/titulo-con-conclusion.json · bateria:grafico/malos/causa-en-el-subtitulo.json · bateria:grafico/malos/juicio-en-una-anotacion.json · bateria:grafico/buenos/categoria-de-los-datos.json · herramientas/verificar_grafico.py «def comprobar_sin_analisis»"
     }
   ]
 }

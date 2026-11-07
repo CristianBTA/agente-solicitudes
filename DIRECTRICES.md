@@ -182,7 +182,8 @@ Desde el 6-nov-2026 la IA no propone ni prueba hipótesis ni da el análisis. El
 - Título con qué, dónde y cuándo; unidades en el eje.
 - Fuente y fecha de consulta visibles; período incompleto marcado.
 - Cuenta de control: lo que suma el gráfico más lo que se dejó fuera es igual al total de la tabla.
-*Dónde:* `herramientas/verificar_grafico.py`. El HTML lo escribe el verificador, no el código de la IA, que corre en la caja aislada sin leer ningún archivo (B29).
+- El gráfico muestra lo medido (D15): ningún texto de la figura concluye, recomienda, busca causas ni juzga. Se buscan con las mismas listas del whitepaper y de la presentación, sobre el texto que se ve (sin etiquetas HTML); una categoría de los datos que trae una de esas palabras es un dato, no lo que escribe la IA.
+*Dónde:* `herramientas/verificar_grafico.py`, con la batería `baterias/grafico/`. El HTML lo escribe el verificador, no el código de la IA, que corre en la caja aislada sin leer ningún archivo (B29).
 
 **D29 · El color tiene una función y se mide.**
 - Siete colores o menos; lo ideal es gris para el contexto y un color de acento para lo que importa (Datawrapper).

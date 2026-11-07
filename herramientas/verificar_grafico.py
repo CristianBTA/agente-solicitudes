@@ -27,6 +27,14 @@ Forma y color (comprobar_forma_y_color: solo lee el JSON de la figura; la prueba
  12. un solo eje de valores: sin doble eje (mejor dos gráficas o un índice con base 100)
  13. sin 3D ni tortas de más de cinco porciones
  14. escala logarítmica declarada en el título del eje o en el principal
+Lo que dice (comprobar_sin_analisis: solo lee el JSON de la figura; la prueba también es baterias/grafico/):
+ 15. sin lenguaje de análisis (D15) en ningún texto de la figura: título y subtítulo, títulos de los ejes y de la
+     leyenda, anotaciones, nombres de las trazas, plantillas del texto y del hover, etiquetas y textos por marca,
+     también los de la plantilla de la figura. Se buscan con las mismas listas de validar_whitepaper.py (W3) y de
+     verificar_presentacion.py, importadas tal cual, sobre el texto que se ve: sin etiquetas HTML (Plotly junta
+     «sobre<b>costo</b>»), sin entidades ni caracteres de formato. Un texto de una lista de valores (las categorías,
+     customdata) que repite la frase de un valor de los datos es el nombre de una categoría, no lo que escribe la IA.
+     Es una lista: una frase de análisis con otras palabras pasa; la revisa una persona (D15).
 Los colores se toman de la figura (marker.color, line.color, marker.colors) o, si no los trae, de la paleta
 (colorway) de la figura o de su plantilla, en el orden de las trazas. Ver herramientas/color.py.
 El HTML lo escribe este verificador, no el código de la IA (que corre en la caja de arena y no escribe).
@@ -37,9 +45,11 @@ de su código en una carpeta temporal nueva, sin leer el repositorio, la corrida
 ningún archivo con nombre de oráculo o de criterio (esperado.json, caso_conocido/, reglas.py, sellos*.json, hipotesis*).
 No necesita ningún archivo: el resultado aprobado y la procedencia le llegan como texto (B29, L91).
 """
+import html
 import json
 import re
 import sys
+import unicodedata
 from datetime import date
 from pathlib import Path
 
@@ -49,6 +59,8 @@ import caja  # noqa: E402
 import color  # noqa: E402
 import verificar  # noqa: E402
 from gobernanza import escanear_texto, parece_instruccion  # noqa: E402
+from validar_whitepaper import CONCLUSION  # noqa: E402  D15: la lista W3 del whitepaper, tal cual
+from verificar_presentacion import ANALISIS_DE_LA_PRESENTACION  # noqa: E402  y la de la presentación
 
 TIEMPO = 300
 
@@ -391,6 +403,63 @@ def comprobar_forma_y_color(fig):
     return checks
 
 
+# --- Lo que dice (comprobación 15): el gráfico muestra lo medido; el análisis lo hacen las personas (D15) -----------
+SIN_TEXTO = {"bdata", "dtype", "shape"}          # arreglos binarios de plotly 6+: no son texto
+SALTO_HTML = re.compile(r"<\s*br\s*/?\s*>", re.I)
+ETIQUETA_HTML = re.compile(r"<[^<>]{0,300}>")
+
+
+def cadenas(obj, ruta="", de_lista=False):
+    """Cada cadena de la figura con su ruta, también las de su plantilla: (ruta, texto, de_lista). de_lista: está en
+    una lista de valores (ejes, etiquetas, customdata, textos por marca), que puede repetir los datos; un texto suelto
+    (título, subtítulo, ejes, leyenda, anotaciones, nombre de la traza, plantillas del texto y del hover) lo escribe el
+    graficador."""
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            if k not in SIN_TEXTO:
+                yield from cadenas(v, f"{ruta}.{k}" if ruta else str(k))
+    elif isinstance(obj, list):
+        for i, v in enumerate(obj):
+            yield from cadenas(v, f"{ruta}[{i}]", de_lista or not isinstance(v, dict))
+    elif isinstance(obj, str):
+        yield ruta, obj, de_lista
+
+
+def lo_que_se_ve(texto):
+    """El texto como lo muestra Plotly: NFKC, sin caracteres de formato, un <br> es un espacio y las demás etiquetas
+    no separan palabras («sobre<b>costo</b>» se lee «sobrecosto»), y las entidades HTML como su carácter."""
+    t = "".join(ch for ch in unicodedata.normalize("NFKC", str(texto)) if unicodedata.category(ch) != "Cf")
+    t = html.unescape(ETIQUETA_HTML.sub("", SALTO_HTML.sub(" ", t)))
+    return " ".join(t.split())
+
+
+def comprobar_sin_analisis(fig, resultado=()):
+    """Comprobación 15 sobre el JSON de una figura (sin correr código): ningún texto concluye, recomienda, busca
+    causas ni juzga (D15). `resultado`: las filas aprobadas; una frase que está en un valor de los datos y sale en una
+    lista de valores (una categoría «… contra la corrupción») es un dato, no lo que escribe la IA."""
+    datos = " · ".join(lo_que_se_ve(v).lower() for f in (resultado or []) if isinstance(f, dict)
+                       for v in f.values() if isinstance(v, str))
+    hallados = []
+    for ruta, t, de_lista in cadenas(fig):
+        plano = lo_que_se_ve(t)
+        for rx in (CONCLUSION, ANALISIS_DE_LA_PRESENTACION):
+            for m in rx.finditer(plano):
+                frase = " ".join(m.group(0).lower().split())
+                if de_lista and frase in datos:
+                    continue
+                hallados.append(f"{ruta}: «{frase[:40]}»")
+    hallados = list(dict.fromkeys(hallados))
+    return {"comprobacion": "sin lenguaje de análisis en el gráfico: ni conclusiones, recomendaciones ni causas (D15)",
+            "ok": not hallados,
+            "detalle": "dice qué se mide, dónde y cuándo; el análisis lo hacen las personas" if not hallados
+            else f"{len(hallados)}: " + "; ".join(hallados[:6]) + " (el título dice qué se mide, dónde y cuándo)"}
+
+
+def comprobar_figura(fig, resultado=()):
+    """Las comprobaciones 8 a 15, las que solo leen el JSON de la figura (las prueba baterias/grafico/)."""
+    return comprobar_forma_y_color(fig) + [comprobar_sin_analisis(fig, resultado)]
+
+
 def comprobar(c):
     from rutas import resolver_datos
     spec = resolver_datos(json.loads((c / "spec.json").read_text(encoding="utf-8")))
@@ -489,7 +558,7 @@ def comprobar(c):
                    "detalle": "ninguno" if not ordenes else f"{len(ordenes)}: {ordenes[:2]} (un dato con forma de orden no se publica como dato normal: revisarlo en la fuente)"})
     pii = escanear_texto(todo)
     checks.append({"comprobacion": "sin datos personales en el gráfico", "ok": not pii, "detalle": str(pii or "ninguno")})
-    checks += comprobar_forma_y_color(fig)
+    checks += comprobar_figura(fig, resultado)
     return checks, fig
 
 

@@ -22,8 +22,8 @@ Uso:
 5. Fechas: el perfil cuenta aparte las fechas que no existen en el calendario (baterias/fechas/casos.json).
 6. Repetidos: una llave repetida nunca se resuelve por el orden del archivo sin aviso (baterias/limpieza/).
 7. Factor: el perfil reconoce el factor de expansión de una encuesta (baterias/perfil/).
-8. Gráfico: las figuras de baterias/grafico/buenos pasan las comprobaciones de forma y color, y cada figura de
-   malos falla justo la comprobación que ataca (ni otra, ni ninguna).
+8. Gráfico: las figuras de baterias/grafico/buenos pasan las comprobaciones de forma y color y la de D15 (sin
+   lenguaje de análisis), y cada figura de malos falla justo la comprobación que ataca (ni otra, ni ninguna).
 """
 import csv
 import json
@@ -330,21 +330,23 @@ def bateria_factor():
 
 
 def bateria_grafico():
-    """Forma y color del gráfico, sobre el JSON de la figura (sin caja de arena): los buenos pasan todo y cada malo
-    falla solo la comprobación que ataca. Un falso positivo también es una falla (L32)."""
-    from verificar_grafico import comprobar_forma_y_color
+    """Forma y color del gráfico y lo que dice (D15), sobre el JSON de la figura (sin caja de arena): los buenos pasan
+    todo y cada malo falla solo la comprobación que ataca. Un falso positivo también es una falla (L32). Un caso puede
+    traer «resultado», las filas aprobadas (los nombres de las categorías vienen de ahí)."""
+    from verificar_grafico import comprobar_figura
     fallas, nombres, atacadas = [], set(), set()
     buenos = sorted((BAT / "grafico" / "buenos").glob("*.json"))
     malos = sorted((BAT / "grafico" / "malos").glob("*.json"))
     for p in buenos:
-        res = comprobar_forma_y_color(json.loads(p.read_text(encoding="utf-8"))["figura"])
+        caso = json.loads(p.read_text(encoding="utf-8"))
+        res = comprobar_figura(caso["figura"], caso.get("resultado") or [])
         nombres |= {c["comprobacion"] for c in res}
         fallan = [c["comprobacion"] for c in res if not c["ok"]]
         if fallan:
             fallas.append(falla(p.name, f"falso positivo en {p.name}: {fallan}"))
     for p in malos:
         caso = json.loads(p.read_text(encoding="utf-8"))
-        res = comprobar_forma_y_color(caso["figura"])
+        res = comprobar_figura(caso["figura"], caso.get("resultado") or [])
         nombres |= {c["comprobacion"] for c in res}
         fallan = [c["comprobacion"] for c in res if not c["ok"]]
         objetivo = caso.get("debe_fallar")
