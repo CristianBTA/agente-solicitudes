@@ -1,0 +1,121 @@
+#!/usr/bin/env python3
+"""Probar al probador de las defensas (sin IA): cada control se quita en una copia y su prueba del blindaje debe ceder.
+
+Uso: python herramientas/mutar_controles.py [--solo M01,M03]
+
+Un control que se puede borrar sin que ninguna prueba se ponga roja no se distingue de uno que no existe. La revisión
+ciega lo encontró en tres (SEG-3): al quitar las compuertas de reglas.py, la comprobación de valores finitos o el saneado
+de los mensajes, las baterías, el blindaje y la corrida seguían en verde. Aquí, por cada mutante:
+  1. se copia herramientas/ a una carpeta temporal (el repositorio no se toca);
+  2. se quita el control con un reemplazo exacto: si el texto ya no está, el mutante falla, porque el control cambió y
+     hay que rehacerlo (no se da por muerto un mutante que no se aplicó);
+  3. se corre en la copia la prueba del blindaje que lo cubre y se exige que ceda por el ataque, no por un error ni por
+     «prueba inválida».
+El control positivo (L27) es la copia sin mutar: ahí las mismas pruebas deben resistir. Lección L92.
+"""
+import concurrent.futures
+import json
+import py_compile
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+RAIZ = Path(__file__).resolve().parent.parent
+PY = sys.executable
+
+# (id, qué se quita, archivo, texto exacto, reemplazo, prueba que debe ceder)
+MUTANTES = [
+    ("M01", "reglas.py sin compuertas: se carga y corre aunque la compuerta la bloquee", "herramientas/verificar.py",
+     '    bloqueos = compuertas(ruta)\n    if bloqueos:\n        return [], [f"reglas.py no pasa las compuertas: {b}" for b in bloqueos]\n',
+     "", "B30"),
+    ("M02", "la forma del resultado sin la comprobación de valores finitos (solo vacíos)", "herramientas/verificar.py",
+     " or not math.isfinite(a_num(f[v]))", "", "B31"),
+    ("M03", "las cifras de la presentación sin comprobar cada dato (un NaN entra al cálculo)", "herramientas/verificar_presentacion.py",
+     '    if not math.isfinite(x):\n        raise ErrorCalculo("valor no finito (NaN o infinito) en los datos")\n', "", "B31"),
+    ("M04", "las cifras de la presentación sin comprobar el resultado del cálculo", "herramientas/verificar_presentacion.py",
+     '            if not math.isfinite(v):\n                raise ErrorCalculo("el cálculo no da un número finito")\n', "", "B31"),
+    ("M05", "la presentación lee un informe.json con NaN o Infinity", "herramientas/verificar_presentacion.py",
+     "parse_constant=no_finitos)", ")", "B31"),
+    ("M06", "mensajes de error sin sanear (pasan tal cual al informe)", "herramientas/verificar.py",
+     "def sanear(t, datos=None):\n", "def sanear(t, datos=None):\n    return str(t)[:300]\n", "B26"),
+    ("M07", "saneado sin las palabras de las celdas (solo comillas y cifras largas)", "herramientas/verificar.py",
+     "    if datos:\n        palabras = palabras_de_celdas(datos)\n", "    if False:\n        palabras = palabras_de_celdas(datos)\n", "B26"),
+]
+
+
+def copia():
+    d = Path(tempfile.mkdtemp(prefix="mutar-controles-")).resolve()
+    shutil.copytree(RAIZ / "herramientas", d / "herramientas", ignore=shutil.ignore_patterns("*.pyc"))
+    return d
+
+
+def correr_banco(d, ids):
+    """Corre en la copia las pruebas `ids` del blindaje. Devuelve {id: (resultado, evidencia)} y el RESUMEN (o None)."""
+    p = subprocess.run([PY, str(d / "herramientas" / "blindaje.py"), "--solo", ",".join(ids)], cwd=d,  # nosec B603
+                       capture_output=True, text=True, timeout=900)
+    out = p.stdout + p.stderr
+    pruebas = {m.group(1): (m.group(2), m.group(3)) for m in
+               re.finditer(r"^[✓✗·!] (B\d+) \[[^\]]*\] .*\n    (RESISTE|CEDE|NO APLICA|ERROR): (.*)$", out, re.M)}
+    linea = next((l for l in reversed(out.splitlines()) if l.startswith("RESUMEN ")), None)
+    return pruebas, (json.loads(linea[len("RESUMEN "):]) if linea else None), out
+
+
+def mutar(m):
+    ident, que, archivo, viejo, nuevo, prueba = m
+    d = copia()
+    try:
+        f = (d / archivo).resolve()
+        if not f.is_relative_to(d / "herramientas"):
+            return ident, "no se aplicó", f"{archivo} no está en herramientas/"
+        texto = f.read_text(encoding="utf-8")
+        if texto.count(viejo) != 1:
+            return ident, "no se aplicó", f"el texto del control aparece {texto.count(viejo)} veces en {archivo}: el control cambió, rehacer el mutante"
+        f.write_text(texto.replace(viejo, nuevo), encoding="utf-8")
+        try:
+            py_compile.compile(str(f), doraise=True, cfile=str(d / "compilado.pyc"))
+        except py_compile.PyCompileError as e:
+            return ident, "no se aplicó", f"el mutante no compila: {str(e)[:120]}"
+        pruebas, resumen, out = correr_banco(d, [prueba])
+        res, evid = pruebas.get(prueba, (None, ""))
+        if resumen is None or res is None:
+            return ident, "no se midió", f"el banco no terminó: {' | '.join(out.strip().splitlines()[-3:])[:160]}"
+        if res == "CEDE" and not evid.startswith("prueba inválida"):
+            return ident, "muere", f"{prueba} cede: {evid[:150]}"
+        return ident, "sobrevive", f"{prueba} {res}: {evid[:150]}"
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def main(argv):
+    solo = set(argv[argv.index("--solo") + 1].split(",")) if "--solo" in argv else None
+    mutantes = [m for m in MUTANTES if not solo or m[0] in solo]
+    ids = sorted({m[5] for m in mutantes})
+    # control positivo (L27): sin mutar, en la misma copia, las pruebas resisten; si no, un «muere» no probaría nada
+    d = copia()
+    try:
+        pruebas, resumen, out = correr_banco(d, ids)
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+    no_resisten = [i for i in ids if pruebas.get(i, (None,))[0] != "RESISTE"]
+    print(f"{'✓' if not no_resisten and resumen else '✗'} control: sin mutar, {', '.join(ids)} "
+          + ("resisten" if not no_resisten and resumen else f"no resisten ({no_resisten or 'el banco no terminó'})"))
+    if no_resisten or not resumen:
+        print("Sin control positivo los mutantes no prueban nada: no se corren.")
+        print("RESUMEN " + json.dumps({"mutantes": len(mutantes), "mueren": 0, "sobreviven": [], "control": False}, ensure_ascii=False))
+        return 1
+    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as ex:
+        resultados = list(ex.map(mutar, mutantes))
+    por_id = {m[0]: m for m in mutantes}
+    for ident, estado, detalle in resultados:
+        print(f"{'✓' if estado == 'muere' else '✗'} {ident} {estado} · {por_id[ident][1]} ({por_id[ident][2]})\n    {detalle}")
+    vivos = [i for i, e, _ in resultados if e != "muere"]
+    print("RESUMEN " + json.dumps({"mutantes": len(mutantes), "mueren": len(mutantes) - len(vivos), "sobreviven": vivos, "control": True},
+                                  ensure_ascii=False))
+    return 1 if vivos else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

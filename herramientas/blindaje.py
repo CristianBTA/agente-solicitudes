@@ -829,6 +829,220 @@ def b29():
                         f"y la hipótesis da «{hip.get('veredicto')}»")
 
 
+# B30 y B31 (SEG-3): controles que existían sin una prueba que se pusiera roja al quitarlos. Cada uno se ataca de punta a
+# punta, por una corrida mínima y sellada que pasa por verificar.verificar, como una corrida real.
+IMPL_SUMA = ("import csv\n\n\ndef analizar(datos):\n    total = {}\n    with open(datos['t'], newline='', encoding='utf-8') as fh:\n"
+             "        for f in csv.DictReader(fh):\n            total[f['entidad']] = total.get(f['entidad'], 0) + float(f['valor'])\n"
+             "    return [{'entidad': k, 'valor': v} for k, v in sorted(total.items())]\n")
+CONSERVACION = '''
+
+@regla("R1", "conservacion", "la suma de valor del resultado es la de la tabla, contada directo de la fuente")
+def r1(datos, resultado):
+    fuente = sum(float(f["valor"]) for f in leer_csv(datos["t"]))
+    total = suma(resultado, "valor")
+    return aprox(total, fuente), f"resultado {total} · fuente {fuente}MAS"
+'''
+# La regla de B30: además de la conservación, pone en su mensaje (que el informe publica) lo que hay junto a sus datos y
+# no recibió. NOMBRES es el listado de la carpeta en el ataque y su propio nombre en el control.
+REGLAS_VECINAS = '''import os
+
+from reglas_base import aprox, leer_csv, regla, suma
+
+
+def _vecinos(t):
+    carpeta, propio = t.rsplit("/", 1)
+    vistos = []
+    for nombre in sorted(NOMBRES):
+        if nombre != propio:
+            with open(carpeta + "/" + nombre, encoding="utf-8") as fh:
+                vistos.append(fh.read().strip())
+    return " | ".join(vistos)
+''' + CONSERVACION.replace("MAS", " · {_vecinos(datos['t'])}")
+
+
+def _corrida_minima(c, tabla, caso, esperado, valores):
+    """Una corrida con una tabla t, su spec y su caso conocido; reglas.py y los sellos los pone _verificar_corrida."""
+    for carpeta in (c / "datos", c / "caso_conocido"):
+        carpeta.mkdir(parents=True, exist_ok=True)
+    (c / "datos" / "t.csv").write_text(tabla, encoding="utf-8")
+    (c / "caso_conocido" / "t.csv").write_text(caso, encoding="utf-8")
+    (c / "caso_conocido" / "esperado.json").write_text(json.dumps(esperado), encoding="utf-8")
+    (c / "spec.json").write_text(json.dumps({"peticion": "prueba del banco de blindaje", "datos": {"t": str(c / "datos" / "t.csv")},
+                                             "salida": {"claves": ["entidad"], "valores": valores}}), encoding="utf-8")
+
+
+def _verificar_corrida(c, reglas, impls):
+    """Escribe reglas.py, sella el criterio como lo haría el especificador y verifica como verificar.py. Devuelve el
+    informe.json y el informe.md que se publicarían."""
+    import contextlib
+    import io
+    (c / "reglas.py").write_text(reglas, encoding="utf-8")
+    (c / "sellos.json").unlink(missing_ok=True)
+    with contextlib.redirect_stdout(io.StringIO()):
+        verificar.sellar(c)
+        verificar.verificar(c, impls)
+    return json.loads((c / "informe.json").read_text(encoding="utf-8")), (c / "informe.md").read_text(encoding="utf-8")
+
+
+@prueba("B30", "compuerta", "una reglas.py que la compuerta bloquea (lista la carpeta de sus datos y publica en su mensaje lo que no recibió): ¿el verificador la carga y la corrida sale aprobada?")
+def b30():
+    d = Path(tempfile.mkdtemp(prefix="blindaje-reglas-")).resolve()
+    canario = f"AJENO-{uuid.uuid4().hex[:10]}"
+    ataque = REGLAS_VECINAS.replace("NOMBRES", "os.listdir(carpeta)")
+    control = REGLAS_VECINAS.replace("NOMBRES", "[os.path.basename(t)]")   # el mismo código sin el listado (L32)
+    try:
+        c = d / "c"
+        _corrida_minima(c, "entidad,valor\nUno,10\nDos,5\nUno,2\n", "entidad,valor\nAlfa,1\nAlfa,2\nBeta,4\n",
+                        [{"entidad": "Alfa", "valor": 3}, {"entidad": "Beta", "valor": 4}], ["valor"])
+        # junto a sus datos, un archivo que la regla no recibe (en una corrida real: otra tabla, una procedencia)
+        (c / "datos" / "notas.txt").write_text(canario + "\n", encoding="utf-8")
+        (c / "impl_a.py").write_text(IMPL_SUMA, encoding="utf-8")
+        impls = {"a": c / "impl_a.py", "b": c / "impl_a.py"}
+        inf0, _ = _verificar_corrida(c, control, impls)
+        inf, md = _verificar_corrida(c, ataque, impls)
+        bloqueos = verificar.compuertas(c / "reglas.py")
+        # control positivo (L27): sin la compuerta, la regla corre como corren las reglas (caja sin aislar) y llega a lo
+        # que no recibió; así, si la corrida resiste, es por la compuerta
+        sin, err = caja.correr(verificar.RUNNER_REGLAS.replace("MARCA", caja.MARCA).replace("TIEMPO", str(verificar.TIEMPO_REGLA)),
+                               str(c / "reglas.py"), "correr", str(AQUI), tiempo=verificar.TIEMPO_REGLA,
+                               entrada=json.dumps({"datos": {"t": str(c / "datos" / "t.csv")},
+                                                   "resultado": inf0.get("resultado_oficial") or []}))
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+    if inf0.get("estado") != "aprobado":
+        return r("CEDE", f"prueba inválida: con la misma regla sin el listado la corrida no se aprueba ({str(inf0.get('motivos'))[:120]}); "
+                         "la prueba no mediría la compuerta (L32)")
+    if not bloqueos:
+        return r("CEDE", "prueba inválida: la compuerta no bloquea el listado de la regla (B28 también debería ceder)")
+    if not (sin and canario in json.dumps(sin)):
+        return r("CEDE", f"prueba inválida: sin la compuerta, la regla no llegó a lo que no recibió ({str(err or sin)[:120]}); "
+                         "un «resiste» así no prueba nada (L27)")
+    publica = canario in json.dumps(inf) or canario in md
+    if inf.get("estado") == "aprobado" or publica:
+        return r("CEDE", f"el verificador cargó la reglas.py que la compuerta bloquea: la corrida sale «{inf.get('estado')}»"
+                         + (" y el informe publica lo que la regla encontró al listar la carpeta de sus datos" if publica else ""))
+    rotas = [x for x in inf.get("reglas_rotas", []) if "no pasa las compuertas" in x]
+    if not rotas:
+        return r("CEDE", f"la corrida sale «{inf.get('estado')}», pero no por la compuerta de reglas.py: {str(inf.get('motivos'))[:140]}")
+    return r("RESISTE", "sin la compuerta, la regla lista la carpeta de sus datos y publica en su mensaje un archivo que no recibió; "
+                        f"el verificador no la carga ({rotas[0][:110]}…), la corrida queda en «revisar» sin publicar nada de eso, "
+                        "y la misma regla sin el listado pasa la compuerta y la corrida se aprueba")
+
+
+# B31: cada veneno sale en «promedio», que la conservación no mira; solo en las entidades del dato real (E1…E6), que el
+# caso conocido no tiene, como una celda venenosa que nadie puso en el caso.
+VENENOS = {"inf": "float('inf')", "-inf": "-float('inf')", "NaN en texto": "'NaN'", "1e400 en texto": "'1e400'",
+           "entero de 400 cifras": "10 ** 400", "suma que desborda": "sum([1.7e308, 1.7e308])"}
+IMPL_PROMEDIO = ("import csv\n\nVENENO = {VENENOS}\n\n\ndef analizar(datos):\n    out = []\n"
+                 "    with open(datos['t'], newline='', encoding='utf-8') as fh:\n        for f in csv.DictReader(fh):\n"
+                 "            v, n = float(f['valor']), int(f['contratos'])\n"
+                 "            out.append({'entidad': f['entidad'], 'valor': v, 'promedio': VENENO.get(f['entidad'], v / n)})\n"
+                 "    return out\n")
+
+
+def _cifras_no_finitas():
+    """Las cifras de la presentación (verificar_presentacion.py) con tres venenos, cada uno para una capa distinta: un
+    «NaN» en texto que max() se traga (si el dato no se comprueba, el máximo sale de las otras filas), dos saldos finitos
+    cuya diferencia desborda (si el cálculo no se comprueba, se publica «inf») y un Infinity en informe.json, que la
+    tabla mostraría tal cual. Devuelve {caso: (comprobaciones que fallan, la que debe fallar)} con el control primero."""
+    import copy
+    import verificar_presentacion as vp
+    resultado, base = vp._base()
+    for f, m, s, x in zip(resultado, (0.12, 0.10, 0.08, 0.06, 0.04), (3.0, 2.0, 1.0, 0.5, 0.25), (1.5, 1.2, 1.0, 0.8, 0.6)):
+        f.update(margen=m, saldo=s, indice=x)
+    pres = copy.deepcopy(base)
+    pres["mediciones"][0]["evidencia"]["columnas"] = ["region", "ventas", "indice"]
+    pres["cifras"] += [{"id": "max_margen", "calculo": {"op": "maximo", "columna": "margen"}, "formato": {"decimales": 2}},
+                       {"id": "brecha", "calculo": {"op": "diferencia", "a": {"op": "valor", "columna": "saldo", "donde": {"region": "Norte"}},
+                                                    "b": {"op": "valor", "columna": "saldo", "donde": {"region": "Sur"}}},
+                        "formato": {"decimales": 2}}]
+    pres["mediciones"][1]["nota"] = "El margen más alto es {max_margen} y el saldo del Norte supera al del Sur en {brecha}."
+
+    def con(cambios):
+        res = copy.deepcopy(resultado)
+        for i, col, v in cambios:
+            res[i][col] = v
+        return res
+    casos = {"control": (resultado, None),
+             "NaN en texto que max() se traga": (con([(1, "margen", "NaN")]), "cada cifra se calcula"),
+             "saldos finitos cuya diferencia desborda": (con([(0, "saldo", 1.7e308), (2, "saldo", -1.7e308)]), "cada cifra se calcula"),
+             "Infinity en informe.json": (con([(1, "indice", float("inf"))]), "el resultado que se presenta está aprobado")}
+    d = Path(tempfile.mkdtemp(prefix="blindaje-cifras-"))
+    out = {}
+    try:
+        for i, (nombre, (res, debe)) in enumerate(casos.items()):
+            vp._corrida(d / f"p{i}", res, pres)
+            checks, _ = vp.comprobar(d / f"p{i}")
+            out[nombre] = ([f"{x['comprobacion']} ({x.get('detalle', '')[:90]})" for x in checks if not x["ok"]], debe)
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+    return out
+
+
+@prueba("B31", "verificador", "valores no finitos: una implementación devuelve inf, NaN, 1e400, un entero que no cabe en un float o una suma que desborda en una columna que las reglas no miran, o una cifra de la presentación sale NaN o infinita")
+def b31():
+    d = Path(tempfile.mkdtemp(prefix="blindaje-finitos-")).resolve()
+    entidades = ["Uno"] + [f"E{i}" for i in range(1, len(VENENOS) + 1)]
+    veneno = "{" + ", ".join(f"'E{i}': {x}" for i, x in enumerate(VENENOS.values(), 1)) + "}"
+    try:
+        c = d / "c"
+        _corrida_minima(c, "entidad,valor,contratos\n" + "".join(f"{e},{10 * (i + 1)},{i + 1}\n" for i, e in enumerate(entidades)),
+                        "entidad,valor,contratos\nAlfa,6,2\nBeta,4,1\n",
+                        [{"entidad": "Alfa", "valor": 6, "promedio": 3}, {"entidad": "Beta", "valor": 4, "promedio": 4}],
+                        ["valor", "promedio"])
+        (c / "impl_a.py").write_text(IMPL_PROMEDIO.replace("{VENENOS}", "{}"), encoding="utf-8")
+        (c / "impl_v.py").write_text(IMPL_PROMEDIO.replace("{VENENOS}", veneno), encoding="utf-8")
+        reglas = "from reglas_base import aprox, leer_csv, regla, suma\n" + CONSERVACION.replace("MAS", "")
+        inf0, _ = _verificar_corrida(c, reglas, {"a": c / "impl_a.py", "b": c / "impl_a.py"})
+        # el resultado envenenado tal como lo recibe el verificador (después del ejecutor de la caja), en el dato real y
+        # en el caso conocido
+        datos, caso = {"t": str(c / "datos" / "t.csv")}, {"t": str(c / "caso_conocido" / "t.csv")}
+        res, err = verificar.ejecutar_impl(c / "impl_v.py", datos)
+        res_caso, err_caso = verificar.ejecutar_impl(c / "impl_v.py", caso)
+        # control positivo (L27): sin la comprobación, nada más lo detendría: las reglas pasan sobre el resultado
+        # envenenado, A y B concuerdan y el caso conocido coincide
+        reglas_cargadas, _ = verificar.cargar_reglas(c)
+        reglas_pasan = bool(reglas_cargadas) and all(x.get("estado") == "pasa"
+                                                     for x in verificar.correr_reglas(reglas_cargadas, datos, res or []))
+        concuerdan = bool(res) and verificar.comparar(res, res, ["entidad"], ["valor", "promedio"], 0.5)["ok"]
+        caso_ok = bool(res_caso) and verificar.comparar(res_caso, json.loads((c / "caso_conocido" / "esperado.json").read_text(encoding="utf-8")),
+                                                         ["entidad"], ["valor", "promedio"], 0.5)["ok"]
+        try:
+            inf, _ = _verificar_corrida(c, reglas, {"a": c / "impl_v.py", "b": c / "impl_v.py"})
+            caida = None
+        except Exception as e:     # un verificador que se cae tampoco detiene los venenos: no escribe «revisar»
+            inf, caida = {}, f"{type(e).__name__}: {str(e)[:80]}"
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+    if inf0.get("estado") != "aprobado":
+        return r("CEDE", f"prueba inválida: la implementación sin venenos no se aprueba ({str(inf0.get('motivos'))[:120]}) (L32)")
+    if err or err_caso or len(res or []) != len(entidades):
+        return r("CEDE", f"prueba inválida: la implementación envenenada no corrió entera ({str(err or err_caso)[:120]})")
+    if not (reglas_pasan and concuerdan and caso_ok):
+        return r("CEDE", "prueba inválida: las reglas, la concordancia o el caso conocido ya atrapan los venenos; la prueba no "
+                         "mediría la comprobación de valores finitos (L27)")
+    honesta = next(f for f in res if f.get("entidad") == "Uno")
+    pasan = [n for i, n in enumerate(VENENOS, 1)
+             if not verificar.revisar_forma([honesta, next(f for f in res if f.get("entidad") == f"E{i}")], ["entidad"], ["valor", "promedio"])]
+    cifras = _cifras_no_finitas()
+    rotas0 = cifras.pop("control")[0]
+    if rotas0:
+        return r("CEDE", f"prueba inválida: la presentación sin venenos no aprueba ({rotas0[:2]}) (L32)")
+    cifras_pasan = [n for n, (rotas, debe) in cifras.items() if not any(x.startswith(debe) for x in rotas)]
+    forma = any("no es un número finito" in f for f in (inf.get("implementaciones", {}).get("a", {}).get("fallas") or []))
+    problemas = ([f"el verificador se cae ({caida}) en lugar de detener los venenos"] if caida else
+                 [f"la corrida con valores no finitos sale «{inf.get('estado')}» sin que la forma del resultado los nombre"]
+                 if inf.get("estado") == "aprobado" or not forma else []) \
+        + ([f"la forma del resultado deja pasar {pasan}"] if pasan else []) \
+        + ([f"la presentación publica las cifras de {cifras_pasan}"] if cifras_pasan else [])
+    if problemas:
+        return r("CEDE", "; ".join(problemas))
+    return r("RESISTE", f"las reglas pasan sobre el resultado envenenado y A y B concuerdan, pero la forma del resultado detiene "
+                        f"los {len(VENENOS)} venenos uno por uno y la corrida queda en «revisar»; en la presentación, los "
+                        f"{len(cifras)} venenos (NaN que max() se traga, diferencia que desborda, Infinity en informe.json) "
+                        "hacen fallar su comprobación; sin venenos, la corrida y la presentación aprueban")
+
+
 def main(argv):
     solo = set(argv[argv.index("--solo") + 1].split(",")) if "--solo" in argv else None
     filas = []

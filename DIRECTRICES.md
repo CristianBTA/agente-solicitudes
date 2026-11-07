@@ -37,6 +37,8 @@ cmp /tmp/datos-prueba/ventas.csv ejemplo/datos/ventas.csv && echo "datos idénti
 
 # 5b. Blindaje: se ataca cada capa a propósito (caja de arena, compuerta, perfil, salidas, integridad, dependencias)
 .venv/bin/python herramientas/blindaje.py
+# y cada control con su prueba: se quita en una copia y la prueba que lo cubre debe ceder (7 mutantes)
+.venv/bin/python herramientas/mutar_controles.py
 
 # 5c. SGSI: la tríada C·I·D, los riesgos y la Declaración de Aplicabilidad, comprobados sin IA (y el probador, probado)
 .venv/bin/python herramientas/sgsi.py --autoprueba
@@ -62,7 +64,7 @@ SECOP II se actualiza a diario. Si el recorte de hoy no es idéntico al del 6-no
 
 Si corriste los pasos sobre `corridas/` directamente (como decía una versión anterior de esta guía), `git status` muestra `informe.json`, `informe.md` y `gobernanza.json` modificados, con el tiempo medido y la ruta de tu carpeta; `git restore corridas/` los deja como estaban. Nunca entran en un aporte.
 
-Lo que debe salir: todas las baterías en ✓ (hoy son 10), el blindaje con todas sus pruebas en «RESISTE» (hoy son 28, con el control B00; en Linux no hay sandbox-exec: B01, B11, B12, B24 y B29 salen «NO APLICA» y el banco lo dice, porque ahí el código de la IA tendría red y escritura; por eso el filtro de aportes corre en macOS), la corrida en «aprobado», la referencia `m00` sin fallas y las mutantes `m01` a `m13` con al menos una falla cada una, los datos idénticos, la gobernanza aprobada, el SGSI sin fallas, con sus 21 mutantes atrapados, las autopruebas de la presentación y del whitepaper sin fallas ni errores, y `git status` sin ningún archivo. Si algo no sale así, el repositorio no cumple lo que dice.
+Lo que debe salir: todas las baterías en ✓ (hoy son 10), el blindaje con todas sus pruebas en «RESISTE» (hoy son 30, con el control B00; en Linux no hay sandbox-exec: B01, B11, B12, B24 y B29 salen «NO APLICA» y el banco lo dice, porque ahí el código de la IA tendría red y escritura; por eso el filtro de aportes corre en macOS) y sus 7 mutantes de los controles muertos, la corrida en «aprobado», la referencia `m00` sin fallas y las mutantes `m01` a `m13` con al menos una falla cada una, los datos idénticos, la gobernanza aprobada, el SGSI sin fallas, con sus 21 mutantes atrapados, las autopruebas de la presentación y del whitepaper sin fallas ni errores, y `git status` sin ningún archivo. Si algo no sale así, el repositorio no cumple lo que dice.
 
 ---
 
@@ -129,6 +131,7 @@ Fechas límite (00:00 del 1 de enero, 23:59 del 31 de diciembre), repetidos, vac
 
 **D11 · Dos implementaciones independientes, con herramientas distintas, que deben dar lo mismo.**
 pandas y Python puro. Un error propio de una herramienta no se repite en la otra.
+Que concuerden no basta: cada valor de la salida tiene que ser un número finito. Un infinito, un «NaN» o un «1e400» en texto, un entero que no cabe en un float o una suma que desborda detienen la corrida, aunque A y B den lo mismo (inf menos inf no supera la tolerancia) y la conservación no mire esa columna (B31, L92).
 
 **D12 · Todo conteo cierra; limpiar es marcar.**
 Cada implementación concilia: filas leídas = usadas + excluidas por motivo. Nada se borra en silencio. La conciliación no se autodeclara: el verificador cuenta las filas reales de la entrada (y las compara con las de la procedencia), en los datos reales y en el caso conocido, y A y B deben conciliar igual motivo por motivo (B25, L82).
@@ -193,6 +196,7 @@ Desde el 6-nov-2026 la IA no propone ni prueba hipótesis ni da el análisis. El
 - La IA no escribe números: pone marcadores (`{total}`) y declara el cálculo de cada uno; el código calcula la cifra desde el resultado aprobado y la escribe. Un dígito, una magnitud con palabras o un «%» fuera de un marcador hacen fallar la presentación. En el lanzamiento de GPT-5 (agosto de 2025), una barra de 52,8 % se dibujó más alta que una de 69,1 %: lo que no calcula el código, no se presenta.
 - Método, incertidumbre y límites explícitos, con cada pregunta abierta nombrada (como METR). En lugar de una recomendación, de 3 a 6 preguntas para las personas, de costo, calidad e impacto (como el whitepaper), que ellas responden en `plantillas/analisis_humano.md`.
 - La IA escribe solo `presentacion.json`; las láminas, las tablas, la fuente y la fecha las pone el verificador, y solo si todo aprueba.
+- Una cifra que no es un número finito no se publica. Se comprueba en tres capas, cada una con su ataque: cada dato que entra al cálculo (un «NaN» en texto que `max()` se tragaría), el resultado del cálculo (dos valores finitos cuya diferencia desborda) y la lectura de `informe.json`, que rechaza `NaN` e `Infinity` (B31, L92).
 - Las frases de análisis se buscan en todos los textos con la misma lista W3 de `validar_whitepaper.py` (importada, no copiada) y la de la forma anterior («lo que se pide decidir», «próximo paso», «por eso»). Un campo de la forma anterior (`recomendacion`, `decision`, `scqa`, `hallazgos`) hace fallar la presentación.
 - Lo que el código no puede ver: que la frase use bien una cifra correcta (por ejemplo, llamar «Medellín» a las entidades con sede en Medellín) y las frases de análisis que la lista no conoce. Eso lo revisa una persona o un juez ciego con la última lámina, que lista los títulos y las preguntas para las personas.
 *Dónde:* `agentes/12-presentador.md` y `herramientas/verificar_presentacion.py` (`--autoprueba`: primero 4 presentaciones buenas aprueban y luego 48 mutantes fallan donde deben).
@@ -215,7 +219,7 @@ El código de la IA solo importa la biblioteca estándar y lo de `herramientas/p
 *Por qué:* un nombre inventado (`pandas-secop-tools`) lo puede registrar un atacante. Comprobar que el paquete exista no basta (*slopsquatting*).
 
 **D22 · Contrato estrecho y análisis estático antes de ejecutar.**
-El código de la IA es una función pura. Antes de correrlo se revisan con reglas propias y con Bandit: ejecución de texto, comandos, deserialización, red, escritura, reflexión, recorrer o navegar carpetas (listar, subir o ir al archivo vecino: así buscaría el oráculo; B28, L90) y secretos. Si algo bloquea, no se ejecuta.
+El código de la IA es una función pura. Antes de correrlo se revisan con reglas propias y con Bandit: ejecución de texto, comandos, deserialización, red, escritura, reflexión, recorrer o navegar carpetas (listar, subir o ir al archivo vecino: así buscaría el oráculo; B28, L90) y secretos. Si algo bloquea, no se ejecuta. Rige igual para `reglas.py`, que también escribe la IA: una regla que la compuerta bloquea no se carga y la corrida queda en «revisar» (B30, L92).
 *Dónde:* `herramientas/seguridad.py` y `herramientas/dependencias.py`.
 *Dos perfiles:* `pura` es el contrato de este párrafo. `usuario` es para código que sí necesita red y archivos: permite TLS, escritura y procesos con lista de argumentos, y bloquea la debilidad en sí (11 CWE, `herramientas/seguridad_cwe.py`). Un comentario `# nosec` no apaga nada.
 *Cómo se mide:* con un lote que escribe otro modelo sin ver la compuerta (`herramientas/medir_compuerta.py`). Revelar un lote lo descarta como medida; la meta se juzga con la cota inferior.
@@ -248,7 +252,7 @@ Se reporta también cuando la IA sola acertó, y se mide lo que cuesta el contro
 
 El mismo patrón del generador y el validador, aplicado al pipeline entero: un atacante (cada prueba de `herramientas/blindaje.py`) y un defensor (cada capa). El detalle y la línea base están en [`evidencia/blindaje/README.md`](evidencia/blindaje/README.md).
 
-**DB1 · Toda batería de ataques lleva un control positivo.** Un ataque que «resiste» porque nada funciona no prueba nada. B00 corre código normal en la caja: si falla, ninguna prueba de la caja vale (lección L27).
+**DB1 · Toda batería de ataques lleva un control positivo.** Un ataque que «resiste» porque nada funciona no prueba nada. B00 corre código normal en la caja: si falla, ninguna prueba de la caja vale (lección L27). Y todo control lleva una prueba que muere al quitarlo: `herramientas/mutar_controles.py` lo quita en una copia y exige que su prueba ceda por el ataque, no por un error; sin mutar, las mismas pruebas resisten. Las compuertas de `reglas.py`, los valores finitos y el saneado sobrevivían a la mutación (SEG-3); hoy los 7 mutantes mueren (B26, B30, B31; L92).
 
 **DB2 · La caja de arena niega la red, la escritura y la lectura de la carpeta personal, y da un entorno mínimo.** El código de la IA no ve las variables de entorno del proceso que lo lanza (secretos) y tiene topes de tiempo y de memoria. La memoria se mide como huella física, no como memoria residente (B01, B10–B14, B23; lecciones L25, L26, L28, L69). La implementación bajo prueba corre aislada, sobre una copia de su código y de sus tablas: no lee el repositorio, las carpetas temporales ni ningún archivo con nombre de oráculo o de criterio (`esperado.json`, `reglas.py`, `sellos*.json`), ni la otra implementación (B24, L81). El código del gráfico y el de las hipótesis pasan por la misma compuerta y corren en la misma caja aislada: el gráfico no lee ningún archivo (el resultado y la procedencia le llegan como texto) y las hipótesis, solo la copia de sus tablas, sin el `hipotesis.json` sellado (B29, L91).
 
