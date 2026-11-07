@@ -500,6 +500,12 @@
       "prueba": "herramientas/blindaje.py --solo B26"
     },
     {
+      "id": "L84",
+      "leccion": "Chrome, al imprimir un HTML a PDF, escribe cada enlace relativo como file:///ruta/local/completa: el PDF que se comparte filtra la carpeta y el nombre de usuario de quien lo imprimió, aunque el HTML no los traiga. El whitepaper en tres hojas carta no lleva enlaces (el destino queda como texto inerte, en gris) y, antes de darlo por bueno, carta.enlaces() revisa que el PDF no traiga ningún /URI ni file://.",
+      "origen": "whitepaper del pipeline en tres hojas carta, 6-nov-2026: un HTML con dos enlaces relativos, impreso con Chrome sin ventana, dejó las dos rutas locales completas en el PDF",
+      "prueba": "herramientas/whitepaper_corrida.py --autoprueba (enlaces sin <a>, sin href ni src) y la revisión del PDF en whitepaper_corrida.py"
+    },
+    {
       "id": "L85",
       "leccion": "El presentador también obedece D15: hasta el 6-nov su primera lámina daba «la conclusión y lo que se pide decidir», escribía «hallazgos» y una «recomendación accionable» (qué, quién, próximo paso, cómo se mide) y mostraba veredictos de las hipótesis de la IA, mientras validar_whitepaper.py ya le prohibía eso al documentador: una regla nueva cambió un agente y el otro siguió exigiendo lo contrario. Ahora los títulos dicen lo medido con su cifra (sin causas ni consecuencias), la recomendación se cambió por preguntas de costo, calidad e impacto para las personas, verificar_presentacion.py aplica a todos los textos la misma lista W3 del whitepaper (importada, no copiada) y un campo de la forma anterior (recomendacion, decision, scqa, hallazgos) hace fallar la forma en vez de ignorarse. Cuando cambia una regla, se buscan en todas las fichas y verificadores los textos que la contradicen.",
       "origen": "alineación del presentador con D15 (decisión del dueño), 6-nov-2026",
