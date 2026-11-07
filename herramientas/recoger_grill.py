@@ -1,6 +1,6 @@
 """Recoge, para el dueño, lo que dejaron los grill-me en los forks: harness/<usuario>.md y grill-me/<usuario>.md.
 
-  GH_TOKEN=$(gh auth token) python3 herramientas/recoger_grill.py [--salida fuentes/grill]
+  GH_TOKEN=$(gh auth token) .venv/bin/python herramientas/recoger_grill.py [--salida fuentes/grill]   # el Python del entorno trae los certificados
 
 Recorre los forks públicos del repositorio por la API de GitHub. En cada fork busca la carpeta harness/ en la rama «harness»
 y la carpeta grill-me/ en la rama «grill-me» (modo A de las guías) y, si no están, en su rama principal (modo B, desde la web).
@@ -26,6 +26,7 @@ API = "https://api.github.com"
 CARPETAS = {"harness": "harness", "grill-me": "grill-me"}   # carpeta → rama del modo A
 SEGURO = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$")
 MAX_BYTES = revisar_grill.MAX_BYTES
+MAX_JSON = 10_000_000
 
 
 def pedir(url, crudo=False):
@@ -36,7 +37,7 @@ def pedir(url, crudo=False):
         cab["Authorization"] = "Bearer " + os.environ["GH_TOKEN"]
     try:
         with urllib.request.urlopen(urllib.request.Request(url, headers=cab), timeout=30) as r:  # nosec B310: URL fija de GitHub
-            datos = r.read(MAX_BYTES + 1)
+            datos = r.read(MAX_BYTES + 1 if crudo else MAX_JSON)   # el tope de 40 KB es para los archivos, no para la API
     except urllib.error.HTTPError as e:
         if e.code == 404:
             return None
