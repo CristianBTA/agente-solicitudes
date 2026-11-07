@@ -74,8 +74,10 @@ fuente, con su procedencia (la consulta SoQL exacta, cada URL pedida, la fecha y
     cualquier columna personal; count, sum y avg no muestran valores de una fila. Un dato sensible pide su base legal
     en cualquier parte de la consulta, aunque solo se cuente o se sume.
   - Pruebas propias: la suma de count(*) de los grupos es el count(*) que da el servidor sin agrupar (el conteo
-    contra la fuente); sum y count(columna) se concilian igual, y min y max coinciden (avg y count(distinct) no son
-    aditivos); la fuente no cambió durante la descarga; k-anonimato si se declara.
+    contra la fuente); sum y count(columna) se concilian igual, con números finitos (un total NaN rechaza), y min y max
+    coinciden según el tipo de la columna en la fuente: en una de texto manda el orden de texto del servidor («9» va
+    después de «10») (avg y count(distinct) no son aditivos); la fuente no cambió durante la descarga; k-anonimato si se
+    declara.
 """
 import contextlib
 import csv
@@ -121,7 +123,7 @@ _EXPR = re.compile(
     rf"(?P<fn>count|sum|avg|min|max)\s*\(\s*(?:(?P<todo>\*)|(?P<distinto>distinct\s+)?(?P<arg>{_ID}))\s*\)"
     rf"|(?P<trunc>date_trunc_(?:ymd|ym|y))\s*\(\s*(?P<tcol>{_ID})\s*\)"
     rf"|(?P<col>{_ID})", re.I)
-_CON_ALIAS = re.compile(rf"^(?P<expr>.+?)\s+as\s+(?P<alias>{_ID})$", re.I | re.S)
+_ALIAS = re.compile(_ID, re.I)
 NUMERICOS = {"number", "money", "double", "percent"}
 FECHAS = {"calendar_date", "floating_timestamp", "date", "fixed_timestamp"}
 
@@ -348,6 +350,16 @@ def lector_de_reglas(contenido, carpeta, ver=ver_valor):
 
 
 # ---------------- agregados del servidor ----------------
+def separar_alias(pieza):
+    """(expresión, alias) de «expresión AS alias», partiendo en el último « as » con rsplit, que es lineal: la regex de
+    antes (^(.+?)\\s+as\\s+…$) tardaba el cuadrado del largo con una racha de espacios (80.000 espacios, unos 50 s).
+    Sin alias, (pieza, None)."""
+    partes = pieza.rsplit(None, 2)
+    if len(partes) == 3 and partes[1].lower() == "as" and _ALIAS.fullmatch(partes[2]):
+        return partes[0], partes[2]
+    return pieza, None
+
+
 def revisar_agregado(ag, declaradas):
     """Revisa la consulta agregada sin pedir nada a la fuente. Devuelve (consulta, problemas)."""
     if not isinstance(ag, dict):
@@ -367,8 +379,7 @@ def revisar_agregado(ag, declaradas):
         p.append("«agregado.k_minimo» es un entero mayor o igual a 1")
     items = []
     for pieza in (x.strip() for x in sel.split(",")):
-        m_alias = _CON_ALIAS.match(pieza)
-        texto, alias = (m_alias.group("expr").strip(), m_alias.group("alias")) if m_alias else (pieza, None)
+        texto, alias = separar_alias(pieza)
         m = _EXPR.fullmatch(texto)
         if not m:
             p.append(f"«{pieza[:60]}» no es una columna del group ni count, sum, avg, min o max de una columna")
@@ -502,20 +513,26 @@ def socrata_agregado(fuente, q, meta):
             return {"filas": filas, "conteo_fuente": total, "control": despues, "origen": origen,
                     "consultas": consultas, "consulta": consulta, "paginas": paginas, "version_fuente": version_fuente(meta),
                     "consulta_soql": soql_legible(q, where),
+                    "tipos_fuente": {c: campos.get(c) for c in q["referidas"]},
                     "conteo_de": "count(*) del servidor sin agrupar, con el mismo filtro, igual antes y después"}
     return {"motivo": "la fuente cambió mientras se descargaba (dos veces); vuelva a correr", "consultas": consultas}
 
 
 def decimal_o_none(v):
+    """El número finito de v, o None (vacío, texto, NaN o infinito: un total NaN no se compara, se rechaza)."""
     try:
-        return Decimal(str(v)) if v not in (None, "") else None
+        d = Decimal(str(v)) if v not in (None, "") else None
     except InvalidOperation:
         return None
+    return d if d is not None and d.is_finite() else None
 
 
-def pruebas_agregado(q, columnas, filas, control):
+def pruebas_agregado(q, columnas, filas, control, tipos_fuente=None):
     """Lo que el servidor calcula sin agrupar contra lo que suman los grupos: si un grupo se pierde o se repite al
-    paginar, la cuenta no cierra."""
+    paginar, la cuenta no cierra. count y sum piden números finitos (un NaN o un texto rechaza, no se cuenta como 0).
+    min y max se comparan según el tipo de la columna en la fuente (tipos_fuente, el dataTypeName de Socrata), no según
+    el aspecto del valor: en una columna numérica, el extremo de los grupos es el del servidor; en una de texto o de
+    fecha manda el orden del servidor («9» va después de «10»), así que el del total debe ser el de uno de los grupos."""
     pos = {c: columnas.index(c) for c in columnas}
     estrella = next(it for it in q["items"] if it["fn"] == "count" and it["todo"])
     try:
@@ -536,18 +553,26 @@ def pruebas_agregado(q, columnas, filas, control):
         vals = [f[pos[it["alias"]]] for f in filas]
         ref = control.get(it["control"])
         if it["fn"] in ("count", "sum"):
-            a = sum((decimal_o_none(v) or Decimal(0)) for v in vals)
-            b = decimal_o_none(ref) or Decimal(0)
-            bien = a == b if it["fn"] == "count" else abs(a - b) <= abs(b) * Decimal("1e-9") + Decimal("1e-6")
-            detalles.append(f"{it['alias']}: grupos {a} · servidor {b}")
+            nums = [decimal_o_none(v) for v in vals if v != ""]
+            b = decimal_o_none(ref) if ref not in (None, "") else Decimal(0)
+            if b is None or None in nums:
+                bien = False
+                detalles.append(f"{it['alias']}: un valor de los grupos o del servidor no es un número finito")
+            else:
+                a = sum(nums, Decimal(0))
+                bien = a == b if it["fn"] == "count" else abs(a - b) <= abs(b) * Decimal("1e-9") + Decimal("1e-6")
+                detalles.append(f"{it['alias']}: grupos {a} · servidor {b}")
         else:
             llenos = [v for v in vals if v != ""]
-            numeros = [decimal_o_none(v) for v in llenos]
-            if llenos and all(x is not None for x in numeros) and decimal_o_none(ref) is not None:
-                extremo = min(numeros) if it["fn"] == "min" else max(numeros)
-                bien = extremo == decimal_o_none(ref)
-            else:    # texto o fechas: el orden del servidor manda, así que el del total debe ser uno de los grupos
-                bien = (ref in llenos) if ref not in (None, "") else not llenos
+            if ref in (None, ""):
+                bien = not llenos
+            elif (tipos_fuente or {}).get(it["arg"]) in NUMERICOS:   # el servidor ordena como números
+                numeros = [decimal_o_none(v) for v in llenos]
+                r = decimal_o_none(ref)
+                bien = (bool(llenos) and r is not None and None not in numeros
+                        and (min(numeros) if it["fn"] == "min" else max(numeros)) == r)
+            else:    # texto, fechas o un tipo que no se conoce: manda el orden del servidor
+                bien = ref in llenos
             detalles.append(f"{it['alias']}: {'coincide' if bien else 'no coincide'} con el {it['fn']} del servidor")
         ok = ok and bien
     pruebas.append({"prueba": "conservación de los agregados", "ok": ok,
@@ -705,7 +730,7 @@ def probar(contrato, columnas, llaves, filas, leido, consulta=None, descripcione
     descripciones = descripciones or {}
     pruebas, avisos, nulos = [], [], {}
     if consulta is not None:
-        pruebas += pruebas_agregado(consulta, columnas, filas, leido["control"])
+        pruebas += pruebas_agregado(consulta, columnas, filas, leido["control"], leido.get("tipos_fuente"))
     else:
         conteo, aparte = leido["conteo_fuente"], leido.get("conteo_independiente")
         ok = len(filas) == conteo and (aparte is None or len(filas) == aparte)
@@ -968,10 +993,11 @@ class SocrataFalso:
     con $order, $limit y $offset. Se puede romper a propósito: perder un grupo al paginar, cambiar la fuente en cada
     conteo o devolver una página con un campo de menos. Tiene su propio evaluador: no usa el de la ingesta."""
 
-    def __init__(self, campos, filas, perder=None, cambiar=False, pagina_rota=False, descripciones=None):
+    def __init__(self, campos, filas, perder=None, cambiar=False, pagina_rota=False, descripciones=None, control=None):
         self.campos, self.filas = campos, [dict(f) for f in filas]
         self.perder, self.cambiar, self.pagina_rota = perder, cambiar, pagina_rota
         self.descripciones = descripciones or {}
+        self.control = control or {}      # valores que reemplazan los del control sin agrupar (p. ej. un total NaN)
         self.pedidas = []
 
     @staticmethod
@@ -1006,7 +1032,7 @@ class SocrataFalso:
                     s = sum(Decimal(v) for v in llenos)
                     fila.append("" if not llenos else str(s if fn == "sum" else s / len(llenos)))
                 else:
-                    num = all(re.fullmatch(r"-?\d+(\.\d+)?", v) for v in llenos)
+                    num = self.campos.get(arg) in NUMERICOS     # como Socrata: por el tipo de la columna, no por el valor
                     clave_orden = (lambda v: Decimal(v)) if num else (lambda v: v)
                     fila.append("" if not llenos else (min if fn == "min" else max)(llenos, key=clave_orden))
             salida.append(fila)
@@ -1030,7 +1056,7 @@ class SocrataFalso:
             fila = self._agregar(self.filas, items, [])[0]
             if self.cambiar:
                 self.filas.append(dict(self.filas[0]))
-            return json.dumps([{a: v for (_, a), v in zip(items, fila) if v != ""}])
+            return json.dumps([{**{a: v for (_, a), v in zip(items, fila) if v != ""}, **self.control}])
         if agregada:
             filas = self._agregar(self.filas, items, grupo)
             if self.perder is not None:
@@ -1505,6 +1531,28 @@ def autoprueba(mod=None):
     correr("agregado: k-anonimato (k = 3) con un grupo de 2 filas",
            agregado(sel, "modalidad", tipos_ag, agregado={"k_minimo": 3}), "rechazada", falla("k-anonimato (k ≥ 3)"),
            SocrataFalso(campos_p, procesos))
+    # min y max según el tipo de la columna en la fuente: en una de texto, el servidor ordena como texto («9» > «10»)
+    codigos = [{"modalidad": m, "codigo": c} for m, c in (("A", "9"), ("A", "8"), ("B", "10"), ("B", "1"))]
+    sel_cod = agregado("modalidad, count(*) AS filas, max(codigo) AS codigo_max", "modalidad",
+                       {"modalidad": "texto", "filas": "entero", "codigo_max": "texto"})
+    correr("agregado: max de una columna de texto con cifras («9» y «10») se concilia con el orden de texto del servidor",
+           sel_cod, "aprobada", None, SocrataFalso({"modalidad": "text", "codigo": "text"}, codigos))
+    correr("control: el max de la misma columna, numérica en la fuente, se concilia como número",
+           sel_cod, "aprobada", None, SocrataFalso({"modalidad": "text", "codigo": "number"}, codigos))
+    for tipo_cod in ("text", "number"):
+        correr(f"agregado: un max del servidor que no es el de ningún grupo rechaza la carga ({tipo_cod})", sel_cod, "rechazada",
+               falla("conservación de los agregados"),
+               SocrataFalso({"modalidad": "text", "codigo": tipo_cod}, codigos, control={"tot_1": "99"}))
+    correr("agregado: un total NaN del servidor rechaza la carga por la conservación, sin traceback",
+           agregado(sel, "modalidad", tipos_ag), "rechazada", lambda r, *_: r.get("fallas") == ["conservación de los agregados"],
+           SocrataFalso(campos_p, procesos, control={"tot_1": "NaN"}))
+    # el alias se separa sin regex: la de antes tardaba el cuadrado del largo con una racha de espacios (unos 24 s aquí)
+    inicio = time.perf_counter()
+    correr("agregado con 100.000 espacios y sin alias: se rechaza sin pedir nada y en menos de 2 s",
+           agregado("count(*)" + " " * 100_000 + "x", "", {"filas": "entero"}), "rechazada",
+           lambda r, p, f, d: "no es una columna" in str(r.get("motivo")) and not f.pedidas, SocrataFalso(campos_p, procesos))
+    if time.perf_counter() - inicio > 2:
+        resultados[-1] = (resultados[-1][0], False, f"tardó {time.perf_counter() - inicio:.1f} s")
     # consultas que se rechazan sin pedir nada a la fuente (o solo los metadatos)
     malas = {
         "columna sin agregar fuera del group": ("modalidad, valor, count(*) AS filas", "modalidad",
