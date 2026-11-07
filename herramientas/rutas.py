@@ -160,10 +160,50 @@ def _en_un_clon_sin_el_dato(tmp):
     return casos
 
 
+def raiz_de_flujo(texto):
+    """Lo que falta para que flujo.js corra en el clon de quien lo llama (L124): ninguna ruta del equipo de alguien,
+    RAIZ sale solo de args.raiz y, sin raiz, el flujo se detiene antes de llamar a ningún agente. [problema]"""
+    import re
+    from sgsi import RUTA_LOCAL   # una sola forma de reconocer la ruta de un equipo (R07)
+    problemas = []
+    if RUTA_LOCAL.search(texto):
+        problemas.append("flujo.js trae la ruta del equipo de alguien")
+    m = re.search(r"^const RAIZ = ([^\n]*)$", texto, re.M)
+    if not m or m.group(1).split("//")[0].strip() != "A.raiz":
+        problemas.append("RAIZ no sale solo de args.raiz (tiene una ruta por omisión o no está)")
+    falta = re.search(r"^if \(!A\.raiz\) \{\n\s*throw new Error\('Falta raiz", texto, re.M)
+    if not falta or (m and falta.start() > m.start()):
+        problemas.append("sin raiz, flujo.js no se detiene antes de usarla")
+    return problemas
+
+
+def _flujo_sin_raiz(ruta):
+    """flujo.js con node, como lo carga orquestar.mjs, con los argumentos del README sin «raiz» y un agente que no se
+    puede llamar: debe detenerse con «Falta raiz». None si no hay node (queda solo la revisión del texto)."""
+    import shutil
+    import subprocess  # nosec B404 (node con un guion fijo)
+    node = shutil.which("node")
+    if not node:
+        return None
+    guion = ("const fs = require('fs');"
+             "const fuente = fs.readFileSync(process.argv[1], 'utf8').replace(/^export const meta\\s*=/m, 'const meta =');"
+             "const AF = Object.getPrototypeOf(async function () {}).constructor;"
+             "const flujo = new AF('args', 'agent', 'parallel', 'phase', 'log', fuente);"
+             "const nunca = () => { throw new Error('LLAMÓ A UN AGENTE'); };"
+             "flujo({peticion: 'p', corrida: '/nada/corrida', fuente: {tipo: 'socrata'}}, nunca, nunca, () => {}, () => {})"
+             ".then(() => console.log('SIGUIÓ'), (e) => console.log('ERROR ' + e.message));")
+    try:
+        p = subprocess.run([node, "-e", guion, str(ruta)], capture_output=True, text=True, timeout=60)  # nosec B603
+    except (OSError, subprocess.TimeoutExpired) as e:
+        return f"node no respondió: {type(e).__name__}"
+    return (p.stdout + p.stderr).strip()
+
+
 def autoprueba():
     """Una spec sellada en otra máquina debe resolver datos Y datos_crudos a la copia de este clon, y un dato que este
     clon no tiene nunca se lee de otra carpeta que sí lo tiene (la copia del dueño en la misma máquina, L123)."""
     import json
+    import re
     import shutil
     import tempfile
     casos = []
@@ -204,6 +244,22 @@ def autoprueba():
         casos.append(("una ruta con la marca fuera de este clon, aunque la repita, queda dentro de este clon",
                       Path(resolver(str(anidado))).is_relative_to(RAIZ)))
         casos += _en_un_clon_sin_el_dato(tmp)
+        # flujo.js sin ruta por omisión (L124), con su control positivo: la línea de antes
+        flujo = (RAIZ / "flujo.js").read_text(encoding="utf-8")
+        problemas = raiz_de_flujo(flujo)
+        casos.append(("flujo.js exige raiz y no trae la ruta del equipo de nadie" + (f": {problemas}" if problemas else ""),
+                      not problemas))
+        antes = flujo.replace("const RAIZ = A.raiz\n",
+                              "const RAIZ = A.raiz || '/Users/" + "dueno/agente-solicitudes'   // en otra máquina: pase raiz\n", 1)
+        antes = re.sub(r"if \(!A\.raiz\) \{\n.*?\n\}\n", "", antes, count=1, flags=re.S)
+        casos.append(("control positivo: con la línea de antes, la revisión del texto la echa de menos",
+                      antes != flujo and len(raiz_de_flujo(antes)) == 3))
+        salida = _flujo_sin_raiz(RAIZ / "flujo.js")
+        if salida is None:
+            print("· node no está: de flujo.js solo se revisó el texto")
+        else:
+            casos.append(("flujo.js con node, sin raiz, se detiene con «Falta raiz» sin llamar a ningún agente",
+                          salida.startswith("ERROR Falta raiz") and "LLAMÓ" not in salida))
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     for nombre, ok in casos:

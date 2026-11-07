@@ -738,6 +738,12 @@
       "leccion": "--id",
       "origen": "verificación de un clon ajeno de la versión final, 7-nov-2026: en un clon de la rama sin los datos ignorados, verificar.py sobre una copia de la corrida completa dejaba en informe.json un resultado_oficial de 53 filas y filas_reales {contratos: 49662}, gobernanza.json nombraba la capa limpia de la carpeta del dueño y, con la ruta sellada de otra máquina, la autoprueba de verificar.py salía con «apunta a … que no existe»",
       "prueba": "herramientas/rutas.py --autoprueba «def _en_un_clon_sin_el_dato» «control positivo: con resolver() de antes, el clon leía el dato de la otra carpeta» «corre sin el dato real: solo lee el caso conocido» «se detiene sin traceback y nombra el archivo que falta en este clon» · herramientas/validar_whitepaper.py --autoprueba «W2 no toma la procedencia de otra carpeta» · herramientas/verificar_hipotesis.py --autoprueba «la prueba dice qué archivo falta y no corre la consulta»"
+    },
+    {
+      "id": "L124",
+      "leccion": "--id",
+      "origen": "verificación de un clon ajeno de la versión final, 7-nov-2026: flujo.js:22 decía const RAIZ = A.raiz || <la ruta del clon del dueño>, y los subagentes recibían esa carpeta como herramientas y python si el participante omitía raiz",
+      "prueba": "herramientas/rutas.py --autoprueba «def raiz_de_flujo» «control positivo: con la línea de antes, la revisión del texto la echa de menos» «sin raiz, se detiene con» · flujo.js «Falta raiz: la ruta de tu clon»"
     }
   ]
 }

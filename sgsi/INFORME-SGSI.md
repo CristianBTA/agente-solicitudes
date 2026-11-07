@@ -257,4 +257,4 @@ prev. = preventivo, det. = detectivo, corr. = correctivo.
 | 2026-11-06-secop-medellin-2025 | publicable: barrido de datos personales limpio; solo agregados, sin columnas de personas | íntegra: huellas del criterio recalculadas al generar este informe y resultado aprobado sin IA | reconstruible: se vuelve a descargar con el contrato de datos (ingesta.py) y se compara con la procedencia |
 | 2026-11-06-ventas-semestre | publicable: barrido de datos personales limpio; solo agregados, sin columnas de personas | íntegra: huellas del criterio recalculadas al generar este informe y resultado aprobado sin IA | reconstruible: datos sintéticos versionados y regenerables desde la semilla (generar_datos.py) |
 
-Rutas locales del equipo del dueño en archivos versionados: 21 línea(s) en 13 archivo(s) (riesgo aceptado R07; la cifra no debe crecer).
+Rutas locales del equipo del dueño en archivos versionados: 20 línea(s) en 12 archivo(s) (riesgo aceptado R07; la cifra no debe crecer).

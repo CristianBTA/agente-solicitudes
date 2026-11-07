@@ -11,7 +11,7 @@ export const meta = {
   ],
 }
 
-// args: { peticion, corrida, glosario?, fuente?: {tipo:"socrata", dominio, conjunto, titulo, licencia, atribucion, unidad},
+// args: { peticion, corrida, raiz, glosario?, fuente?: {tipo:"socrata", dominio, conjunto, titulo, licencia, atribucion, unidad},
 //         datos?: {tabla: ruta CSV local}, python?, herramientas?, rondas? }
 const A = args || {}
 const PETICION = A.peticion
@@ -19,7 +19,11 @@ const C = A.corrida
 if (!PETICION || !C || (!A.fuente && !A.datos)) {
   throw new Error('Faltan args: peticion, corrida y fuente (Socrata) o datos ({tabla: ruta})')
 }
-const RAIZ = A.raiz || '/Users/macbookair/agente-solicitudes'   // en otra máquina: pase raiz con la ruta del clon
+// sin ruta por omisión (L124): la de otro equipo falla tarde, y en el del dueño un clon ajeno usaría sus herramientas
+if (!A.raiz) {
+  throw new Error('Falta raiz: la ruta de tu clon (la carpeta con flujo.js, herramientas/ y .venv/); orquestar.mjs la pone sola')
+}
+const RAIZ = A.raiz
 const H = A.herramientas || `${RAIZ}/herramientas`
 const PY = A.python || `${RAIZ}/.venv/bin/python`
 const GLOSARIO = A.glosario || null

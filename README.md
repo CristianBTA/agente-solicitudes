@@ -74,7 +74,7 @@ python3.13 -m venv .venv && .venv/bin/pip install --require-hashes -r requiremen
 .venv/bin/python herramientas/blindaje.py      # cada ataque al pipeline debe salir en RESISTE (hoy 39 pruebas, con el control B00)
 ```
 
-Las herramientas de `herramientas/` son Python sin IA y se pueden correr solas. La orquestación de agentes (`flujo.js`) se ejecuta como flujo de trabajo de Claude Code (herramienta *Workflow*) con estos argumentos:
+Las herramientas de `herramientas/` son Python sin IA y se pueden correr solas. La orquestación de agentes (`flujo.js`) se ejecuta como flujo de trabajo de Claude Code (herramienta *Workflow*) con estos argumentos; `raiz`, la ruta de tu clon, es obligatoria (sin ella el flujo se detiene antes de llamar a ningún agente):
 
 ```json
 {
@@ -91,7 +91,7 @@ Con archivos locales, `datos` reemplaza a `fuente`: `{"ventas": "<ruta>/ventas.c
 
 ### Con agy o con Codex
 
-`orquestar.mjs` corre el mismo `flujo.js`, sin copiarlo ni reescribirlo. Cada subagente es una llamada no interactiva de la CLI, en un contexto nuevo. Los argumentos van en un archivo JSON, los mismos de arriba; `raiz` es opcional.
+`orquestar.mjs` corre el mismo `flujo.js`, sin copiarlo ni reescribirlo. Cada subagente es una llamada no interactiva de la CLI, en un contexto nuevo. Los argumentos van en un archivo JSON, los mismos de arriba; aquí `raiz` es opcional: `orquestar.mjs` pone la carpeta donde está.
 
 ```bash
 node orquestar.mjs --motor agy   --args corrida.json      # agy -p (Gemini por defecto)
