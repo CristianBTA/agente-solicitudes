@@ -45,6 +45,10 @@ cmp /tmp/datos-prueba/ventas.csv ejemplo/datos/ventas.csv && echo "datos idénti
 # 5d. Probar al probador de la presentación: 4 presentaciones buenas aprueban y 48 mutantes (número a mano, marcadores pegados, NaN, título de tema, recomendación escondida, campos de la forma anterior…) fallan
 .venv/bin/python herramientas/verificar_presentacion.py --autoprueba
 
+# 5e. Probar al probador del whitepaper (35 casos: conclusiones, cifras sin respaldo, texto oculto…) y su versión en tres hojas carta (26 casos, sin Chrome)
+.venv/bin/python herramientas/validar_whitepaper.py --autoprueba
+.venv/bin/python herramientas/whitepaper_corrida.py --autoprueba
+
 # 6. (Opcional, con red) SECOP II: los datos no vienen en el repositorio; se descargan con su contrato y se prueban al cargar
 .venv/bin/python herramientas/ingesta.py ejemplo-secop/contrato_recorte_2024-2026.json --salida ejemplo-secop/datos --repetir
 cp -R corridas/2026-11-06-secop-medellin-2025 "$T"/
@@ -58,7 +62,7 @@ SECOP II se actualiza a diario. Si el recorte de hoy no es idéntico al del 6-no
 
 Si corriste los pasos sobre `corridas/` directamente (como decía una versión anterior de esta guía), `git status` muestra `informe.json`, `informe.md` y `gobernanza.json` modificados, con el tiempo medido y la ruta de tu carpeta; `git restore corridas/` los deja como estaban. Nunca entran en un aporte.
 
-Lo que debe salir: todas las baterías en ✓ (hoy son 10), el blindaje con todas sus pruebas en «RESISTE» (hoy son 22, con el control B00; en Linux no hay sandbox-exec: B01, B11 y B12 salen «NO APLICA» y el banco lo dice, porque ahí el código de la IA tendría red y escritura; por eso el filtro de aportes corre en macOS), la corrida en «aprobado», la referencia `m00` sin fallas y las mutantes `m01` a `m12` con al menos una falla cada una, los datos idénticos, la gobernanza aprobada, el SGSI sin fallas, con sus 21 mutantes atrapados, y `git status` sin ningún archivo. Si algo no sale así, el repositorio no cumple lo que dice.
+Lo que debe salir: todas las baterías en ✓ (hoy son 10), el blindaje con todas sus pruebas en «RESISTE» (hoy son 26, con el control B00; en Linux no hay sandbox-exec: B01, B11, B12 y B24 salen «NO APLICA» y el banco lo dice, porque ahí el código de la IA tendría red y escritura; por eso el filtro de aportes corre en macOS), la corrida en «aprobado», la referencia `m00` sin fallas y las mutantes `m01` a `m12` con al menos una falla cada una, los datos idénticos, la gobernanza aprobada, el SGSI sin fallas, con sus 21 mutantes atrapados, las autopruebas de la presentación y del whitepaper sin fallas ni errores, y `git status` sin ningún archivo. Si algo no sale así, el repositorio no cumple lo que dice.
 
 ---
 
@@ -160,7 +164,7 @@ La IA propone el plan de limpieza (`plan_limpieza_<tabla>.json`) y `herramientas
 
 **D15 · El análisis lo hacen las personas; la IA solo documenta lo desarrollado.**
 Desde el 6-nov-2026 la IA no propone ni prueba hipótesis ni da el análisis. El documentador escribe un whitepaper con la pregunta, los datos y su procedencia, la limpieza, la cifra verificada y cómo se verificó, el gráfico, la gobernanza, los límites y preguntas de costo, calidad e impacto, sin conclusiones. Las personas escriben su hipótesis antes de mirar, la prueban con una consulta (pueden usar `herramientas/verificar_hipotesis.py`, que la sella) y concluyen en la plantilla.
-*Dónde:* `agentes/13-documentador.md`, `whitepaper.md` de cada corrida, `herramientas/validar_whitepaper.py` y `plantillas/analisis_humano.md`; las fichas del proponente y del probador, en `historial/agentes-retirados/`.
+*Dónde:* `agentes/13-documentador.md`, `whitepaper.md` de cada corrida, `herramientas/validar_whitepaper.py` (y `herramientas/whitepaper_corrida.py`, que lo maqueta en tres hojas carta sin cambiar una palabra y sin enlaces en el PDF, L84) y `plantillas/analisis_humano.md`; las fichas del proponente y del probador, en `historial/agentes-retirados/`.
 *Cómo se comprueba:* `validar_whitepaper.py`: secciones obligatorias, cada cifra en los artefactos verificados (con tolerancia de redondeo), sin conclusiones, recomendaciones ni causas, al menos tres preguntas y sin instrucciones ni datos personales; `--autoprueba` con whitepapers buenos y malos. Las frases de conclusión se buscan con una lista: lo que no conoce, lo revisa una persona.
 *Por qué:* el valor del trabajo con datos (reducir un costo, mejorar una calidad, el impacto de un contrato en la sociedad) lo concluyen las personas, no la IA. Y la hipótesis va antes de mirar: mover el umbral después de ver el resultado convierte cualquier dato en confirmación.
 

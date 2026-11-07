@@ -10,7 +10,7 @@ Cada ficha define un subagente: qué hace, qué puede leer y qué no, qué entre
 | 04 | [Revisor de la especificación](04-revisor-de-la-especificacion.md) | 2 · Procesamiento | `herramientas/verificar.py --sellar` |
 | 05 | [Generador (A y B)](05-generador.md) | 2 · Procesamiento | `herramientas/verificar.py` |
 | 06 | [Reparador](06-reparador.md) | 2 · Procesamiento | `herramientas/verificar.py` |
-| 13 | [Documentador](13-documentador.md) | 3 · Análisis (lo hacen las personas; la IA solo documenta) | `herramientas/validar_whitepaper.py` |
+| 13 | [Documentador](13-documentador.md) | 3 · Análisis (lo hacen las personas; la IA solo documenta) | `herramientas/validar_whitepaper.py` (y `whitepaper_corrida.py` lo maqueta en tres hojas carta) |
 | 09 | [Graficador](09-graficador.md) | 4 · Visualización | `herramientas/verificar_grafico.py` |
 | 10 | [Custodio de datos personales](10-custodio-de-datos-personales.md) | 5 · Gobernanza | `herramientas/gobernanza.py` |
 | 11 | [Revisor ciego de seguridad](11-revisor-ciego-de-seguridad.md) | 5 · Gobernanza | `herramientas/baterias.py` |
@@ -44,7 +44,7 @@ Ingesta        lector ──► ingesta.py (5 pruebas de carga, procedencia)
                └─► custodio (en paralelo, solo metadatos)
 Procesamiento  especificador ──► limpiador ──► limpieza.py ──► revisor (sella) ──► generador A ∥ generador B
                ──► verificar.py ──► reparador (hasta 2 rondas)
-Análisis       lo hacen las personas · documentador (después del gráfico) ──► validar_whitepaper.py
+Análisis       lo hacen las personas · documentador (después del gráfico) ──► validar_whitepaper.py ──► whitepaper_corrida.py
 Visualización  graficador ──► verificar_grafico.py
                presentador ──► verificar_presentacion.py      (cuando terminan el gráfico y el whitepaper)
 Gobernanza     revisor ciego de seguridad ──► gobernanza.py ──► baterias.py ──► informe_final.py
