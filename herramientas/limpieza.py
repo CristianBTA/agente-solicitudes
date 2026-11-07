@@ -44,7 +44,8 @@ Umbrales (se justifican sobre el dato real, no sobre el caso conocido):
   - vacios_maximo cuenta celdas vacías en conteos absolutos (también las de un nulo disfrazado que se vació): un
     umbral relativo pensado para 23 filas deja perder miles en 49.662; uno absoluto, no.
   - El detalle de completitud y validez dice la holgura: cuántas filas más puede perder el dato antes de que el
-    umbral bloquee.
+    umbral bloquee. Se comparan con los conteos enteros y el umbral tal como se escribió (0.99 es 99/100), nunca con la
+    proporción redondeada: redondeada a 6 decimales, 2.969.999 de 3.000.000 pasaba 0,99 (L110).
   - Un umbral con nombre desconocido, sobre una columna que no existe o sobre una marca que ninguna operación pone
     detiene la limpieza: nunca se ignora en silencio. También uno que no es de su tipo: completitud y validez, un número
     entre 0 y 1; marcadas_maximo y vacios_maximo, un entero ≥ 0; unicidad, una lista de columnas («"0"» daba un
@@ -76,6 +77,7 @@ import traceback
 import unicodedata
 import uuid
 from datetime import datetime
+from fractions import Fraction
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -159,6 +161,20 @@ def metricas(filas, cols, tipos):
             m["validez"] = round(sum(1 for v in llenos if ok(v)) / (len(llenos) or 1), 6)
         out[c] = m
     return out
+
+
+def cumple(k, n, minimo):
+    """(¿k de n alcanza la proporción mínima?, holgura: cuántos de los k pueden faltar sin que deje de alcanzarla, o None)
+    con los conteos enteros y el umbral tal como se escribió (0.99 es 99/100, no el float más cercano). La proporción
+    redondeada a 6 decimales dejaba pasar 2.969.999 de 3.000.000 contra 0,99 y corría la holgura (L110). Sin filas,
+    como 0 de 1: solo un mínimo de 0 se cumple."""
+    falta = Fraction(repr(minimo)) * (n or 1)
+    return (True, math.floor(k - falta)) if k >= falta else (False, None)
+
+
+def proporcion(k, n):
+    """k / n truncada a 6 decimales, para mostrarla: un umbral que no se cumple nunca se ve como 99,0000 %."""
+    return math.floor(Fraction(k, n or 1) * 10 ** 6) / 10 ** 6
 
 
 def cambio(antes, despues):
@@ -649,16 +665,23 @@ def _ejecutar(plan_ruta, entrada, salida, caso, destino):
     usa_caso = caso and "umbrales_caso" in plan
     u = plan.get("umbrales_caso" if usa_caso else "umbrales") or {}
     n = len(filas)
+    # con los conteos enteros, no con la proporción redondeada de calidad_despues, que es solo para mostrar (L110)
     for c, mn in u.get("completitud_minima", {}).items():
-        v = despues.get(c, {}).get("completitud", 0)
-        holgura = f" · holgura {miles(math.floor((v - mn) * n + 1e-9))} filas" if v >= mn else ""
-        pruebas.append({"prueba": f"completitud de {c} ≥ {mn}", "ok": v >= mn, "detalle": f"{v:.4%}{holgura}"})
-    for c, mn in u.get("validez_minima", {}).items():
-        v = despues.get(c, {}).get("validez")
         llenos = sum(1 for f in filas if f.get(c, "").strip())
-        holgura = f" · holgura {miles(math.floor((v - mn) * llenos + 1e-9))} valores" if v is not None and v >= mn else ""
-        pruebas.append({"prueba": f"validez de {c} ≥ {mn}", "ok": v is not None and v >= mn,
-                        "detalle": "sin tipo declarado" if v is None else f"{v:.4%}{holgura}"})
+        ok, holgura = cumple(llenos, n, mn)
+        pruebas.append({"prueba": f"completitud de {c} ≥ {mn}", "ok": ok,
+                        "detalle": f"{proporcion(llenos, n):.4%}" + (f" · holgura {miles(holgura)} filas" if ok else "")})
+    for c, mn in u.get("validez_minima", {}).items():
+        t = tipos.get(c)
+        if t not in ("fecha", "numero"):
+            pruebas.append({"prueba": f"validez de {c} ≥ {mn}", "ok": False, "detalle": "sin tipo declarado"})
+            continue
+        es_valido = fecha_valida if t == "fecha" else numero_valido
+        llenos = [f.get(c, "") for f in filas if f.get(c, "").strip()]
+        validos = sum(1 for v in llenos if es_valido(v))
+        ok, holgura = cumple(validos, len(llenos), mn)
+        pruebas.append({"prueba": f"validez de {c} ≥ {mn}", "ok": ok,
+                        "detalle": f"{proporcion(validos, len(llenos)):.4%}" + (f" · holgura {miles(holgura)} valores" if ok else "")})
     for c in u.get("unicidad", []):
         vals = [f[c] for f in filas if f.get(c, "").strip()]
         pruebas.append({"prueba": f"{c} única", "ok": len(vals) == len(set(vals)), "detalle": f"{len(vals) - len(set(vals))} repetidas"})
@@ -769,6 +792,24 @@ def autoprueba(mod=None):
     caso_("el umbral relativo de 0,95 deja pasar 80 NIT vacíos en 2.000 filas (la holgura lo muestra)", grande, relativo,
           lambda r, e: aprueba(r, e) and "holgura 20 filas" in r["pruebas"][-1]["detalle"])
     caso_("vacios_maximo (conteo absoluto) rechaza los 80 vacíos del dato grande", grande, absoluto, rechaza("celdas vacías en nit"))
+    # con los conteos enteros (L110): 2 de 3 es 0,666…, que redondeado a 6 decimales (0,666667) pasaba 0,6666667
+    tres = "id,nit,fecha\n1,9,2025-01-01\n2,9,2025-01-02\n3,,2025-02-30\n"
+    caso_("completitud: 2 de 3 llenas no cumple 0,6666667, aunque redondeada a 6 decimales parezca que sí (L110)", tres,
+          {"operaciones": [], "umbrales": {"completitud_minima": {"nit": 0.6666667}}}, rechaza("completitud de nit"))
+    caso_("… y cumple 0,666666, con holgura 0 filas (control)", tres,
+          {"operaciones": [], "umbrales": {"completitud_minima": {"nit": 0.666666}}},
+          lambda r, e: aprueba(r, e) and r["pruebas"][-1]["detalle"].endswith("holgura 0 filas"))
+    caso_("validez: 2 de 3 fechas válidas no cumple 0,6666667 (L110)", tres,
+          {"operaciones": [{"op": "fecha", "columna": "fecha"}], "umbrales": {"validez_minima": {"fecha": 0.6666667}}},
+          rechaza("validez de fecha"))
+    try:
+        ok_grande, e_grande = (mod.cumple(2969999, 3000000, 0.99) == (False, None)
+                               and mod.cumple(2970000, 3000000, 0.99) == (True, 0)
+                               and mod.cumple(2970100, 3000000, 0.99) == (True, 100)), None
+    except Exception as x:  # noqa: BLE001 (la versión anterior no tiene cumple)
+        ok_grande, e_grande = False, x
+    resultados.append(("con 3.000.000 de filas, 2.969.999 llenas no cumplen 0,99 y 2.970.100 dejan una holgura de 100 (L110)",
+                       ok_grande, f"{type(e_grande).__name__}: {e_grande}" if e_grande else "cumple() no da lo esperado"))
     caso_("… y el mismo plan aprueba el caso chico con 1 vacío", chico, absoluto, aprueba)
     separados = {"operaciones": [], "llave": "id",
                  "umbrales": {"completitud_minima": {"nit": 0.999}, "unicidad": ["id"]},
