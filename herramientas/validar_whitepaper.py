@@ -19,12 +19,14 @@ analicen, pero no da el análisis. El whitepaper pasa si:
      puede comprobar y no pasa. La sección de la cifra verificada cita al menos un total del resultado aprobado;
   W3 no trae conclusiones, recomendaciones, causas ni juicios («se concluye», «demuestra que», «esto muestra que»,
      «se recomienda», «recomendación», «debería», «próximo paso», «por eso», «se ahorra», «la causa es», «se debe
-     a»…), ni títulos de conclusiones, hallazgos o análisis. Es la lista D15 (ANALISIS), la misma que importan la
+     a», «preocupante», «alarmante», «excesivo»…), ni títulos de conclusiones, hallazgos o análisis. Es la lista D15 (ANALISIS), la misma que importan la
      presentación, el gráfico, las fichas del agente masivo y el resumen de su whitepaper. Se busca en el texto tal
      cual y en como lo lee una persona (buscar_d15): el énfasis de Markdown («Esto *demuestra* que», «se
      **recomienda**»), las letras de ancho completo y las de otro alfabeto que se leen como latinas (la «o»
      cirílica) no esconden una frase (L117). Es una lista: una frase de análisis con otras palabras pasa, y la revisa
-     una persona;
+     una persona. Cada frase que una ficha o el encargo de las fichas nombran como prohibida está en la lista (la
+     autoprueba las lee, L118); «grave» e «inflado» no se buscan, porque también nombran un dato o el método («faltas
+     graves», «contarlas dos veces habría inflado el total»);
   W4 la sección de preguntas trae al menos 3, cada una con «¿» y «?», y al menos una de costo, una de calidad y
      una de impacto (rótulo al inicio de cada pregunta);
   W5 no trae instrucciones para agentes, datos personales (los patrones de gobernanza.py) ni texto oculto
@@ -126,10 +128,11 @@ _CAUSA = (   # causas que se le atribuyen a lo medido
     r"caus[oó]\b", r"provoc[oó]\b", r"se\s+explica(?:n|r[ií]a|r[ií]an)?\s+(?:por|con|en)\b",
     r"(?:esto|eso|ello|lo\s+que|lo\s+cual)\s+explica\w*",
 )
-_JUICIO = (   # efectos y juicios de valor
+_JUICIO = (   # efectos y juicios de valor («grave» e «inflado» no: también nombran un dato o el método, L118)
     r"se\s+ahorr\w*", r"ahorrar[ií]a\w*", r"reduce\s+en", r"reducir[ií]a\w*", r"mejora\s+en", r"mejorar[ií]a\w*",
     r"significativamente", r"tiene(?:n)?\s+(?:un\s+|una\s+)?(?:gran\s+|alto\s+|bajo\s+|fuerte\s+)?impacto",
     r"impacta(?:n|r[aá])?\b", r"sobrecosto\w*", r"despilfarr\w*", r"ineficien\w*", r"irregular\w*", r"corrupci[oó]n",
+    r"preocupante\w*", r"alarmante\w*", r"excesiv[oa]s?\b", r"desproporcionad[oa]s?\b",   # L118
 )
 _ACCION = (   # recomendaciones, decisiones y consecuencias
     r"se\s+recomienda\w*", r"recomend(?:amos|ar[ií]amos|ar[ií]a)\b", r"recomiendo", r"recomendaci[oó]n(?:es)?\b",
@@ -179,6 +182,10 @@ FRASES_D15 = (
     "Hay ventas irregulares en el Sur.",
     "Con menos devoluciones se ahorra dinero.",
     "El Sur tiene sobrecostos en el transporte.",
+    "La concentración de las ventas en el Norte es preocupante.",
+    "Es alarmante que el Sur venda tan poco.",
+    "El gasto del Sur en transporte es excesivo.",
+    "La venta del Norte es desproporcionada frente a la del Sur.",
     # disfrazadas (L117): el énfasis de Markdown, las letras de ancho completo y una letra de otro alfabeto (la «o»
     # cirílica, escrita como \u: este archivo no la trae) no esconden la frase
     "Esto *demuestra* que el Norte vende mejor.",
@@ -189,6 +196,12 @@ FRASES_D15 = (
     "Se c\u043encluye que el Centro concentra las ventas.",
 )
 TITULO_DE_ANALISIS = re.compile(r"(conclusion|recomendacion|hallazgo|analisis\b)")
+# Las listas de ejemplos prohibidos que las fichas le dan a la IA: tras «Conclusiones, recomendaciones, causas…:»,
+# dentro de «causas (…)» o «juicios (…)», y tras «juzgan (V6…): ni». Cada ejemplo tiene que estar en la lista (L118).
+LISTA_DE_UNA_FICHA = re.compile(r"(?:[Cc]onclusiones, recomendaciones,? causas[^:\n]{0,200}: ?|(?:causas|juicios) \(|"
+                                r"juzgan \(V6[^)\n]{0,80}\): ni )(?=«)")
+EJEMPLO_DE_UNA_FICHA = re.compile(r"«([^»\n]{1,80})»")
+ENTRE_EJEMPLOS = re.compile(r", | ni | y ")
 MARCAS_MARKDOWN = re.compile(r"\]\([^()\s]{0,2000}\)|[*_`~\\\[\]]")   # el destino de un enlace y las marcas que no se leen
 
 
@@ -199,6 +212,25 @@ def para_d15(texto):
     maquetado: el énfasis («Esto *demuestra* que», «se **recomienda**», «por lo _tanto_»), el código, el tachado, los
     escapes y los corchetes y el destino de un enlace («[demuestra](x) que») (L117)."""
     return " ".join(MARCAS_MARKDOWN.sub("", latinizar(forma_canonica(texto))).split())
+
+
+def ejemplos_de_las_fichas(raiz=None):
+    """[(archivo, ejemplo)] de cada frase que una ficha de agentes/ o una plantilla de plantillas/ le nombra a la IA
+    como prohibida (conclusiones, recomendaciones, causas y juicios). La autoprueba exige que cada una esté en la lista
+    D15: «preocupante» lo prohibía la ficha 12 y ninguna lista lo buscaba (L118)."""
+    raiz = Path(raiz or AQUI.parent)
+    out = []
+    for p in sorted(raiz.glob("agentes/*.md")) + sorted(raiz.glob("plantillas/*.md")):
+        texto = p.read_text(encoding="utf-8")
+        for m in LISTA_DE_UNA_FICHA.finditer(texto):
+            pos = m.end()
+            while (e := EJEMPLO_DE_UNA_FICHA.match(texto, pos)):   # los ejemplos seguidos, separados por «, », « ni » o « y »
+                out.append((str(p.relative_to(raiz)), e.group(1)))
+                s = ENTRE_EJEMPLOS.match(texto, e.end())
+                if not s:
+                    break
+                pos = s.end()
+    return out
 
 
 def buscar_d15(texto, lista=None):
@@ -774,6 +806,17 @@ Queda 1 pregunta abierta (P1): la cifra usa su valor por defecto.
     errores += bool(no_atrapados or not maliciosos)
     print(f"  {'✓' if maliciosos and not no_atrapados else '✗'} textos-instrucción de baterias/inyeccion: W5 atrapa "
           f"{len(maliciosos) - no_atrapados} de {len(maliciosos)}")
+    # cada frase que las fichas le nombran a la IA como prohibida está en la lista (L118); control positivo: se leen
+    # las listas de las fichas 09, 12 y 13 y del encargo de las fichas (si la lectura se rompe, no se lee ninguna)
+    ejemplos = ejemplos_de_las_fichas()
+    fuera = [f"{a}: «{e}»" for a, e in ejemplos if not buscar_d15(e)]
+    leidas = {a for a, _ in ejemplos}
+    faltan_fichas = sorted({"agentes/09-graficador.md", "agentes/12-presentador.md", "agentes/13-documentador.md",
+                            "plantillas/encargo_fichas.md"} - leidas)
+    errores += bool(fuera or faltan_fichas)
+    print(f"  {'✓' if not fuera and not faltan_fichas else '✗'} las {len(ejemplos)} frases prohibidas que nombran "
+          f"{len(leidas)} fichas están en la lista D15" + (f" · fuera de la lista: {', '.join(fuera[:6])}" if fuera else "")
+          + (f" · no se leyó la lista de: {', '.join(faltan_fichas)}" if faltan_fichas else ""))
     # textos hechos para trabar las expresiones regulares: todos terminan rápido (nunca cuelgan el pipeline), y los
     # que traen algo que las reglas rechazan, fallan
     hostiles = [("cifras pegadas", "1." * 2_000, True),
@@ -793,7 +836,7 @@ Queda 1 pregunta abierta (P1): la cifra usa su valor por defecto.
     errores += bool(malos)
     print(f"  {'✓' if not malos else '✗'} textos hostiles: los {len(hostiles)} terminan en menos de 10 s"
           + (f" · no: {', '.join(malos)}" if malos else ""))
-    print("RESUMEN " + json.dumps({"autoprueba": len(casos) + 2, "errores": errores}))
+    print("RESUMEN " + json.dumps({"autoprueba": len(casos) + 3, "errores": errores}))
     return 1 if errores else 0
 
 
