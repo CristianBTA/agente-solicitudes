@@ -26,7 +26,10 @@ El contrato de datos (el «lector» que escribe la IA y revisa una persona) decl
 
 Pruebas de cada carga (R15 del curso): conteo contra la fuente, llave única, llave sin nulos,
 rangos y dominios; además, tipos declarados como FAILFAST (R11), columnas que existen en la fuente
-(«el esquema desmiente la columna inventada») y minimización de datos personales.
+(«el esquema desmiente la columna inventada») y minimización de datos personales. El tipo se mira en el texto completo,
+tal como viene, solo con cifras ASCII: un entero son cifras con signo; un decimal, además, con punto y exponente, y
+finito; una fecha, aaaa-mm-dd o dd/mm/aaaa que exista, con hora opcional (hh:mm, segundos, fracción y zona) y nada más.
+NaN, inf, 1_000, « 5 » o «2024-03-01xyz» no tienen su tipo, aunque float() o un recorte los acepten.
 La escritura es atómica y repetible (R12): con la fuente igual, correr dos veces deja el mismo archivo. El CSV se
 escribe solo si la carga se aprueba; un rechazo deja procedencia_<tabla>.json en «rechazada» y retira, avisando, el
 CSV de una carga anterior. Un contrato roto (JSON inválido, tipo desconocido, llave mal escrita, dominios, rangos o
@@ -102,6 +105,13 @@ AGENTE = {"User-Agent": "agente-solicitudes (analisis de datos abiertos)"}
 TIPOS = ("texto", "entero", "decimal", "fecha")
 TABLA = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_-]{0,63}")
 FECHA_LIMITE = re.compile(r"\d{4}-\d{2}-\d{2}")     # los límites de una fecha en rangos y avisos
+# los tipos declarados (FAILFAST, R11), sobre el texto completo y solo con cifras ASCII: float() e int() aceptan NaN,
+# inf, 1_000, espacios y cifras de otros alfabetos, y la fecha se recortaba a 10 caracteres («2024-03-01xyz»)
+ENTERO = re.compile(r"[-+]?[0-9]+")
+DECIMAL = re.compile(r"[-+]?(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)(?:[eE][-+]?[0-9]+)?")
+FECHA = re.compile(r"(?P<dia>[0-9]{4}-[0-9]{2}-[0-9]{2}|[0-9]{2}/[0-9]{2}/[0-9]{4})"
+                   r"(?:[T ](?:[01][0-9]|2[0-3]):[0-5][0-9](?::[0-5][0-9](?:\.[0-9]{1,9})?)?"
+                   r"(?:Z|[+-](?:[01][0-9]|2[0-3])(?::?[0-5][0-9])?)?)?")
 # consultas agregadas: una columna, date_trunc de una fecha o una función de agregación sobre una columna
 _ID = r"[a-z_][a-z0-9_]*"
 _EXPR = re.compile(
@@ -658,19 +668,20 @@ def revisar_contrato(contrato):
 
 
 def convertir(tipo, v):
+    """El valor con su tipo declarado o ValueError (FAILFAST, R11), mirando el texto completo, tal como viene: nada se
+    recorta. Un entero son cifras con signo opcional; un decimal, además, con punto y exponente, y finito (NaN, inf,
+    1e999, 1_000 y « 5 » no lo son, aunque float() los acepte); una fecha, aaaa-mm-dd o dd/mm/aaaa que exista en el
+    calendario, con hora opcional (hh:mm, segundos y fracción, y zona) y nada más después."""
     if tipo == "texto":
         return v
-    if tipo == "entero":
+    if tipo == "entero" and ENTERO.fullmatch(v):
         return int(v)
-    if tipo == "decimal":
+    if tipo == "decimal" and DECIMAL.fullmatch(v) and math.isfinite(float(v)):
         return float(v)
-    if tipo == "fecha":
-        return date.fromisoformat(v[:10]) if "-" in v[:10] else datetime.strptime(v[:10], "%d/%m/%Y").date()
-    raise ValueError(f"tipo desconocido: {tipo}")
-
-
-def comparable(tipo, v):
-    return v if tipo == "fecha" else float(v)
+    if tipo == "fecha" and (m := FECHA.fullmatch(v)):
+        dia = m.group("dia")
+        return date.fromisoformat(dia) if "-" in dia else datetime.strptime(dia, "%d/%m/%Y").date()
+    raise ValueError(f"no tiene la forma de su tipo ({tipo})")
 
 
 def limite(tipo, x):
@@ -720,20 +731,20 @@ def probar(contrato, columnas, llaves, filas, leido, consulta=None, descripcione
                 nulos[col] = nulos.get(col, 0) + 1
                 continue
             try:
-                x = convertir(tipo, v)
-            except (ValueError, TypeError):
+                x = convertir(tipo, f[j])      # el valor tal como viene: « 500» no es un decimal (nada se recorta)
+            except (ValueError, TypeError, OverflowError):
                 e = fallas_tipo.setdefault(col, {"cuantos": 0, "ejemplos": []})
                 e["cuantos"] += 1
                 if len(e["ejemplos"]) < 3:
-                    e["ejemplos"].append(enmascarar(v) if privada else v[:40])
+                    e["ejemplos"].append(enmascarar(f[j]) if privada else f[j][:40])
                 continue
             if dom and v not in dom:
                 fuera_dominio.setdefault(col, set()).add(enmascarar(v) if privada else v[:40])
             for lim, destino in ((rango, fuera_rango), (aviso, conteo_avisos)):
                 if lim:
                     lo, hi = limite(tipo, lim[0]), limite(tipo, lim[1])
-                    c = comparable(tipo, x)
-                    if (lo is not None and c < lo) or (hi is not None and c > hi):
+                    no_finito = isinstance(x, float) and not math.isfinite(x)   # NaN no es menor ni mayor que nada
+                    if no_finito or (lo is not None and x < lo) or (hi is not None and x > hi):
                         destino[col] = destino.get(col, 0) + 1
     pruebas.append({"prueba": "tipos declarados (FAILFAST)", "ok": not fallas_tipo,
                     "detalle": "todos los valores tienen su tipo" if not fallas_tipo else json.dumps(fallas_tipo, ensure_ascii=False)})
@@ -1250,6 +1261,34 @@ def autoprueba(mod=None):
     ruta = archivo("declarado.csv", "id,valor\n1,10\n2,20\n")
     correr("el conteo que declara el contrato (5) no coincide con el archivo (2)",
            local_(ruta, {"id": "texto", "valor": "entero"}, "id", fuente={"conteo": 5}), "rechazada", falla("conteo contra la fuente"))
+    # tipos declarados (FAILFAST, R11): sobre el texto completo, sin recortar; float() e int() aceptan de más
+    tipos_malos = {
+        "NaN en un decimal": ("decimal", "NaN"),
+        "inf en un decimal": ("decimal", "inf"),
+        "1e999 en un decimal (no es finito)": ("decimal", "1e999"),
+        "1_000 en un decimal": ("decimal", "1_000"),
+        "1_000 en un entero": ("entero", "1_000"),
+        "un decimal con espacios alrededor": ("decimal", " 5e2 "),
+        "un entero con un espacio al final": ("entero", "7 "),
+        "un entero con cifras de otro alfabeto": ("entero", "\u0663"),
+        "una fecha con basura al final (2024-03-01xyz)": ("fecha", "2024-03-01xyz"),
+        "una fecha dd/mm/aaaa con basura al final": ("fecha", "15/04/2024 basura"),
+        "una fecha con una hora imposible (25:00)": ("fecha", "2024-03-01T25:00"),
+        "una fecha que no existe (2024-02-30)": ("fecha", "2024-02-30"),
+    }
+    for nombre, (tipo, valor) in tipos_malos.items():
+        ruta = archivo(f"tipo{len(resultados):02d}.csv", f"id,x\n1,{valor}\n2,{'5' if tipo != 'fecha' else '2024-01-15'}\n")
+        correr(f"tipos FAILFAST: {nombre} rechaza la carga", local_(ruta, {"id": "texto", "x": tipo}, "id"), "rechazada",
+               lambda r, *_: r.get("fallas") == ["tipos declarados (FAILFAST)"])
+    ruta = archivo("nan_rango.csv", "id,valor\n1,100\n2,NaN\n")
+    correr("tipos FAILFAST: NaN con un rango declarado no pasa por dentro del rango",
+           local_(ruta, {"id": "texto", "valor": "decimal"}, "id", rangos={"valor": [0, 1000]}), "rechazada",
+           falla("tipos declarados (FAILFAST)"))
+    ruta = archivo("tipos_bien.csv", "id,n,x,f\n1,-7,12.5,2024-01-15\n2,+3,-0.25,2025-10-14T09:55:12.146\n"
+                                     "3,007,.5,2024-01-15 10:30\n4,0,1.5e3,15/04/2024\n5,42,2E-4,2024-01-15T10:00:00Z\n"
+                                     "6,1628100,100,2024-01-15T10:00:00.000-05:00\n")
+    correr("control: enteros, decimales (punto, exponente) y fechas (aaaa-mm-dd, dd/mm/aaaa, con hora y zona) bien formados "
+           "se cargan", local_(ruta, {"id": "texto", "n": "entero", "x": "decimal", "f": "fecha"}, "id"), "aprobada")
     # controles positivos: los CSV bien formados se leen completos
     for ruta in sorted((AQUI.parent / "ejemplo" / "datos").glob("*.csv")):
         cab = cabecera(ruta)

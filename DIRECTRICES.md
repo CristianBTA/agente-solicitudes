@@ -95,7 +95,7 @@ Un rango de magnitud, escrito antes de tener la cifra.
 ## B · Ingesta
 
 **D5 · Contrato de datos: columnas mínimas, tipos declarados, llave, dominios y rangos.**
-Los identificadores van como texto. Lo que no cumple el tipo rechaza la carga (FAILFAST). La llave es una columna o una lista de columnas (llave compuesta, como estación y fecha): la combinación no se repite y ninguna de sus partes viene vacía.
+Los identificadores van como texto. Lo que no cumple el tipo rechaza la carga (FAILFAST), mirado en el texto completo, tal como viene: NaN, inf, 1_000, « 5 » o una fecha con algo después no tienen su tipo, aunque `float()` o un recorte los acepten (L104). La llave es una columna o una lista de columnas (llave compuesta, como estación y fecha): la combinación no se repite y ninguna de sus partes viene vacía.
 Un CSV local se lee desde los bytes con el lector estricto común de las reglas, la limpieza y el perfil, y nada se rellena ni se recorta: un archivo que no está en UTF-8, con caracteres nulos o solo con el encabezado, otro separador, columnas repetidas, una comilla sin cerrar, una línea vacía, una fila con más o menos campos, una fórmula de Excel como texto o montos con punto de miles rechazan la carga con su número de línea (L70, L78).
 Para conjuntos de nivel 3 que no caben en memoria, el contrato pide la consulta agregada que calcula el servidor (`agregado`): con `count(*)`, sin `having`, `order` ni `limit`, y con `k_minimo` si se declara: ningún grupo con menos de k filas (L79).
 *Dónde:* `contrato_<tabla>.json` (lo escribe la IA con su ficha, [`agentes/01-lector.md`](agentes/01-lector.md)) y `herramientas/ingesta.py` (lo ejecuta).

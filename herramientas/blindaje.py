@@ -1120,6 +1120,16 @@ LECTORES_LAXOS = {
     "perfil: fila corta rellenada y larga recortada": (
         "herramientas/perfilar.py", '    cab, filas, _ = leer_tabla(texto, f"de {ruta.name}", ver=ver_valor)\n',
         _lector_laxo("    ", "cab", "filas", "_")),
+    # los tipos de antes de L104: float() e int() aceptan NaN, inf, 1_000 y espacios, y la fecha se recortaba a 10 caracteres
+    "ingesta: tipos con float(), int() y la fecha recortada (NaN, 1_000, «2024-03-01xyz» pasan)": (
+        "herramientas/ingesta.py",
+        '    if tipo == "entero" and ENTERO.fullmatch(v):\n        return int(v)\n'
+        '    if tipo == "decimal" and DECIMAL.fullmatch(v) and math.isfinite(float(v)):\n        return float(v)\n'
+        '    if tipo == "fecha" and (m := FECHA.fullmatch(v)):\n        dia = m.group("dia")\n'
+        '        return date.fromisoformat(dia) if "-" in dia else datetime.strptime(dia, "%d/%m/%Y").date()\n',
+        '    if tipo == "entero":\n        return int(v)\n    if tipo == "decimal":\n        return float(v)\n'
+        '    if tipo == "fecha":\n'
+        '        return date.fromisoformat(v[:10]) if "-" in v[:10] else datetime.strptime(v[:10], "%d/%m/%Y").date()\n'),
 }
 CORRER_FAILFAST = ("import json, sys\nsys.path.insert(0, sys.argv[1])\nimport baterias\n"
                    "r = baterias.correr_bateria(baterias.bateria_failfast)\n"
@@ -1158,7 +1168,7 @@ def _failfast_con(lector):
         shutil.rmtree(d, ignore_errors=True)
 
 
-@prueba("B33", "baterías → filtro", "un lector de la ingesta, de la limpieza o del perfil se afloja (otra codificación sin avisar, la fila corta rellenada, la larga recortada): ¿cae la batería FAILFAST y con ella el filtro de aportes?")
+@prueba("B33", "baterías → filtro", "un lector de la ingesta, de la limpieza o del perfil se afloja (otra codificación sin avisar, la fila corta rellenada, la larga recortada, los tipos con float() y la fecha recortada): ¿cae la batería FAILFAST y con ella el filtro de aportes?")
 def b33():
     import concurrent.futures
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(LECTORES_LAXOS) + 1) as ex:
