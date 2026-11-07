@@ -11,22 +11,29 @@ analicen, pero no da el análisis. El whitepaper pasa si:
      Cifra verificada y cómo se verificó · Gráfico · Gobernanza · Límites · Preguntas para el análisis de las personas;
   W2 cada cifra del texto está en los artefactos verificados de la corrida (informe.json, procedencia*.json,
      limpieza_*.json, gobernanza.json y grafico_verificacion.json, y solo si están aprobados), con tolerancia de
-     redondeo. Cuentan los números de esos archivos, las cifras de los textos que escriben las herramientas
-     (detalle, mensaje, cita, avisos…; no la prosa de la IA, como la razón del anticipo), el número de elementos de
-     cada lista y el total de cada columna del resultado aprobado. Se permiten años, fechas, referencias legales y
-     técnicas (Ley 1581 de 2012, SHA-256, CC BY-SA 4.0) e identificadores (R1, P3, D15). Las cifras van en formato
-     colombiano (punto para miles, coma para decimales). Una magnitud con palabras («la mitad», «la mayoría») no se
-     puede comprobar y no pasa. La sección de la cifra verificada cita al menos un total del resultado aprobado;
+     redondeo. Cuentan los números de esos archivos, las cifras de los textos que escriben las herramientas (detalle,
+     mensaje, cita, avisos…; no la prosa de la IA, como la razón del anticipo), el número de elementos de cada lista
+     y el total de cada columna del resultado aprobado. Se permiten años, fechas, referencias legales y técnicas (Ley
+     1581 de 2012, SHA-256, CC BY-SA 4.0) e identificadores (R1, P3, D15, el conjunto 3k7f-xp2m). Las cifras van con
+     dígitos en formato colombiano (punto para miles, coma para decimales): no pasan agrupadas con espacios
+     («12 000 000», también con el espacio de no separación), pegadas a letras («30k», «2,5M»), con caracteres
+     numéricos que no son los dígitos del 0 al 9 («10⁶») ni escritas con palabras («treinta billones», «noventa y
+     siete por ciento»; los cardinales sueltos hasta quince, como «dos implementaciones», y las unidades solas, como
+     «en millones de pesos», cuentan el método y pasan). El destino de un enlace se imprime al lado del texto: sus
+     números son cifras, salvo los del nombre de un archivo que existe junto al whitepaper o en el repositorio
+     (L119); los de una dirección web no se comprueban (límite: la revisa una persona). Una magnitud con palabras
+     («la mitad», «la mayoría») no se puede comprobar y no pasa. La sección de la cifra verificada cita al menos un
+     total del resultado aprobado;
   W3 no trae conclusiones, recomendaciones, causas ni juicios («se concluye», «demuestra que», «esto muestra que»,
-     «se recomienda», «recomendación», «debería», «próximo paso», «por eso», «se ahorra», «la causa es», «se debe
-     a», «preocupante», «alarmante», «excesivo»…), ni títulos de conclusiones, hallazgos o análisis. Es la lista D15 (ANALISIS), la misma que importan la
-     presentación, el gráfico, las fichas del agente masivo y el resumen de su whitepaper. Se busca en el texto tal
-     cual y en como lo lee una persona (buscar_d15): el énfasis de Markdown («Esto *demuestra* que», «se
-     **recomienda**»), las letras de ancho completo y las de otro alfabeto que se leen como latinas (la «o»
-     cirílica) no esconden una frase (L117). Es una lista: una frase de análisis con otras palabras pasa, y la revisa
-     una persona. Cada frase que una ficha o el encargo de las fichas nombran como prohibida está en la lista (la
-     autoprueba las lee, L118); «grave» e «inflado» no se buscan, porque también nombran un dato o el método («faltas
-     graves», «contarlas dos veces habría inflado el total»);
+     «se recomienda», «recomendación», «debería», «próximo paso», «por eso», «se ahorra», «la causa es», «se debe a»,
+     «preocupante», «alarmante», «excesivo»…), ni títulos de conclusiones, hallazgos o análisis. Es la lista D15
+     (ANALISIS), la misma que importan la presentación, el gráfico, las fichas del agente masivo y el resumen de su
+     whitepaper. Se busca en el texto tal cual y en como lo lee una persona (buscar_d15): el énfasis de Markdown
+     («Esto *demuestra* que», «se **recomienda**»), las letras de ancho completo y las de otro alfabeto que se leen
+     como latinas (la «o» cirílica) no esconden una frase (L117). Es una lista: una frase de análisis con otras
+     palabras pasa, y la revisa una persona. Cada frase que una ficha o el encargo de las fichas nombran como
+     prohibida está en la lista (la autoprueba las lee, L118); «grave» e «inflado» no se buscan, porque también
+     nombran un dato o el método («faltas graves», «contarlas dos veces habría inflado el total»);
   W4 la sección de preguntas trae al menos 3, cada una con «¿» y «?», y al menos una de costo, una de calidad y
      una de impacto (rótulo al inicio de cada pregunta);
   W5 no trae instrucciones para agentes, datos personales (los patrones de gobernanza.py) ni texto oculto
@@ -87,8 +94,8 @@ CIFRA_DE_HERRAMIENTA = re.compile(r"\d+(?:[.,]\d+)*(?:[eE][+-]?\d+)?")
 MES = (r"(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre|"
        r"ene|feb|mar|abr|may|jun|jul|ago|sept|sep|set|oct|nov|dic)")
 PERMITIDOS = [  # se quitan antes de buscar cifras (se cambian por espacios: las posiciones no se mueven)
-    re.compile(r"\]\([^)\s]*\)"),                                                       # destino de un enlace
     re.compile(r"https?://\S+"),
+    re.compile(r"(?<![\w-])(?=[0-9a-z]{0,3}[a-z]|[0-9a-z]{4}-[0-9a-z]{0,3}[a-z])[0-9a-z]{4}-[0-9a-z]{4}(?![\w-])"),  # conjunto 3k7f-xp2m
     re.compile(r"\b\d{4}-\d{1,2}-\d{1,2}(?:[T ]\d{1,2}:\d{2}(?::\d{2}(?:\.\d+)?)?)?\b"),   # 2026-11-06, con hora
     re.compile(r"\b\d{1,2}[-/]\d{1,2}[-/]\d{2,4}\b"),                                    # 06-11-2026
     re.compile(rf"\b\d{{1,2}}(?:\s+de\s+|\s*[-/]\s*|\s+){MES}\b\.?(?:(?:\s+de\s+|\s*[-/]\s*|\s+)\d{{4}}\b)?", re.I),
@@ -105,6 +112,25 @@ PERMITIDOS = [  # se quitan antes de buscar cifras (se cambian por espacios: las
     re.compile(r"\b(?=[0-9a-f]*[a-f])(?=[0-9a-f]*\d)[0-9a-f]{7,}\b"),                     # huellas en hexadecimal
     re.compile(r"(?<![\w.,])(?:19|20)\d{2}(?![\w]|[.,]\d)"),                              # años
 ]
+# Un enlace: el maquetado imprime su destino al lado del texto, así que sus números son cifras, salvo los del nombre de un
+# archivo que existe (L119). Las mismas clases que whitepaper_corrida.INLINE.
+ENLACE = re.compile(r"\]\(([^()\s]{0,2000})\)")
+# 12 000 000 o 12\u00a0000: grupos de tres cifras separados por espacios (también el de no separación, el fino o el de
+# cifras), que TOKEN partía en 12, 000 y 000 y el pozo respaldaba uno por uno (L119)
+AGRUPADA = re.compile(r"(?<![\w.,])\d{1,3}(?:[.,]\d{3})*(?:[ \t\u00a0\u2007-\u200a\u202f\u205f\u3000]\d{3})+(?:[.,]\d+)?(?!\w)")
+# 30k, 2,5M, 2do: una cifra pegada a letras no la ve TOKEN (no es un identificador como R1: empieza con la cifra)
+PEGADA = re.compile(r"(?<![\w.,])\d[\d.,]{0,40}[^\W\d_]\w{0,40}")
+# Una cifra con palabras («treinta billones», «noventa y siete por ciento», «dos millones»): las cifras van con dígitos.
+# Los cardinales sueltos hasta quince («dos implementaciones», «una sola vez») cuentan cosas del método y pasan, como
+# las magnitudes solas de una unidad («en millones de pesos», L119).
+CARDINAL = re.compile(r"(?:un[oa]?|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|trece|catorce|quince)", re.I)
+PALABRA_NUMERO = re.compile(
+    r"(?:un[oa]?|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|trece|catorce|quince|dieci(?:s[eé]is|siete|"
+    r"ocho|nueve)|veinte|veinti(?:[uú]n[oa]?|d[oó]s|tr[eé]s|cuatro|cinco|s[eé]is|siete|ocho|nueve)|treinta|cuarenta|"
+    r"cincuenta|sesenta|setenta|ochenta|noventa|cien|ciento|(?:dos|tres|cuatro|seis|sete|ocho|nove)cient[oa]s|"
+    r"quinient[oa]s|mil|mill[oó]n|millones|bill[oó]n|billones)", re.I)
+UNIDAD_SOLA = re.compile(r"(?:millones|billones)", re.I)
+ENTRE_PALABRAS = re.compile(r"\s+(?:y\s+)?", re.I)
 MAGNITUD_EN_PALABRAS = re.compile(
     r"\b(la\s+mitad|un\s+tercio|dos\s+tercios|un\s+cuarto|tres\s+cuartos|el\s+doble|el\s+triple|la\s+(?:gran\s+)?mayor[ií]a|"
     r"la\s+minor[ií]a|casi\s+tod[oa]s?|decenas\s+de|cientos\s+de|miles\s+de(?!\s+millones))\b", re.I)
@@ -410,19 +436,64 @@ def respaldada(x, tol, P):
     return i < len(P) and P[i] <= x + tol
 
 
-def sin_permitidos(texto):
-    t = re.sub(r"(?m)^([ \t]*#{1,6}[ \t]+)(\d{1,2}[ \t]*[.)·:-][ \t]*)", lambda m: m.group(1) + " " * len(m.group(2)), texto)
+def destino_es_archivo(ruta, carpeta):
+    """El destino de un enlace es un archivo que existe junto al whitepaper, dentro de su carpeta o del repositorio
+    («../../agentes/13-documentador.md»): el número de su nombre no es una cifra. Sin carpeta (la autoprueba), ninguno."""
+    if carpeta is None or not ruta or ruta.startswith(("/", "~", "\\")) or ":" in ruta:
+        return False
+    try:
+        base = Path(carpeta).resolve()
+        real = (base / ruta).resolve()
+        return real.is_file() and (real.is_relative_to(base) or real.is_relative_to(AQUI.parent.resolve()))
+    except (OSError, ValueError):
+        return False
+
+
+def sin_destinos(texto, carpeta=None):
+    """Quita el destino de cada enlace que no es una cifra: una dirección web (sus números no se comprueban: límite) o
+    un archivo que existe (el ancla «#…» queda). Cualquier otro destino se imprime al lado del texto y sus números se
+    buscan como los de la prosa: «[la tabla](total-real-30.000.000.000.000-pesos)» ya no esconde una cifra (L119)."""
+    def cambiar(m):
+        dest = m.group(1)
+        if re.match(r"https?://", dest, re.I):
+            return " " * len(m.group(0))
+        ruta, _, ancla = dest.partition("#")
+        if destino_es_archivo(ruta, carpeta):
+            return " " * (2 + len(ruta) + (1 if _ else 0)) + ancla + " "
+        return "  " + dest + " "
+    return ENLACE.sub(cambiar, texto)
+
+
+def sin_permitidos(texto, carpeta=None):
+    t = sin_destinos(texto, carpeta)
+    t = re.sub(r"(?m)^([ \t]*#{1,6}[ \t]+)(\d{1,2}[ \t]*[.)·:-][ \t]*)", lambda m: m.group(1) + " " * len(m.group(2)), t)
     t = re.sub(r"(?m)^([ \t]*)(\d{1,2}[.)][ \t]+)", lambda m: m.group(1) + " " * len(m.group(2)), t)   # listas numeradas
     for rx in PERMITIDOS:
         t = rx.sub(lambda m: " " * len(m.group(0)), t)
     return t
 
 
-def cifras_del_texto(texto, cuerpos):
+MOTIVOS = {"invalida": "formato no válido: punto para miles y coma para decimales",
+           "espacios": "formato no válido: los miles van con punto (12.000.000), sin espacios",
+           "pegada": "formato no válido: una cifra pegada a letras (30k, 2,5M, 2do) no se puede comprobar",
+           "rara": "formato no válido: caracteres numéricos que no son los dígitos del 0 al 9",
+           "palabras": "cifra con palabras: las cifras van con dígitos, en formato colombiano"}
+
+
+def cifras_del_texto(texto, cuerpos, carpeta=None):
     """Cada cifra del whitepaper con su valor, su tolerancia de redondeo y si su formato es válido."""
-    t = sin_permitidos(texto)
+    t = sin_permitidos(texto, carpeta)
     inicios = [0] + [m.end() for m in re.finditer("\n", texto)]
     hallados = []
+
+    def apartar(rx, motivo, cuenta=None):   # lo que no tiene una forma comprobable: cifra no válida, y se quita del texto
+        nonlocal t
+        for m in rx.finditer(t):
+            if cuenta is None or cuenta(m.group(0)):
+                hallados.append((m.start(), m.end(), m.group(0), motivo, None))
+        t = rx.sub(lambda m: " " * len(m.group(0)) if cuenta is None or cuenta(m.group(0)) else m.group(0), t)
+    apartar(re.compile(r"[^\x00-\x7f]"), "rara", lambda ch: unicodedata.numeric(ch, None) is not None)   # ⁶ ½ ٣ ❹
+    apartar(AGRUPADA, "espacios")
     for m in CIENTIFICA.finditer(t):
         dec, exp = len(m.group(2) or ""), int(m.group(3))
         if abs(exp) <= 30:
@@ -431,14 +502,15 @@ def cifras_del_texto(texto, cuerpos):
         else:
             hallados.append((m.start(), m.end(), m.group(0), "invalida", None))
     t = CIENTIFICA.sub(lambda m: " " * len(m.group(0)), t)
+    apartar(PEGADA, "pegada")
     for m in TOKEN.finditer(t):
         hallados.append((m.start(), m.end(), m.group(0), None, None))
-    out = []
+    out, tramos = [], []
     for ini, fin, tok, v, tol in sorted(hallados, key=lambda h: h[0]):
         c = {"cifra": tok, "linea": bisect_right(inicios, ini), "seccion": de_que_seccion(ini, cuerpos), "valida": True}
-        if v == "invalida" or (v is None and not ES_NUMERO.fullmatch(tok)):
-            c.update(valida=False, motivo="formato no válido: punto para miles y coma para decimales")
-            out.append(c)
+        if v in MOTIVOS or (v is None and not ES_NUMERO.fullmatch(tok)):
+            c.update(valida=False, motivo=MOTIVOS.get(v, MOTIVOS["invalida"]))
+            out.append((ini, c))
             continue
         if v is None:
             entero, _, dec = tok.partition(",")
@@ -451,14 +523,49 @@ def cifras_del_texto(texto, cuerpos):
         c.update(valor=v, tol=tol, porcentaje=bool(PORCENTAJE.match(t, fin)))
         if c["porcentaje"]:
             c["cifra"] += " %"
-        out.append(c)
+        out.append((ini, c))
+        tramos.append((ini, fin))
+    # cifras con palabras, fuera de las cifras con dígitos y su magnitud («17,2 billones» no es «billones» suelto)
+    for ini, fin in tramos:
+        t = t[:ini] + " " * (fin - ini) + t[fin:]
+    for ini, fin, palabras in numeros_con_palabras(t):
+        porcentaje = bool(PORCENTAJE.match(t, fin))
+        if not porcentaje and (all(CARDINAL.fullmatch(w) for w in palabras) or all(UNIDAD_SOLA.fullmatch(w) for w in palabras)):
+            continue
+        out.append((ini, {"cifra": " ".join(t[ini:fin].split())[:60] + (" por ciento" if porcentaje else ""),
+                          "linea": bisect_right(inicios, ini), "seccion": de_que_seccion(ini, cuerpos),
+                          "valida": False, "motivo": MOTIVOS["palabras"]}))
+    return [c for _, c in sorted(out, key=lambda x: x[0])]
+
+
+def numeros_con_palabras(t):
+    """[(inicio, fin, palabras)] de cada número escrito con palabras: palabras de número seguidas, separadas por
+    espacios o por «y» («noventa y siete», «treinta billones», «dos mil millones»)."""
+    palabras = [(m.group(0), m.start(), m.end()) for m in re.finditer(r"[^\W\d_]+", t)]
+
+    def es_numero(k):   # «ciento» después de «por» es el porcentaje, no un número
+        return k < len(palabras) and PALABRA_NUMERO.fullmatch(palabras[k][0]) and not (
+            k > 0 and palabras[k][0].lower() == "ciento" and palabras[k - 1][0].lower() == "por")
+    out, i = [], 0
+    while i < len(palabras):
+        if not es_numero(i):
+            i += 1
+            continue
+        j = i
+        while True:
+            k = j + 2 if j + 2 < len(palabras) and palabras[j + 1][0].lower() == "y" else j + 1
+            if not (es_numero(k) and ENTRE_PALABRAS.fullmatch(t, palabras[j][2], palabras[k][1])):
+                break
+            j = k
+        out.append((palabras[i][1], palabras[j][2], [w.lower() for w, _, _ in palabras[i:j + 1] if w.lower() != "y"]))
+        i = j + 1
     return out
 
 
 # ---------------- validación ----------------
-def validar(texto, artefactos, faltan=(), utf8=True):
-    """texto: el whitepaper; artefactos: [(nombre, json)] candidatos (solo cuentan los aprobados).
-    Devuelve (chequeos, cifras)."""
+def validar(texto, artefactos, faltan=(), utf8=True, carpeta=None):
+    """texto: el whitepaper; artefactos: [(nombre, json)] candidatos (solo cuentan los aprobados); carpeta: la del
+    whitepaper (el nombre de un archivo enlazado que existe ahí no es una cifra). Devuelve (chequeos, cifras)."""
     chequeos = []
 
     def chequeo(nombre, ok, detalle):
@@ -498,7 +605,7 @@ def validar(texto, artefactos, faltan=(), utf8=True):
     # W2
     usados, sin_aprobar = aprobados(artefactos)
     P, totales = pozo(usados)
-    cifras = cifras_del_texto(texto, cuerpos)
+    cifras = cifras_del_texto(texto, cuerpos, carpeta)
     for c in cifras:
         c["respaldada"] = c["valida"] and (respaldada(c["valor"], c["tol"], P) or (
             c["porcentaje"] and respaldada(c["valor"] / 100, c["tol"] / 100, P)))
@@ -595,14 +702,14 @@ def _alarma(*_):
     raise _Tiempo()
 
 
-def validar_con_tope(texto, artefactos, faltan=(), utf8=True, tope=TIEMPO_MAX):
+def validar_con_tope(texto, artefactos, faltan=(), utf8=True, tope=TIEMPO_MAX, carpeta=None):
     """validar() con un tope de tiempo: si un texto hecho para trabar las expresiones regulares lo excede, falla cerrado."""
     usar = hasattr(signal, "SIGALRM")
     if usar:
         anterior = signal.signal(signal.SIGALRM, _alarma)
         signal.alarm(tope)
     try:
-        return validar(texto, artefactos, faltan, utf8)
+        return validar(texto, artefactos, faltan, utf8, carpeta)
     except _Tiempo:
         return [{"chequeo": "W0 la validación termina a tiempo", "ok": False,
                  "detalle": f"tardó más de {tope} s: el whitepaper no parece prosa (posible ataque de rendimiento)"}], []
@@ -658,7 +765,7 @@ def validar_corrida(c):
         except UnicodeDecodeError:
             texto, utf8 = crudo.decode("utf-8", errors="replace"), False
         candidatos, faltan = artefactos_de(c)
-        chequeos, cifras = validar_con_tope(texto, candidatos, faltan, utf8)
+        chequeos, cifras = validar_con_tope(texto, candidatos, faltan, utf8, carpeta=c)
         huella = hashlib.sha256(crudo).hexdigest()
     else:
         chequeos, cifras, huella = [{"chequeo": "W0 existe whitepaper.md", "ok": False,
@@ -728,13 +835,13 @@ Queda 1 pregunta abierta (P1): la cifra usa su valor por defecto.
     impacto = "- **Impacto.** ¿A qué clientes y municipios llegan las ventas de cada región?\n"
     casos = []
 
-    def caso(nombre, esperado, reemplazos=(), artefactos=None, texto=None):
+    def caso(nombre, esperado, reemplazos=(), artefactos=None, texto=None, carpeta=None):
         texto = bueno if texto is None else texto
         for viejo, nuevo in reemplazos:
             if viejo not in texto:
                 raise SystemExit(f"autoprueba mal armada en «{nombre}»: no está {viejo!r}")
             texto = texto.replace(viejo, nuevo, 1)
-        casos.append((nombre, texto, base if artefactos is None else artefactos, esperado))
+        casos.append((nombre, texto, base if artefactos is None else artefactos, esperado, carpeta))
 
     def mas(frase):
         return [(limites, limites + " " + frase)]
@@ -754,6 +861,22 @@ Queda 1 pregunta abierta (P1): la cifra usa su valor por defecto.
     caso("porcentaje inventado", {"W2"}, [("suma el 50,0 %", "suma el 55 %")])
     caso("notación científica enorme", {"W2"}, mas("Escala 1e9999."))
     caso("magnitud con palabras", {"W2"}, mas("La mitad de las ventas sale del Norte."))
+    # cifras que W2 no veía (L119): agrupadas con espacios, con palabras, en el destino de un enlace o pegadas a letras
+    caso("cifra agrupada con espacios", {"W2"}, mas("Las regiones vendieron 2 000 000 pesos."))
+    caso("cifra agrupada con espacios de no separación", {"W2"}, mas("Las regiones vendieron 12\u00a0000\u00a0000 pesos."))
+    caso("cifra con palabras", {"W2"}, mas("Las regiones vendieron treinta billones de pesos."))
+    caso("porcentaje con palabras", {"W2"}, mas("Noventa y siete por ciento de las ventas sale del Norte."))
+    caso("cardinales del método y unidades con palabras (pasa)", set(),
+         mas("Se calculó dos veces, con una sola consulta, y las ventas van en millones de pesos."))
+    caso("id de un conjunto de datos.gov.co que empieza con cifras (pasa)", set(), mas("El conjunto es el 3k7f-xp2m."))
+    caso("cifra en el destino de un enlace (se imprime al lado)", {"W2"},
+         mas("Detalle en [la tabla](total-real-30.000.000.000.000-pesos)."))
+    caso("enlace a un archivo que existe: el número de su nombre no es una cifra (pasa)", set(),
+         mas("Ver la [ficha del documentador](../agentes/13-documentador.md)."), carpeta=AQUI)
+    caso("enlace a un archivo que no existe: el número de su nombre es una cifra", {"W2"},
+         mas("Ver la [ficha del documentador](../agentes/13-inventada.md)."), carpeta=AQUI)
+    caso("cifra pegada a letras", {"W2"}, mas("Se revisaron 30k facturas y 2,5M de pesos."))
+    caso("carácter numérico que no es un dígito del 0 al 9", {"W2"}, mas("Las ventas crecieron 10\u2076 veces."))
     caso("la cifra verificada no cita el total", {"W2"},
          [("Ventas netas del semestre: 2.500.000 pesos (2,5 millones) en 3 regiones.", "Ventas netas del semestre en 3 regiones.")])
     caso("informe sin aprobar: no hay cifra verificada", {"W2"},
@@ -788,8 +911,8 @@ Queda 1 pregunta abierta (P1): la cifra usa su valor por defecto.
     caso("marcado HTML", {"W5"}, mas("<span>texto</span>"))
     caso("más de 200 KB: no se revisa y falla", {"W1", "W2", "W3", "W4", "W5"}, texto=bueno + ("Relleno. " * 30_000))
     errores = 0
-    for nombre, texto, artefactos, esperado in casos:
-        chequeos, _ = validar(texto, artefactos)
+    for nombre, texto, artefactos, esperado, carpeta in casos:
+        chequeos, _ = validar(texto, artefactos, carpeta=carpeta)
         obtenido = {x["chequeo"].split()[0] for x in chequeos if not x["ok"]}
         ok = obtenido == esperado
         errores += not ok
@@ -825,7 +948,8 @@ Queda 1 pregunta abierta (P1): la cifra usa su valor por defecto.
                 ("puntos sin arroba", ("a." * 1_900 + "\n") * 40, False),
                 ("puntos con una arroba al final", ("1." * 1_900 + "@\n") * 40, False),
                 ("comentarios sin cerrar", ABRE_COMENTARIO * 999, True),
-                ("etiquetas sin cerrar", ("<a " + "x" * 190 + "\n") * 300, False)]
+                ("etiquetas sin cerrar", ("<a " + "x" * 190 + "\n") * 300, False),
+                ("cifras con espacios y con palabras", ("1 000 dos y treinta " * 180 + "\n") * 30, True)]
     malos = []
     for nombre, relleno, debe_fallar in hostiles:
         t0 = time.perf_counter()
