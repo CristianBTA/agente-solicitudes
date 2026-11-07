@@ -44,7 +44,7 @@ from pathlib import Path
 
 AQUI = Path(__file__).resolve().parent
 sys.path.insert(0, str(AQUI))
-from gobernanza import PATRONES, enmascarar, parece_instruccion  # noqa: E402
+from gobernanza import PATRONES, enmascarar, forma_canonica, parece_instruccion  # noqa: E402
 
 SECCIONES = [  # (título, patrón sobre el título normalizado: minúsculas, sin tildes ni numeración)
     ("Pregunta", r"(la )?pregunta\b"),
@@ -493,12 +493,13 @@ def validar(texto, artefactos, faltan=(), utf8=True):
     comentarios = plano.count(ABRE_COMENTARIO)
     if comentarios <= 50 and parece_instruccion(plano):
         problemas.append("trae un texto con forma de instrucción para una IA (no se copia aquí)")
+    canonico = forma_canonica(plano)   # la arroba o las cifras de ancho completo y un invisible no esconden un dato (L116)
     for nombre, rx in PATRONES.items():
         if nombre == "correo":   # solo alrededor de cada «@»: sin «@» no hay correo, y así no hay retroceso cuadrático
-            hallados = sorted({x.group(0) for m in re.finditer("@", plano)
-                               for x in rx.finditer(plano[max(0, m.start() - 80):m.end() + 260])})
+            hallados = sorted({x.group(0) for m in re.finditer("@", canonico)
+                               for x in rx.finditer(canonico[max(0, m.start() - 80):m.end() + 260])})
         else:
-            hallados = [m.group(0) for m in rx.finditer(plano)]
+            hallados = [m.group(0) for m in rx.finditer(canonico)]
         if hallados:
             problemas.append(f"{nombre}: {len(hallados)} ({enmascarar(hallados[0])})")
     if comentarios:
@@ -705,6 +706,7 @@ Queda 1 pregunta abierta (P1): la cifra usa su valor por defecto.
     caso("dato personal", {"W5"}, mas("Dudas: " + "ana.perez" + "@" + "ejemplo.invalid" + "."))
     caso("comentario HTML", {"W5"}, mas(ABRE_COMENTARIO + " nota interna --" + ">"))
     caso("carácter invisible", {"W5"}, [("valor por defecto", "valor por" + "​" + " defecto")])
+    caso("dato personal con la arroba de ancho completo", {"W5"}, mas("Dudas: " + "ana.perez" + "\uff20" + "ejemplo.invalid" + "."))
     caso("marcado HTML", {"W5"}, mas("<span>texto</span>"))
     caso("más de 200 KB: no se revisa y falla", {"W1", "W2", "W3", "W4", "W5"}, texto=bueno + ("Relleno. " * 30_000))
     errores = 0

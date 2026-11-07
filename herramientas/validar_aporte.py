@@ -66,7 +66,6 @@ No ejecuta ningún agente: la prueba de efecto con IA la hace solo el dueño, co
 """
 import csv
 import hashlib
-import html
 import io
 import json
 import os
@@ -85,7 +84,7 @@ JUEZ = Path(__file__).resolve()
 RAIZ = JUEZ.parent.parent
 sys.path.insert(0, str(RAIZ / "herramientas"))
 from gobernanza import (parece_instruccion, INSTRUCCION, COMENTARIO_OCULTO, PATRONES,  # noqa: E402
-                        clasificar_columna, es_sensible)
+                        clasificar_columna, es_sensible, forma_canonica, texto_de_marcado)
 from rutas_protegidas import clave, colisiones  # noqa: E402  (una sola forma de comparar rutas, L99)
 from sgsi import RUTA_LOCAL  # noqa: E402  (una sola forma de reconocer la ruta de un equipo, R07)
 
@@ -589,13 +588,6 @@ def cadenas_json(texto):
         elif isinstance(x, str):
             out.append(x)
     return "\n".join(reversed(out))
-
-
-def texto_de_marcado(t):
-    """De una página, un SVG o un XML: el texto con las entidades resueltas y, aparte, sin etiquetas (ni <script> ni
-    <style>): «juana&#64;…» o «juana<span>@</span>…» no esconden un correo."""
-    sin_codigo = re.sub(r"(?is)<(script|style)\b.*?</\1\s*>", " ", t)
-    return [html.unescape(t), html.unescape(re.sub(r"<[^>]*>", "", sin_codigo))]
 
 
 def legible(datos):
@@ -1164,10 +1156,10 @@ def revisar_contenido(ruta, p, legado=lambda: b""):
 def datos_no_ficticios(texto):
     """Lo que encuentra el barrido de gobernanza (cédula con contexto, correo, celular, nombre con tratamiento) y no tiene
     la forma ficticia de la guía: un correo real nunca está en un dominio reservado, ninguna cédula es 000.000.00x y el
-    prefijo 399 no está asignado. Devuelve {patrón: cuántos}."""
-    out = {}
+    prefijo 399 no está asignado. Se barre la forma canónica del texto (L116). Devuelve {patrón: cuántos}."""
+    out, texto = {}, forma_canonica(texto)
     for n, rx in PATRONES.items():
-        k = sum(1 for m in rx.finditer(texto or "") if not ficticio_en_texto(n, m))
+        k = sum(1 for m in rx.finditer(texto) if not ficticio_en_texto(n, m))
         if k:
             out[n] = k
     return out

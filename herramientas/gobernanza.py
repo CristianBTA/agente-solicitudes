@@ -10,7 +10,12 @@ Qué hace:
      cuasi-identificador, texto libre o sin marca. Los datos sensibles (Ley 1581, art. 5) cuentan como cuasi y la
      ingesta además les pide base legal. Una clave publicada que identifica a personas es un problema, con o sin k.
   2. Barre el texto libre con expresiones regulares (cédulas con contexto, correos, celulares,
-     nombres con tratamiento) y entrega SOLO conteos y ejemplos enmascarados, nunca valores.
+     nombres con tratamiento) y entrega SOLO conteos y ejemplos enmascarados, nunca valores. Barre el texto en su forma
+     canónica (forma_canonica: NFKC y sin caracteres de formato), así la arroba o las cifras de ancho completo, un
+     espacio de ancho cero o un guion suave no esconden un dato; y de una página, también el texto sin etiquetas
+     (L116). Límites: un nombre sin tratamiento, una cédula sin contexto, un celular de 10 cifras pegado, un correo
+     escrito con palabras («arroba») o una letra invisible que no es de formato (U+3164) no tienen la forma que buscan
+     las expresiones.
   3. Barre las salidas que se van a publicar (informe, resultado, gráfico, whitepaper y presentación, también en su
      versión impresa): deben salir en cero, y ninguna trae un texto con forma de instrucción para una IA.
   4. Calcula el k-anonimato del resultado si publica columnas de personas.
@@ -21,6 +26,7 @@ import html
 import json
 import re
 import sys
+import unicodedata
 from pathlib import Path
 
 ROLES = r"(representante|ordenador|supervisor|persona|contacto|funcionario|proveedor|contratista|beneficiario|titular|usuario|paciente|afiliado|ciudadano)"
@@ -113,8 +119,33 @@ def enmascarar(texto):
     return t[:3] + "•" * max(0, min(len(t) - 3, 8)) if len(t) > 3 else "•••"
 
 
+_FORMATO = []
+
+
+def forma_canonica(texto):
+    """El texto como lo lee una persona, para barrerlo: en NFKC (la arroba «＠» y las cifras de ancho completo, las
+    ligaduras) y sin los caracteres de formato (categoría Cf: el espacio de ancho cero, la unión invisible, el guion
+    suave, las marcas de dirección), que no se ven y parten un correo o una cédula para que ninguna expresión los
+    encuentre (L116)."""
+    t = str(texto or "")
+    if t.isascii():
+        return t
+    if not _FORMATO:
+        _FORMATO.append(re.compile("[" + "".join(re.escape(chr(c)) for c in range(sys.maxunicode + 1)
+                                                 if unicodedata.category(chr(c)) == "Cf") + "]"))
+    return _FORMATO[0].sub("", unicodedata.normalize("NFKC", t))
+
+
+def texto_de_marcado(t):
+    """De una página, un SVG o un XML: el texto con las entidades resueltas y, aparte, sin etiquetas (ni <script> ni
+    <style>): «juana&#64;…» o «juana<span>@</span>…» no esconden un correo (L114, L116)."""
+    sin_codigo = re.sub(r"(?is)<(script|style)\b.*?</\1\s*>", " ", t)
+    return [html.unescape(t), html.unescape(re.sub(r"<[^>]*>", "", sin_codigo))]
+
+
 def escanear_texto(texto):
     out = {}
+    texto = forma_canonica(texto)
     for nombre, rx in PATRONES.items():
         hallados = rx.findall(texto) if texto else []
         if hallados:
@@ -149,7 +180,7 @@ def barrer_tabla(ruta):
                     conteo[k] = conteo.get(k, 0) + n
                 if len(ejemplos) < 3:
                     for nombre, rx in PATRONES.items():
-                        m = rx.search(v)
+                        m = rx.search(forma_canonica(v))
                         if m:
                             ejemplos.append(f"{nombre}: {enmascarar(m.group(0))}")
                             break
@@ -172,8 +203,8 @@ CON_INSTRUCCIONES = ("informe.md", "informe_final.md", "whitepaper.md", "WHITEPA
 
 def texto_publicado(p):
     """El texto que se publica de una salida: las cadenas de un JSON (no los números: un valor en pesos no es un dato
-    personal; de informe.json, solo el resultado oficial); de un HTML, sin el paquete de Plotly y con las entidades
-    resueltas (un «&#64;» no esconde un correo)."""
+    personal; de informe.json, solo el resultado oficial); de un HTML, sin el paquete de Plotly, con las entidades
+    resueltas (un «&#64;» no esconde un correo) y, aparte, sin etiquetas (un «<span>@</span>» tampoco, L116)."""
     texto = p.read_text(encoding="utf-8", errors="ignore")
     if p.suffix == ".json":
         def cadenas(x):
@@ -190,7 +221,7 @@ def texto_publicado(p):
     if p.name == "grafico.html":
         texto = re.sub(r"<script[^>]*plotly[^>]*>.*?</script>", " ", texto, flags=re.S)[:2_000_000]
     if p.suffix == ".html":
-        texto = html.unescape(texto)
+        texto = "\n".join(texto_de_marcado(texto))
     return texto
 
 

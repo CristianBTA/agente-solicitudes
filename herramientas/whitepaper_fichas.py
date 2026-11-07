@@ -28,7 +28,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import carta  # noqa: E402
-from gobernanza import PATRONES, parece_instruccion  # noqa: E402
+from gobernanza import PATRONES, forma_canonica, parece_instruccion  # noqa: E402
 from validar_ficha import PERMITIDOS_NUM  # noqa: E402
 from validar_whitepaper import ANALISIS  # noqa: E402  D15: la lista única
 
@@ -74,7 +74,7 @@ def comprobar_resumen(texto, fichas):
         problemas.append(f"cifras que no están en las mediciones: {', '.join(sueltas[:5])}")
     if parece_instruccion(texto):
         problemas.append("trae una instrucción dirigida a agentes")
-    personales = [n for n, pat in PATRONES.items() if pat.search(texto)]
+    personales = [n for n, pat in PATRONES.items() if pat.search(forma_canonica(texto))]   # L116
     if personales:
         problemas.append(f"trae datos personales ({', '.join(personales)})")
     return problemas

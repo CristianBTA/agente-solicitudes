@@ -50,7 +50,7 @@ from pathlib import Path
 
 AQUI = Path(__file__).resolve().parent
 sys.path.insert(0, str(AQUI))
-from gobernanza import PATRONES, clasificar_columna, parece_instruccion  # noqa: E402
+from gobernanza import PATRONES, clasificar_columna, forma_canonica, parece_instruccion  # noqa: E402
 from explorador_catalogo import pedir  # noqa: E402
 from validar_whitepaper import ANALISIS, FRASES_D15, JUICIO  # noqa: E402  D15: la lista única, la misma del whitepaper (W3)
 
@@ -358,7 +358,7 @@ def validar(ficha, inv, red=True, dictamen=None, autorizados=None):
         if parece_instruccion(t):
             instrucciones.append(ruta)
         for nombre, pat in PATRONES.items():
-            if pat.search(t):
+            if pat.search(forma_canonica(t)):   # la arroba de ancho completo o un invisible no esconden un dato (L116)
                 personales.append(f"{ruta}: {nombre}")
     no_preguntas = [p.get("pregunta", "")[:60] for p in ficha["preguntas"]
                     if not (p.get("pregunta", "").strip().startswith("¿") and p.get("pregunta", "").strip().endswith("?"))]

@@ -98,10 +98,24 @@ def bateria_privacidad():
     for s in secretos:
         if s in p.stdout or s in perfil:
             fallas.append(falla(s, f"el perfil muestra un dato personal o sensible: {s[:3]}…"))
-    from gobernanza import escanear_texto
+    from gobernanza import escanear_texto, texto_publicado
     for t in (BAT / "privacidad" / "no_son_personales.txt").read_text(encoding="utf-8").splitlines():
         if t and escanear_texto(t):
             fallas.append(falla(t, f"falso positivo: «{t}» se marcó como dato personal {escanear_texto(t)}"))
+    # formas de esconder un dato a las expresiones (L116): ancho completo, invisibles y, en una página, etiquetas en medio
+    evasiones = json.loads((BAT / "privacidad" / "evasiones.json").read_text(encoding="utf-8"))["casos"]
+    tmp = Path(tempfile.mkdtemp(prefix="bateria-evasiones-"))
+    try:
+        for c in evasiones:
+            if "html" in c:
+                (tmp / "pagina.html").write_text(c["html"], encoding="utf-8")
+                hall = escanear_texto(texto_publicado(tmp / "pagina.html"))
+            else:
+                hall = escanear_texto(c.get("texto"))
+            if c.get("patron") not in hall:
+                fallas.append(falla(c.get("nombre"), f"el barrido no encuentra «{c.get('nombre')}» ({c.get('patron')}): {hall}"))
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
     barrido = barrer_tabla(csv_)
     detectadas = {c for c, i in barrido["columnas"].items() if i.get("hallazgos") or i.get("clase_por_nombre") == "personal"}
     for c in ("proveedor_adjudicado", "documento_proveedor", "objeto_del_contrato"):
@@ -125,7 +139,7 @@ def bateria_privacidad():
         if clase != x["clase"] or es_sensible(x["columna"], x["descripcion"]) != bool(x.get("sensible")):
             fallas.append(falla(x["columna"], f"columna mal clasificada por su descripción: {x['columna']} «{x['descripcion'][:50]}» → "
                                               f"{clase}{' (sensible)' if es_sensible(x['columna'], x['descripcion']) else ''} (se esperaba {x['clase']})"))
-    return {"bateria": "privacidad", "casos": len(secretos) + 1 + 3 + 6 + n_cols, "fallas": fallas}
+    return {"bateria": "privacidad", "casos": len(secretos) + 1 + 3 + 6 + n_cols + len(evasiones), "fallas": fallas}
 
 
 def ingerir_local(p, carpeta):

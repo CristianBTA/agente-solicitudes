@@ -103,6 +103,10 @@ MUTANTES = [
     ("M33", "las celdas que una hoja de cálculo ejecuta como fórmula pasan en las tablas del aporte", "herramientas/validar_aporte.py",
      "    if not ruta.startswith(FORMULAS_A_PROPOSITO):\n        formulas = celdas_formula(p, texto, tabla)\n",
      "    if False:\n        formulas = celdas_formula(p, texto, tabla)\n", "B40"),
+    ("M34", "el barrido de gobernanza lee el texto tal cual (sin NFKC ni quitar los caracteres de formato)", "herramientas/gobernanza.py",
+     '    return _FORMATO[0].sub("", unicodedata.normalize("NFKC", t))\n', "    return t\n", "B27"),
+    ("M35", "de una salida HTML solo se resuelven las entidades (las etiquetas en medio de un dato quedan)", "herramientas/gobernanza.py",
+     '        texto = "\\n".join(texto_de_marcado(texto))\n', "        texto = html.unescape(texto)\n", "B27"),
 ]
 
 

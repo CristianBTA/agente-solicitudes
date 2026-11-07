@@ -37,7 +37,7 @@ cmp /tmp/datos-prueba/ventas.csv ejemplo/datos/ventas.csv && echo "datos idénti
 
 # 5b. Blindaje: se ataca cada capa a propósito (caja de arena, compuerta, perfil, salidas, integridad, dependencias, fichas)
 .venv/bin/python herramientas/blindaje.py
-# y cada control con su prueba: se quita en una copia y la prueba que lo cubre debe ceder (33 mutantes)
+# y cada control con su prueba: se quita en una copia y la prueba que lo cubre debe ceder (35 mutantes)
 .venv/bin/python herramientas/mutar_controles.py
 
 # 5c. SGSI: la tríada C·I·D, los riesgos y la Declaración de Aplicabilidad, comprobados sin IA (y el probador, probado)
@@ -47,7 +47,7 @@ cmp /tmp/datos-prueba/ventas.csv ejemplo/datos/ventas.csv && echo "datos idénti
 # 5d. Probar al probador de la presentación: 5 presentaciones buenas aprueban y 78 mutantes (número a mano, marcadores pegados, NaN, un «donde» mal escrito, título de tema, recomendación escondida, campos de la forma anterior…) fallan
 .venv/bin/python herramientas/verificar_presentacion.py --autoprueba
 
-# 5e. Probar al probador del whitepaper (61 casos: conclusiones, cifras sin respaldo, texto oculto…) y su versión en tres hojas carta (34 casos, sin Chrome, con el PDF que el informe final enlaza solo si tiene tres hojas carta)
+# 5e. Probar al probador del whitepaper (62 casos: conclusiones, cifras sin respaldo, texto oculto…) y su versión en tres hojas carta (34 casos, sin Chrome, con el PDF que el informe final enlaza solo si tiene tres hojas carta)
 .venv/bin/python herramientas/validar_whitepaper.py --autoprueba
 .venv/bin/python herramientas/whitepaper_corrida.py --autoprueba
 
@@ -64,7 +64,7 @@ SECOP II se actualiza a diario. Si el recorte de hoy no es idéntico al del 6-no
 
 Si corriste los pasos sobre `corridas/` directamente (como decía una versión anterior de esta guía), `git status` muestra `informe.json`, `informe.md` y `gobernanza.json` modificados, con el tiempo medido y la ruta de tu carpeta; `git restore corridas/` los deja como estaban. Nunca entran en un aporte.
 
-Lo que debe salir: todas las baterías en ✓ (hoy son 10), el blindaje con todas sus pruebas en «RESISTE» (hoy son 39, con el control B00; en Linux no hay sandbox-exec: B01, B11, B12, B24 y B29 salen «NO APLICA» y el banco lo dice, porque ahí el código de la IA tendría red y escritura; por eso el filtro de aportes corre en macOS) y sus 33 mutantes de los controles muertos, la corrida en «aprobado», la referencia `m00` sin fallas y las mutantes `m01` a `m13` con al menos una falla cada una, los datos idénticos, la gobernanza aprobada, el SGSI sin fallas, con sus 21 mutantes atrapados, las autopruebas de la presentación y del whitepaper sin fallas ni errores, y `git status` sin ningún archivo. Si algo no sale así, el repositorio no cumple lo que dice.
+Lo que debe salir: todas las baterías en ✓ (hoy son 10), el blindaje con todas sus pruebas en «RESISTE» (hoy son 39, con el control B00; en Linux no hay sandbox-exec: B01, B11, B12, B24 y B29 salen «NO APLICA» y el banco lo dice, porque ahí el código de la IA tendría red y escritura; por eso el filtro de aportes corre en macOS) y sus 35 mutantes de los controles muertos, la corrida en «aprobado», la referencia `m00` sin fallas y las mutantes `m01` a `m13` con al menos una falla cada una, los datos idénticos, la gobernanza aprobada, el SGSI sin fallas, con sus 21 mutantes atrapados, las autopruebas de la presentación y del whitepaper sin fallas ni errores, y `git status` sin ningún archivo. Si algo no sale así, el repositorio no cumple lo que dice.
 
 ---
 
@@ -208,7 +208,7 @@ Desde el 6-nov-2026 la IA no propone ni prueba hipótesis ni da el análisis. El
 ## F · Gobernanza
 
 **D18 · Nunca filas a la IA; el texto libre es un dato personal en potencia.**
-La IA trabaja con nombres, tipos y conteos. Antes de publicar, un barrido determinista busca cédulas con contexto, correos, celulares y nombres con tratamiento en los datos y en todo lo que se publica: informe, resultado, gráfico, whitepaper (también en hojas carta) y presentación (B27, L87). Si se publican personas, se exige k-anonimato (k ≥ 5). Los mensajes de error que llegan al informe tapan lo que va entre comillas, las cifras largas y toda palabra que aparezca en una celda de la entrada (B26, L83).
+La IA trabaja con nombres, tipos y conteos. Antes de publicar, un barrido determinista busca cédulas con contexto, correos, celulares y nombres con tratamiento en los datos y en todo lo que se publica: informe, resultado, gráfico, whitepaper (también en hojas carta) y presentación (B27, L87). Barre la forma canónica del texto: en NFKC, que vuelve la arroba y las cifras de ancho completo a su forma común, sin los caracteres de formato (el espacio de ancho cero, la unión invisible, el guion suave) y, en una página, también sin etiquetas, así un correo partido por un `<span>` no se esconde (L116). No ve un nombre sin tratamiento, una cédula sin contexto, un celular de 10 cifras pegado ni un correo escrito con palabras: esos límites quedan para la revisión de una persona. Si se publican personas, se exige k-anonimato (k ≥ 5). Los mensajes de error que llegan al informe tapan lo que va entre comillas, las cifras largas y toda palabra que aparezca en una celda de la entrada (B26, L83).
 *Dónde:* `herramientas/gobernanza.py`. La IA (custodio) clasifica todas las columnas de la fuente y el código compara su clasificación con la propia.
 *Por qué:* además de proteger a las personas, la IA no puede seguir una instrucción escondida en un texto que nunca lee.
 
