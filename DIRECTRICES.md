@@ -62,7 +62,7 @@ SECOP II se actualiza a diario. Si el recorte de hoy no es idéntico al del 6-no
 
 Si corriste los pasos sobre `corridas/` directamente (como decía una versión anterior de esta guía), `git status` muestra `informe.json`, `informe.md` y `gobernanza.json` modificados, con el tiempo medido y la ruta de tu carpeta; `git restore corridas/` los deja como estaban. Nunca entran en un aporte.
 
-Lo que debe salir: todas las baterías en ✓ (hoy son 10), el blindaje con todas sus pruebas en «RESISTE» (hoy son 26, con el control B00; en Linux no hay sandbox-exec: B01, B11, B12 y B24 salen «NO APLICA» y el banco lo dice, porque ahí el código de la IA tendría red y escritura; por eso el filtro de aportes corre en macOS), la corrida en «aprobado», la referencia `m00` sin fallas y las mutantes `m01` a `m12` con al menos una falla cada una, los datos idénticos, la gobernanza aprobada, el SGSI sin fallas, con sus 21 mutantes atrapados, las autopruebas de la presentación y del whitepaper sin fallas ni errores, y `git status` sin ningún archivo. Si algo no sale así, el repositorio no cumple lo que dice.
+Lo que debe salir: todas las baterías en ✓ (hoy son 10), el blindaje con todas sus pruebas en «RESISTE» (hoy son 26, con el control B00; en Linux no hay sandbox-exec: B01, B11, B12 y B24 salen «NO APLICA» y el banco lo dice, porque ahí el código de la IA tendría red y escritura; por eso el filtro de aportes corre en macOS), la corrida en «aprobado», la referencia `m00` sin fallas y las mutantes `m01` a `m13` con al menos una falla cada una, los datos idénticos, la gobernanza aprobada, el SGSI sin fallas, con sus 21 mutantes atrapados, las autopruebas de la presentación y del whitepaper sin fallas ni errores, y `git status` sin ningún archivo. Si algo no sale así, el repositorio no cumple lo que dice.
 
 ---
 
@@ -139,7 +139,7 @@ Cada implementación concilia: filas leídas = usadas + excluidas por motivo. Na
 
 **D14 · Probar al probador.**
 Un criterio vale lo que atrapa. Se mide con mutantes, que son la referencia con un solo error típico, y la referencia sin errores no debe dar falsas alarmas.
-*Cómo se comprueba:* `evidencia/*/resultados_mutacion.txt`: 12 de 12 en el ejemplo sintético y 11 de 11 en SECOP, sin falsas alarmas.
+*Cómo se comprueba:* `evidencia/*/resultados_mutacion.txt`: 12 de 12 en el ejemplo sintético y 11 de 11 en SECOP, sin falsas alarmas. En el sintético, además, `m13_lee_oraculo` prueba al verificador: una implementación que busca el `esperado.json` del caso conocido junto a sus datos no lo ve y queda atrapada.
 
 ## C2 · Limpieza de datos (dentro del procesamiento)
 

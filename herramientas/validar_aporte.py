@@ -26,7 +26,7 @@ Revisa:
   3. Seguridad de todo código Python agregado o cambiado (compuertas: librerías permitidas, reglas propias y
      Bandit; los cuadernos .ipynb, con el comando de la compuerta). La excepción son las muestras de
      baterias/seguridad/malos/ y malos_usuario/, que justamente deben bloquearse.
-  4. Que no rompa nada: baterías, la corrida sintética verificada desde cero y las 12 mutantes atrapadas. Una
+  4. Que no rompa nada: baterías, la corrida sintética verificada desde cero y las 13 mutantes atrapadas. Una
      herramienta que se cae antes de su línea RESUMEN no aprueba nada: es falla, aunque no haya escrito ninguna «✗» (L67).
   5. Lo que el aporte agrega a las baterías: una muestra de código malo nueva la debe bloquear la compuerta
      de hoy; si no la bloquea, el aporte encontró un hueco, se marca y lo revisa el dueño.
