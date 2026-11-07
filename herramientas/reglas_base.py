@@ -38,14 +38,21 @@ def _lector_estricto(fh, origen, formulas=True):
     encabezado o una celda con una fórmula de Excel como texto («=DAY(J2)»), todas con el número de la línea física.
     Con formulas=False la fórmula no detiene la lectura: la limpieza la neutraliza y la marca (DB5)."""
     lector = csv.reader(fh, strict=True)
+    fin = 0     # la última línea física leída: el registro siguiente empieza en fin + 1
 
     def siguiente():
+        nonlocal fin
         try:
-            return next(lector)
+            f = next(lector)
         except StopIteration:
             return None
         except csv.Error as e:
+            if "unexpected end of data" in str(e):   # la comilla abierta se come el archivo: se dice dónde se abrió
+                raise ValueError(f"la línea {fin + 1} {origen} abre una comilla que no se cierra: el registro se come el "
+                                 f"archivo hasta la línea {lector.line_num}") from None
             raise ValueError(f"la línea {lector.line_num} {origen} no se puede leer ({e}): ¿una comilla sin cerrar?") from None
+        fin = lector.line_num
+        return f
 
     cab = siguiente()
     if not cab:

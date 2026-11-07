@@ -462,6 +462,24 @@
       "leccion": "Al reescribir limpieza.py, los separadores U+2028 y U+2029 escritos como caracteres literales dentro de la expresión de invisibles se volvieron espacios, y la op texto pegaba los nombres. Solo lo atrapó comparar la capa limpia byte a byte con la versión anterior. Los caracteres invisibles van siempre como escapes \\uXXXX, nunca literales (los controles bidi literales son además un riesgo de Trojan Source). La limpieza lee con el mismo lector estricto que las reglas y la ingesta, y los ejemplos de un dato sensible salen enmascarados.",
       "origen": "integración de la limpieza (PIP-4 y PIP-5) con el lector común de GOB-3, 6-nov-2026",
       "prueba": "herramientas/limpieza.py --autoprueba"
+    },
+    {
+      "id": "L78",
+      "leccion": "La ingesta de CSV locales leía con read_text, que cambiaba en silencio un \\r\\n dentro de un campo entre comillas; un archivo que no estaba en UTF-8 reventaba con traceback, uno con caracteres nulos o solo con el encabezado se aprobaba, y una comilla sin cerrar se reportaba en la última línea del archivo. Ahora lee los bytes con el lector estricto común y rechaza con la línea (la de la comilla, donde se abre), cuenta los registros por otro camino que el lector y también contra fuente.conteo, y lo que escribe debe pasar reglas_base.leer_csv. Un contrato roto se rechaza con su motivo, y una tabla con «../» en el nombre ya no retira (borra) ni escribe archivos fuera de --salida.",
+      "origen": "revisión ciega del pipeline (PIP-4), integrada con GOB-3 y GOB-7, 6-nov-2026",
+      "prueba": "herramientas/ingesta.py --autoprueba bateria:failfast/campo_de_menos.csv"
+    },
+    {
+      "id": "L79",
+      "leccion": "En SECOP II Procesos (nivel 3), un proceso se repite por cada adjudicación: en un solo día de Antioquia, «Licitación pública» trae 12 filas y 2 procesos. El modo de agregados calcula la consulta en el servidor, exige count(*) y la concilia contra el count(*) sin agrupar, antes y después de descargar; sum y count se concilian igual y min y max coinciden. La llave puede ser compuesta (la combinación no se repite y ninguna parte viene vacía), y un dato sensible pide su base legal aunque la consulta solo lo cuente.",
+      "origen": "revisión ciega del pipeline (PIP-4, llaves compuestas y agregados del servidor), 6-nov-2026",
+      "prueba": "herramientas/ingesta.py --autoprueba"
+    },
+    {
+      "id": "L80",
+      "leccion": "Un HTTP 400 (una consulta mal escrita) se reintentaba tres veces con esperas y terminaba en traceback, gastando cupo de la API. Un error de la consulta no se arregla repitiéndola: se rechaza a la primera con el mensaje del servidor, y solo se reintentan 429, 5xx y la red.",
+      "origen": "revisión ciega del pipeline (PIP-4), 6-nov-2026",
+      "prueba": "herramientas/ingesta.py --autoprueba"
     }
   ]
 }
