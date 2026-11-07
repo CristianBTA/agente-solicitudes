@@ -1130,6 +1130,12 @@ LECTORES_LAXOS = {
         '    if tipo == "entero":\n        return int(v)\n    if tipo == "decimal":\n        return float(v)\n'
         '    if tipo == "fecha":\n'
         '        return date.fromisoformat(v[:10]) if "-" in v[:10] else datetime.strptime(v[:10], "%d/%m/%Y").date()\n'),
+    # lo que llega de Socrata o de un agregado, sin el lector estricto (antes de L105, solo el CSV local pasaba por él)
+    "ingesta: lo que llega de Socrata o de un agregado se escribe sin el lector estricto (una fórmula pasa)": (
+        "herramientas/ingesta.py",
+        "    problema = lector_de_reglas(contenido, salida, lambda c, v: ver_valor(c, v, descripciones))\n",
+        "    problema = lector_de_reglas(contenido, salida, lambda c, v: ver_valor(c, v, descripciones)) "
+        "if fuente[\"tipo\"] == \"local\" else None\n"),
 }
 CORRER_FAILFAST = ("import json, sys\nsys.path.insert(0, sys.argv[1])\nimport baterias\n"
                    "r = baterias.correr_bateria(baterias.bateria_failfast)\n"
@@ -1168,7 +1174,7 @@ def _failfast_con(lector):
         shutil.rmtree(d, ignore_errors=True)
 
 
-@prueba("B33", "baterías → filtro", "un lector de la ingesta, de la limpieza o del perfil se afloja (otra codificación sin avisar, la fila corta rellenada, la larga recortada, los tipos con float() y la fecha recortada): ¿cae la batería FAILFAST y con ella el filtro de aportes?")
+@prueba("B33", "baterías → filtro", "un lector de la ingesta, de la limpieza o del perfil se afloja (otra codificación sin avisar, la fila corta rellenada, la larga recortada, los tipos con float() y la fecha recortada, lo que llega de Socrata sin el lector estricto): ¿cae la batería FAILFAST y con ella el filtro de aportes?")
 def b33():
     import concurrent.futures
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(LECTORES_LAXOS) + 1) as ex:

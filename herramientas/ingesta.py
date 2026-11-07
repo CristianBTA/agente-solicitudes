@@ -46,6 +46,9 @@ comillas); una fórmula de Excel como texto («=DAY(B2)»), y montos con punto d
 en la columna, como 12.5, 1.250 es un decimal: L49). El conteo de la fuente sale por otro camino que el lector (los
 fines de línea fuera de comillas) y, si el contrato declara fuente.conteo, tiene que coincidir también con ese. Lo
 que se escribe debe pasar reglas_base.leer_csv: la ingesta nunca deja un archivo que la etapa siguiente no pueda leer.
+Eso vale también para Socrata y el modo de agregados (las reglas leen el crudo con ese lector): una fórmula de Excel
+como texto o montos con punto de miles en lo que llegó de la fuente rechazan la carga con su línea, y el ejemplo de un
+mensaje sale enmascarado si la columna es privada por su nombre o por su descripción en los metadatos.
 En Socrata, si la fuente cambia mientras se descarga (dos veces), o una página llega con un campo de menos, la carga
 se rechaza. Un error de la consulta (HTTP 4xx) no se repite: se rechaza a la primera con el mensaje del servidor.
 La procedencia guarda la consulta exacta (select, where, order y tamaño de página), la lista de páginas, una URL
@@ -263,10 +266,11 @@ def socrata(fuente, columnas, llaves, meta):
 
 
 # ---------------- CSV local ----------------
-def ver_valor(col, v):
+def ver_valor(col, v, descripciones=None):
     """Cómo sale un valor en un mensaje: enmascarado si la columna está marcada (personal, cuasi, texto libre o
-    sensible), recortado si no."""
-    return enmascarar(v) if clasificar_columna(col) or es_sensible(col) else v[:20]
+    sensible, por su nombre o, en Socrata, por su descripción en los metadatos), recortado si no."""
+    d = (descripciones or {}).get(col)
+    return enmascarar(v) if clasificar_columna(col, d) or es_sensible(col, d) else v[:20]
 
 
 def leer_local(ruta):
@@ -320,9 +324,17 @@ def local(fuente, columnas):
     return r
 
 
-def lector_de_reglas(contenido, carpeta):
-    """Lo que escribe la ingesta lo tiene que leer, completo, el lector estricto de las reglas."""
+def lector_de_reglas(contenido, carpeta, ver=ver_valor):
+    """Lo que escribe la ingesta lo tiene que leer, completo, el lector estricto de las reglas (reglas_base.leer_csv, que
+    abre el archivo y lo pasa por leer_tabla): las reglas leen el crudo con él. Primero leer_tabla sobre el mismo texto,
+    con ver, para que el ejemplo de un mensaje salga enmascarado si la columna es privada (en Socrata y en un agregado
+    este lector es el primero que ve los valores); luego leer_csv sobre el archivo tal como quedaría escrito."""
     from reglas_base import leer_csv
+    previo = "el archivo que escribiría la ingesta no pasa el lector estricto de las reglas (reglas_base.leer_csv)"
+    try:
+        leer_tabla(contenido.decode("utf-8-sig"), "del CSV", ver=ver)
+    except ValueError as e:
+        return f"{previo}: {e}"
     fd, tmp = tempfile.mkstemp(dir=carpeta, suffix=".tmp")
     try:
         with os.fdopen(fd, "wb") as fh:
@@ -330,7 +342,7 @@ def lector_de_reglas(contenido, carpeta):
         leer_csv(tmp)
         return None
     except (ValueError, csv.Error) as e:
-        return f"el archivo que escribiría la ingesta no pasa el lector estricto de las reglas (reglas_base.leer_csv): {e}"
+        return f"{previo}, aunque pasa leer_tabla: {type(e).__name__}"
     finally:
         os.unlink(tmp)
 
@@ -871,10 +883,11 @@ def cargar(contrato, salida, repetir):
     salida = Path(salida)
     salida.mkdir(parents=True, exist_ok=True)
     contenido = csv_de(columnas, filas)
-    if fuente["tipo"] == "local":
-        problema = lector_de_reglas(contenido, salida)
-        if problema:
-            return rechazar(problema, salida, tabla)
+    # en los tres modos (local, Socrata y agregado): las reglas leen el crudo con este lector, y la ingesta nunca deja un
+    # archivo que la etapa siguiente no pueda leer (en Socrata, una fórmula de Excel como texto o montos con punto de miles)
+    problema = lector_de_reglas(contenido, salida, lambda c, v: ver_valor(c, v, descripciones))
+    if problema:
+        return rechazar(problema, salida, tabla)
     huella = hashlib.sha256(contenido).hexdigest()
     destino = salida / f"{tabla}.csv"
     anterior = hashlib.sha256(destino.read_bytes()).hexdigest() if destino.exists() else None
@@ -1412,6 +1425,26 @@ def autoprueba(mod=None):
     correr("Socrata por filas: una página con un campo de menos",
            {"fuente": soc, "tabla": "est", "llave": ["estacion", "fecha"], "columnas": tipos_est}, "rechazada",
            lambda r, *_: "campos" in str(r.get("motivo")), SocrataFalso(campos_est, filas_est, pagina_rota=True))
+    # lo que llega de Socrata también pasa el lector estricto de las reglas, que lee el crudo después
+    campos_ent = {"id": "text", "entidad": "text", "valor": "number"}
+    tipos_ent = {"id": "texto", "entidad": "texto", "valor": "decimal"}
+    correr("Socrata: una fórmula de Excel como texto («=== OBRA CIVIL ===») rechaza la carga con su línea, como en un CSV local",
+           {"fuente": soc, "tabla": "ent", "llave": "id", "columnas": tipos_ent}, "rechazada",
+           lambda r, p, f, d: "fórmula" in str(r.get("motivo")) and con_linea(r) and not (d / "salida" / "ent.csv").exists(),
+           SocrataFalso(campos_ent, [{"id": "1", "entidad": "=== OBRA CIVIL ===", "valor": "1"},
+                                     {"id": "2", "entidad": "Entidad ficticia", "valor": "2"}]))
+    correr("Socrata: montos con punto de miles en una columna personal rechazan la carga sin mostrar el valor",
+           {"fuente": soc, "tabla": "doc", "llave": "id", "columnas": {"id": "texto", "numero_documento": "texto"},
+            "personales_justificadas": {"numero_documento": "caso de prueba con valores ficticios"}}, "rechazada",
+           lambda r, *_: con_linea(r) and "miles" in str(r.get("motivo")) and "035" not in str(r.get("motivo")),
+           SocrataFalso({"id": "text", "numero_documento": "text"}, [{"id": "1", "numero_documento": "1.035.233.887"},
+                                                                     {"id": "2", "numero_documento": "43"}]))
+    correr("Socrata: montos con punto de miles en una columna personal por su descripción (campo_7) sin mostrar el valor",
+           {"fuente": soc, "tabla": "doc", "llave": "id", "columnas": {"id": "texto", "campo_7": "texto"},
+            "personales_justificadas": {"campo_7": "caso de prueba con valores ficticios"}}, "rechazada",
+           lambda r, *_: con_linea(r) and "miles" in str(r.get("motivo")) and "035" not in str(r.get("motivo")),
+           SocrataFalso({"id": "text", "campo_7": "text"}, [{"id": "1", "campo_7": "1.035.233.887"}, {"id": "2", "campo_7": "43"}],
+                        descripciones={"campo_7": "Número de cédula del titular"}))
     f = SocrataFalso({**campos_est, "campo_7": "text"}, filas_est, descripciones={"campo_7": "Número de cédula del titular"})
     correr("Socrata: una columna personal por su descripción (campo_7: «Número de cédula») sin justificar",
            {"fuente": soc, "tabla": "est", "llave": ["estacion", "fecha"], "columnas": {**tipos_est, "campo_7": "texto"}},
@@ -1465,6 +1498,10 @@ def autoprueba(mod=None):
            SocrataFalso(campos_p, procesos, perder="Licitación"), pagina=2)
     correr("agregado: la fuente cambia durante la descarga", agregado(sel, "modalidad", tipos_ag), "rechazada",
            lambda r, *_: "cambió" in str(r.get("motivo")), SocrataFalso(campos_p, procesos, cambiar=True))
+    correr("agregado: un grupo con una fórmula de Excel como texto rechaza la carga con su línea",
+           agregado("modalidad, count(*) AS filas", "modalidad", {"modalidad": "texto", "filas": "entero"}), "rechazada",
+           lambda r, p, f, d: "fórmula" in str(r.get("motivo")) and con_linea(r) and not (d / "salida" / "agr.csv").exists(),
+           SocrataFalso(campos_p, [*procesos, {**procesos[0], "id_del_proceso": "P9", "modalidad": "=HYPERLINK(1)"}]))
     correr("agregado: k-anonimato (k = 3) con un grupo de 2 filas",
            agregado(sel, "modalidad", tipos_ag, agregado={"k_minimo": 3}), "rechazada", falla("k-anonimato (k ≥ 3)"),
            SocrataFalso(campos_p, procesos))
