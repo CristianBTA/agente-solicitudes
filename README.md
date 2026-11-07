@@ -71,7 +71,7 @@ El validador (`herramientas/validar_ficha.py`, V1 a V16) mide la forma: columnas
 ```bash
 python3.13 -m venv .venv && .venv/bin/pip install --require-hashes -r requirements.txt
 .venv/bin/python herramientas/baterias.py      # debe dar todas las baterías en ✓ (hoy 10)
-.venv/bin/python herramientas/blindaje.py      # cada ataque al pipeline debe salir en RESISTE (hoy 38 pruebas, con el control B00)
+.venv/bin/python herramientas/blindaje.py      # cada ataque al pipeline debe salir en RESISTE (hoy 39 pruebas, con el control B00)
 ```
 
 Las herramientas de `herramientas/` son Python sin IA y se pueden correr solas. La orquestación de agentes (`flujo.js`) se ejecuta como flujo de trabajo de Claude Code (herramienta *Workflow*) con estos argumentos:
@@ -125,7 +125,7 @@ node orquestar.mjs --motor agy --comprobar                        # dos llamadas
 | `herramientas/seguridad_cwe.py`, `medir_compuerta.py` | Reglas por debilidad (11 CWE) y dos perfiles: función pura y código de usuario; medida de la compuerta con un lote sellado |
 | `herramientas/comprobar.py`, `gancho_compuerta.py`, `medir_real.py` | La compuerta como un solo comando (`.py` y `.ipynb`), su conexión con Claude Code y la medida con código generado de verdad y jurado a ciegas |
 | `herramientas/baterias.py` | Baterías de seguridad, privacidad, FAILFAST, inyección, cruces, fechas, repetidos, factor de expansión, gráfico y lecciones; `--agregar-malo` y `--leccion` para que lo que falló no se repita |
-| `herramientas/validar_aporte.py`, `rutas_protegidas.py` | Filtro automático de aportes, sin IA: archivos prohibidos, datos personales, seguridad y que no rompa nada; y las rutas que solo cambia el dueño (el filtro, lo que importa, la compuerta y los flujos y ganchos de git) |
+| `herramientas/validar_aporte.py`, `rutas_protegidas.py` | Filtro automático de aportes, sin IA: archivos prohibidos, datos personales y órdenes a los agentes en todo lo que agrega, leído por su contenido (también PDF y metadatos de imágenes), seguridad y que no rompa nada; y las rutas que solo cambia el dueño (el filtro, lo que importa, la compuerta y los flujos y ganchos de git) |
 | `herramientas/blindaje.py`, `mutar_controles.py` | Banco de ataques al pipeline: caja de arena, compuerta, perfil, salidas, integridad, dependencias, generalización, baterías, filtro de aportes y fichas (con control positivo, B00); `mutar_controles.py` quita cada control en una copia y exige que su prueba del banco ceda |
 | `herramientas/integridad.py` | Manifiesto de integridad: sella herramientas, fichas y baterías al inicio y lo comprueba al final |
 | `herramientas/informe_final.py` | Informe de las cinco etapas en Markdown y HTML, con todo el texto escapado |

@@ -88,6 +88,18 @@ MUTANTES = [
      '"Procesamiento": inf.get("estado") == "aprobado" if inf else None,', "B39"),
     ("M27", "una limpieza que se detiene deja la capa limpia de la anterior", "herramientas/limpieza.py",
      "        retirado = retirar(destino.get(\"salida\"))\n", "        retirado = False\n", "B39"),
+    ("M28", "el filtro lee un texto en UTF-16, en latin-1 o con NUL como si fuera UTF-8 (errors=ignore)", "herramientas/validar_aporte.py",
+     "def texto_utf8(datos):\n", "def texto_utf8(datos):\n    return datos.decode(\"utf-8\", \"ignore\"), None\n", "B40"),
+    ("M29", "de una página o un SVG no se resuelven las entidades ni se quitan las etiquetas", "herramientas/validar_aporte.py",
+     "    if s in MARCADO or re.match(r\"\\s*<\", texto):\n        textos += texto_de_marcado(texto)\n", "", "B40"),
+    ("M30", "el filtro no lee el texto de un PDF", "herramientas/validar_aporte.py",
+     "    if s == \".pdf\":\n        return leer_pdf(datos)\n", "    if s == \".pdf\":\n        return [], [], []\n", "B40"),
+    ("M31", "de datos/ y limpio/ solo se prohíben los CSV", "herramientas/validar_aporte.py",
+     "(datos|limpio)/(?!procedencia_[^/]+\\.json$)", "(datos|limpio)/.*\\.csv$", "B40"),
+    ("M32", "el barrido de datos personales vuelve a la lista de extensiones", "herramientas/validar_aporte.py",
+     "    if \"baterias/privacidad/\" not in ruta:\n        hall = datos_no_ficticios_en(textos)\n",
+     "    if Path(ruta).suffix in (\".md\", \".json\", \".csv\", \".txt\") and \"baterias/privacidad/\" not in ruta:\n"
+     "        hall = datos_no_ficticios_en(textos)\n", "B40"),
 ]
 
 
