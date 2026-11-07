@@ -32,7 +32,7 @@ La independencia es lo que evita que el que prueba comparta los puntos ciegos de
 | Generador A / B | spec, planes, capa limpia | reglas, caso conocido, sellos, la otra implementación |
 | Reparador | su falla, su sección del informe, spec | reglas, la otra implementación |
 | Documentador | spec, artefactos verificados (informe, procedencia, limpieza, gobernanza, verificación del gráfico), `grafico.json` | datos crudos, capa limpia, código de los demás, bitácoras |
-| Graficador | resultado aprobado, procedencia | datos crudos |
+| Graficador | resultado aprobado, procedencia | datos crudos, capa limpia |
 | Presentador | resultado aprobado, gráfico aprobado, supuestos y preguntas, procedencia | datos crudos, capa limpia, código y bitácoras de los demás, hipótesis de la IA (historial) |
 | Custodio | metadatos de todas las columnas, conteos | filas y valores |
 | Revisor ciego de seguridad | el código generado | bitácora y notas de los autores |

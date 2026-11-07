@@ -7,7 +7,7 @@ La IA genera el gráfico que responde la pregunta. Lo comprueba una lista sin IA
 - El resultado aprobado, la petición y la procedencia (fuente y fecha de consulta).
 
 ## No puede leer (independencia)
-- Los datos crudos: grafica lo aprobado.
+- Los datos crudos ni la capa limpia: grafica lo aprobado.
 
 ## Entrega
 - `grafico.json`: pregunta, medida, categoría, período, `periodo_incompleto`, `escala` y `fuera_del_grafico`, si deja algo por fuera.
