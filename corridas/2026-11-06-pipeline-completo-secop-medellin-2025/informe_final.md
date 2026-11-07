@@ -248,6 +248,7 @@ _Criterio sellado: sí, sin cambios._
 ## 3 · Análisis: lo hacen las personas
 La IA no da el análisis: el documentador resume lo desarrollado en un whitepaper, y las personas del curso analizan, con su hipótesis escrita antes de mirar y su conclusión en la plantilla.
 - Whitepaper: [whitepaper.md](whitepaper.md) · validación sin IA (`validar_whitepaper.py`): ✅ aprobada · 41 de 41 cifras en los artefactos verificados
+- En tres hojas carta, para imprimir: [WHITEPAPER.pdf](WHITEPAPER.pdf) (maquetado sin IA por `whitepaper_corrida.py` desde el texto validado)
 
 | Comprobación | Resultado | Detalle |
 |---|---|---|
@@ -314,7 +315,7 @@ Gráfico: [grafico.html](grafico.html)
   - suma_desborda_float: Cada valor pasa la prueba de número finito, pero la suma de un NIT puede pasarse del máximo de float: B devuelve valor_contratado = inf sin aviso sobre el total y A se cae con OverflowError en math.fsum (impl_a.py, línea 351). Hoy R1 lo ataja porque inf − inf no es <= 0,5. Corrección: comprobar que cada total sea finito y fallar con un motivo claro. — confirmado
   - marcas_desde_encabezado: _otras_marcas (líneas 219-228 y 319) vuelve cualquier columna calidad_<texto> una clave de «marcadas» con el texto tal como viene en el encabezado; impl_b hace lo mismo (líneas 174-178 y 275), y verificar.py (línea 542) escribe esas claves en informe.md, que se publica y que leen otros agentes. Un encabezado preparado mete ahí texto libre: Markdown con una imagen remota o instrucciones para una IA. En esta corrida el encabezado lo arma la limpieza sobre 6 columnas fijas de la consulta, así que hoy no se puede explotar. Corrección: aceptar solo nombres de marca con [a-z0-9_] o los del plan. — confirmado
 - Baterías (lo que falló una vez, probado otra vez):
-  - ✓ seguridad: 45 casos
+  - ✓ seguridad: 455 casos
   - ✓ privacidad: 96 casos
   - ✓ failfast: 34 casos
   - ✓ inyeccion: 18 casos
@@ -323,7 +324,7 @@ Gráfico: [grafico.html](grafico.html)
   - ✓ repetidos: 4 casos
   - ✓ factor: 7 casos
   - ✓ grafico: 13 casos
-  - ✓ lecciones: 64 casos
+  - ✓ lecciones: 88 casos
 
 ## Bitácora del copiloto
 | Etapa | Qué se pidió | Qué devolvió | Cómo se probó | Qué se corrigió | Qué quedó sin verificar |
