@@ -1370,6 +1370,51 @@ def b36():
                         f"nombra «javascript:» y {len(buenos) - 2} archivos más pasan")
 
 
+@prueba("B37", "aportes → filtro", "un aporte debilita en verde lo que solo crece (CT24): borra una muestra de baterias/, deja 2 de 10 líneas, quita un caso o cambia lo esperado en un JSON, borra o cambia una mutante, o vuelve a sellar el criterio de una corrida")
+def b37():
+    import validar_aporte as va
+    if not all(hasattr(va, n) for n in ("pide_dueno_por_crecer", "lo_sellado")):
+        return r("CEDE", "el filtro solo avisa cuando se borra un archivo de baterias/: una línea o un caso quitados, una mutante "
+                         "borrada o un criterio sellado de nuevo pasan en verde")
+    # una base ficticia: una corrida con sellos y otra sin ellos
+    base = {"corridas/c/sellos.json": json.dumps({"reglas.py": "x", "spec.json": "y", "caso_conocido/esperado.json": "z"}),
+            "corridas/c/reglas.py": "", "corridas/c/spec.json": "", "corridas/c/caso_conocido/esperado.json": "",
+            "corridas/c/whitepaper.md": "", "corridas/sin-sellos/reglas.py": ""}
+    sellado = va.lo_sellado(base, base.get)
+    casos = json.dumps({"_que_prueba": "x", "casos": [{"nombre": "a", "esperado": 1}, {"nombre": "b", "esperado": 2}]}, indent=2)
+    lineas = "".join(f"línea de prueba {i}\n" for i in range(10))
+    mutante = "def analizar(datos):\n    return []\n"
+
+    def con(cambio):
+        x = json.loads(casos)
+        cambio(x)
+        return json.dumps(x, indent=2)
+    malos = [("D", "baterias/seguridad/malos/x.py", "", ""),
+             ("M", "baterias/inyeccion/maliciosos.txt", lineas, "".join(lineas.splitlines(True)[:2])),
+             ("M", "baterias/inyeccion/maliciosos.txt", lineas, lineas.replace("prueba 3", "otra 3")),
+             ("M", "baterias/fechas/casos.json", casos, con(lambda x: x["casos"].pop(0))),
+             ("M", "baterias/fechas/casos.json", casos, con(lambda x: x["casos"][1].update(esperado=3))),
+             ("M", "baterias/fechas/casos.json", casos, con(lambda x: x.pop("_que_prueba"))),
+             ("D", "evidencia/sintetico/mutantes/m05_x.py", "", ""),
+             ("M", "evidencia/sintetico/mutantes/m05_x.py", mutante, mutante + "# cambio\n"),
+             ("M", "corridas/c/reglas.py", "a", "b"), ("M", "corridas/c/sellos.json", "a", "b"),
+             ("A", "corridas/c/caso_conocido/nuevo.csv", "", "x"), ("D", "corridas/c/caso_conocido/esperado.json", "", "")]
+    buenos = [("M", "baterias/fechas/casos.json", casos, con(lambda x: x["casos"].append({"nombre": "c", "esperado": 3}))),
+              ("M", "baterias/fechas/casos.json", casos, json.dumps(json.loads(casos))),   # el mismo JSON con otro formato
+              ("M", "baterias/inyeccion/maliciosos.txt", lineas, lineas + "línea de prueba 10\n"),
+              ("A", "baterias/seguridad/malos/nueva.py", "", "import os\n"),
+              ("A", "evidencia/sintetico/mutantes/m14_nueva.py", "", mutante),
+              ("M", "corridas/c/whitepaper.md", "a", "b"), ("M", "corridas/sin-sellos/reglas.py", "a", "b"),
+              ("M", "agentes/03-x.md", "a\nb\n", "a\n")]
+    pasan = [f"{e} {ruta}" for e, ruta, v, n in malos if not va.pide_dueno_por_crecer(e, ruta, v, n, sellado)]
+    falsas = [f"{e} {ruta}" for e, ruta, v, n in buenos if va.pide_dueno_por_crecer(e, ruta, v, n, sellado)]
+    if pasan or falsas:
+        return r("CEDE", f"pasan {len(pasan)} de {len(malos)}: {pasan[:6]}; falsas alarmas: {falsas}")
+    return r("RESISTE", f"los {len(malos)} cambios que debilitan lo que solo crece o lo sellado de una corrida quedan para el dueño; "
+                        f"agregar un caso, una línea, una muestra o una mutante, el mismo JSON con otro formato y {len(buenos) - 5} "
+                        "cambios fuera de lo que solo crece pasan")
+
+
 def main(argv):
     solo = set(argv[argv.index("--solo") + 1].split(",")) if "--solo" in argv else None
     filas = []

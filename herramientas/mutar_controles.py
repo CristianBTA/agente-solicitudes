@@ -66,6 +66,15 @@ MUTANTES = [
      '"flujo.js", "orquestar.mjs", "requirements.txt"', '"flujo.js", "requirements.txt"', "B36"),
     ("M18", "el código que corre fuera de Python (scripts, permiso de ejecución, «#!», páginas con código) pasa sin el dueño",
      "herramientas/validar_aporte.py", "def ejecutable(ruta, p, modo=None):\n", "def ejecutable(ruta, p, modo=None):\n    return None\n", "B36"),
+    ("M19", "borrar o cambiar lo que ya estaba en baterias/ o en las mutantes pasa sin el dueño", "herramientas/validar_aporte.py",
+     "    if not k.startswith(CRECEN):\n        return None\n", "    if True:\n        return None\n", "B37"),
+    ("M20", "lo sellado de una corrida (sellos, reglas.py, spec.json, caso_conocido/) cambia sin el dueño", "herramientas/validar_aporte.py",
+     "    if any(k == clave(s) or (s.endswith(\"/\") and k.startswith(clave(s))) for s in sellado):\n",
+     "    if False:\n", "B37"),
+    ("M21", "las líneas quitadas o cambiadas de un texto de las baterías no cuentan", "herramientas/validar_aporte.py",
+     "    faltan = Counter(tv.splitlines()) - Counter(tn.splitlines())\n", "    faltan = Counter()\n", "B37"),
+    ("M22", "los casos quitados o cambiados de un JSON de las baterías no cuentan", "herramientas/validar_aporte.py",
+     "                out.append(f\"{camino}[{i}]\")\n", "                pass\n", "B37"),
 ]
 
 

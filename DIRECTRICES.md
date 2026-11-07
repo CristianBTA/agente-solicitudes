@@ -37,7 +37,7 @@ cmp /tmp/datos-prueba/ventas.csv ejemplo/datos/ventas.csv && echo "datos idénti
 
 # 5b. Blindaje: se ataca cada capa a propósito (caja de arena, compuerta, perfil, salidas, integridad, dependencias, fichas)
 .venv/bin/python herramientas/blindaje.py
-# y cada control con su prueba: se quita en una copia y la prueba que lo cubre debe ceder (18 mutantes)
+# y cada control con su prueba: se quita en una copia y la prueba que lo cubre debe ceder (22 mutantes)
 .venv/bin/python herramientas/mutar_controles.py
 
 # 5c. SGSI: la tríada C·I·D, los riesgos y la Declaración de Aplicabilidad, comprobados sin IA (y el probador, probado)
@@ -64,7 +64,7 @@ SECOP II se actualiza a diario. Si el recorte de hoy no es idéntico al del 6-no
 
 Si corriste los pasos sobre `corridas/` directamente (como decía una versión anterior de esta guía), `git status` muestra `informe.json`, `informe.md` y `gobernanza.json` modificados, con el tiempo medido y la ruta de tu carpeta; `git restore corridas/` los deja como estaban. Nunca entran en un aporte.
 
-Lo que debe salir: todas las baterías en ✓ (hoy son 10), el blindaje con todas sus pruebas en «RESISTE» (hoy son 35, con el control B00; en Linux no hay sandbox-exec: B01, B11, B12, B24 y B29 salen «NO APLICA» y el banco lo dice, porque ahí el código de la IA tendría red y escritura; por eso el filtro de aportes corre en macOS) y sus 18 mutantes de los controles muertos, la corrida en «aprobado», la referencia `m00` sin fallas y las mutantes `m01` a `m13` con al menos una falla cada una, los datos idénticos, la gobernanza aprobada, el SGSI sin fallas, con sus 21 mutantes atrapados, las autopruebas de la presentación y del whitepaper sin fallas ni errores, y `git status` sin ningún archivo. Si algo no sale así, el repositorio no cumple lo que dice.
+Lo que debe salir: todas las baterías en ✓ (hoy son 10), el blindaje con todas sus pruebas en «RESISTE» (hoy son 36, con el control B00; en Linux no hay sandbox-exec: B01, B11, B12, B24 y B29 salen «NO APLICA» y el banco lo dice, porque ahí el código de la IA tendría red y escritura; por eso el filtro de aportes corre en macOS) y sus 22 mutantes de los controles muertos, la corrida en «aprobado», la referencia `m00` sin fallas y las mutantes `m01` a `m13` con al menos una falla cada una, los datos idénticos, la gobernanza aprobada, el SGSI sin fallas, con sus 21 mutantes atrapados, las autopruebas de la presentación y del whitepaper sin fallas ni errores, y `git status` sin ningún archivo. Si algo no sale así, el repositorio no cumple lo que dice.
 
 ---
 
@@ -240,6 +240,7 @@ Un agente que no conoce a los autores revisa todo el código generado. Cada hall
 - Seguridad: código malo que debe bloquearse y código bueno que debe pasar. Así se prueba al probador: el falso positivo de `re.compile` es un caso.
 - Privacidad: datos personales que no pueden salir y textos que no son personales.
 - Lecciones: cada error real, con la prueba que lo atrapa. Esa prueba tiene que existir y la batería lo comprueba: un id del blindaje, un mutante de los controles, un caso de una batería, una herramienta con su autoprueba o un archivo versionado; el texto libre solo no cuenta (L96).
+- Solo crecen, y el filtro de aportes lo hace cumplir: borrar un archivo de `baterias/` o una mutante del banco sintético, quitar o cambiar una línea, un caso o lo esperado de uno que ya estaba, o tocar lo sellado de una corrida (sus sellos, lo que nombran, `reglas.py`, `spec.json`, `hipotesis.json` y `caso_conocido/`) queda como «requiere decisión del dueño». Un JSON se compara por su estructura: agregar un caso pasa. La corrida de referencia y las mutantes con que se mide el criterio salen de la base, más las mutantes nuevas del aporte (B37, L101).
 *Dónde:* `baterias/`, `herramientas/baterias.py`.
 
 **D27 · Bitácora del copiloto.** Por etapa: qué se pidió, qué devolvió, cómo se probó, qué se corrigió y qué quedó sin verificar (`bitacora/`). Va en el informe final.
@@ -255,7 +256,7 @@ Se reporta también cuando la IA sola acertó, y se mide lo que cuesta el contro
 
 El mismo patrón del generador y el validador, aplicado al pipeline entero: un atacante (cada prueba de `herramientas/blindaje.py`) y un defensor (cada capa). El detalle y la línea base están en [`evidencia/blindaje/README.md`](evidencia/blindaje/README.md).
 
-**DB1 · Toda batería de ataques lleva un control positivo.** Un ataque que «resiste» porque nada funciona no prueba nada. B00 corre código normal en la caja: si falla, ninguna prueba de la caja vale (lección L27). Y todo control lleva una prueba que muere al quitarlo: `herramientas/mutar_controles.py` lo quita en una copia y exige que su prueba ceda por el ataque, no por un error; sin mutar, las mismas pruebas resisten. Las compuertas de `reglas.py`, los valores finitos y el saneado sobrevivían a la mutación (SEG-3); hoy los 18 mutantes mueren (B26, B30 a B33, B35 y B36; L92 a L94, L99 y L100). Lo mismo con las baterías: la batería FAILFAST corre el lector del perfil y las autopruebas de la ingesta y de la limpieza, y B33 afloja cada lector en una copia para ver que caiga (L93).
+**DB1 · Toda batería de ataques lleva un control positivo.** Un ataque que «resiste» porque nada funciona no prueba nada. B00 corre código normal en la caja: si falla, ninguna prueba de la caja vale (lección L27). Y todo control lleva una prueba que muere al quitarlo: `herramientas/mutar_controles.py` lo quita en una copia y exige que su prueba ceda por el ataque, no por un error; sin mutar, las mismas pruebas resisten. Las compuertas de `reglas.py`, los valores finitos y el saneado sobrevivían a la mutación (SEG-3); hoy los 22 mutantes mueren (B26, B30 a B33 y B35 a B37; L92 a L94 y L99 a L101). Lo mismo con las baterías: la batería FAILFAST corre el lector del perfil y las autopruebas de la ingesta y de la limpieza, y B33 afloja cada lector en una copia para ver que caiga (L93).
 
 **DB2 · La caja de arena niega la red, la escritura y la lectura de la carpeta personal, y da un entorno mínimo.** El código de la IA no ve las variables de entorno del proceso que lo lanza (secretos) y tiene topes de tiempo y de memoria. La memoria se mide como huella física, no como memoria residente (B01, B10–B14, B23; lecciones L25, L26, L28, L69). La implementación bajo prueba corre aislada, sobre una copia de su código y de sus tablas: no lee el repositorio, las carpetas temporales ni ningún archivo con nombre de oráculo o de criterio (`esperado.json`, `reglas.py`, `sellos*.json`), ni la otra implementación (B24, L81). El código del gráfico y el de las hipótesis pasan por la misma compuerta y corren en la misma caja aislada: el gráfico no lee ningún archivo (el resultado y la procedencia le llegan como texto) y las hipótesis, solo la copia de sus tablas, sin el `hipotesis.json` sellado (B29, L91).
 

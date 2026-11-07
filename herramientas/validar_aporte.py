@@ -32,8 +32,13 @@ Revisa:
      no pasa por las compuertas: un script (.sh, .js, .mjs, .ts, .ps1, .bat…), un archivo con permiso de ejecución o con
      «#!» y una página con código (<script>, on…=, javascript:) fuera de corridas/*/grafico.html quedan como «requiere
      decisión del dueño», y orquestar.mjs, que lanza agy y Codex sin pedir permisos, es de lo que decide el dueño (L100).
-  4. Que no rompa nada: baterías, la corrida sintética verificada desde cero y las 13 mutantes atrapadas. Una
-     herramienta que se cae antes de su línea RESUMEN no aprueba nada: es falla, aunque no haya escrito ninguna «✗» (L67).
+  4. Que no rompa nada: baterías, la corrida sintética verificada desde cero y las 13 mutantes atrapadas, con la
+     corrida y las mutantes de la base (más las mutantes nuevas del aporte). Una herramienta que se cae antes de su línea
+     RESUMEN no aprueba nada: es falla, aunque no haya escrito ninguna «✗» (L67).
+  4b. Que lo que solo crece no se debilite en verde (CT24, D26): borrar un archivo de baterias/ o una mutante del banco
+     sintético, quitar o cambiar una línea, un caso o lo esperado de uno que ya estaba, o tocar lo sellado de una corrida
+     (sus sellos, lo que nombran, reglas.py, spec.json, hipotesis.json y caso_conocido/) queda como «requiere decisión
+     del dueño». Agregar casos, líneas y mutantes no (L101).
   5. Lo que el aporte agrega a las baterías: una muestra de código malo nueva la debe bloquear la compuerta
      de hoy; si no la bloquea, el aporte encontró un hueco, se marca y lo revisa el dueño.
   6. El SGSI (sgsi/README.md): nada restringido versionado, sin llaves, flujos de solo lectura y cada control con evidencia.
@@ -55,6 +60,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -121,10 +127,16 @@ PAGINAS = (".html", ".htm", ".xhtml", ".svg")
 CODIGO_EN_PAGINA = re.compile(r"<script\b|<[^>]*\son[a-z]+\s*=|(?:href|src|action|formaction|data)\s*=\s*[\"']?\s*javascript:", re.I)
 GRAFICO = re.compile(r"corridas/[^/]+/grafico\.html")   # trae el paquete de Plotly y lo revisa verificar_grafico.py
 ESTADOS = {"A": "agrega", "M": "cambia", "D": "borra", "T": "cambia el tipo de"}
+# Lo que solo crece (CT24, D26): un aporte agrega casos, líneas y mutantes; quitar o cambiar uno lo decide el dueño (L101)
+CRECEN = ("baterias/", MUTANTES + "/")
+# Lo sellado de cada corrida con sellos, además de sus sellos*.json y de lo que nombran (L101)
+SELLADO_FIJO = ("reglas.py", "spec.json", "hipotesis.json", "caso_conocido/")
 # Por qué el dueño decide cada grupo de «requiere decisión del dueño» (lo que no está aquí es parte del juez)
 MOTIVO_DUENO = {"rutas que chocan": "en macOS y Windows reemplazan a otra ruta escrita distinto (L99)",
                 "orquestar.mjs": "lanza agy y Codex sin pedir permisos en el equipo del dueño (L100)",
-                "código fuera de Python": "corre en el equipo de quien lo lanza o lo abre y las compuertas solo revisan Python (L100)"}
+                "código fuera de Python": "corre en el equipo de quien lo lanza o lo abre y las compuertas solo revisan Python (L100)",
+                "lo que solo crece": "las baterías y las mutantes solo crecen (CT24): quitar o cambiar lo que ya estaba lo decide el dueño (L101)",
+                "corridas selladas": "el criterio sellado de una corrida no cambia en un aporte (L101)"}
 
 
 def motivo_prohibido(ruta):
@@ -283,6 +295,93 @@ def ejecutable(ruta, p, modo=None):
     if k.endswith(PAGINAS) and not GRAFICO.fullmatch(ruta) and CODIGO_EN_PAGINA.search(p.read_text(encoding="utf-8", errors="ignore")):
         return "es una página con código (<script>, on…= o javascript:)"
     return None
+
+
+def faltan_en_json(viejo, nuevo, camino="$"):
+    """Lo que un JSON perdió frente al de la base: llaves que ya no están, elementos de una lista que ya no están iguales
+    (cambiar un caso es quitarlo) y valores que cambiaron. Agregar llaves o elementos no cuenta."""
+    if isinstance(viejo, dict):
+        if not isinstance(nuevo, dict):
+            return [camino]
+        out = []
+        for k, v in viejo.items():
+            out += [f"{camino}.{k}"] if k not in nuevo else faltan_en_json(v, nuevo[k], f"{camino}.{k}")
+        return out
+    if isinstance(viejo, list):
+        if not isinstance(nuevo, list):
+            return [camino]
+        quedan = Counter(json.dumps(x, sort_keys=True, ensure_ascii=False) for x in nuevo)
+        out = []
+        for i, x in enumerate(viejo):
+            s = json.dumps(x, sort_keys=True, ensure_ascii=False)
+            if quedan[s] > 0:
+                quedan[s] -= 1
+            else:
+                out.append(f"{camino}[{i}]")
+        return out
+    return [] if type(viejo) is type(nuevo) and viejo == nuevo else [camino]
+
+
+def lo_que_pierde(ruta, viejo, nuevo):
+    """Lo que pierde un archivo de lo que solo crece frente a la base (vacío si solo crece): una mutante o un binario no
+    cambia; un JSON pierde lo que dice faltan_en_json; otro texto, las líneas que ya no están (cambiar una es quitarla)."""
+    viejo, nuevo = (x.encode("utf-8") if isinstance(x, str) else bytes(x) for x in (viejo, nuevo))
+    if viejo == nuevo:
+        return []
+    if clave(ruta).startswith(MUTANTES + "/") or Path(ruta).suffix.lower() in BINARIOS:
+        return ["el archivo cambió"]
+    tv, tn = viejo.decode("utf-8", "replace"), nuevo.decode("utf-8", "replace")
+    if Path(ruta).suffix.lower() == ".json":
+        try:
+            return faltan_en_json(json.loads(tv), json.loads(tn))
+        except ValueError:
+            pass   # un JSON roto se compara por líneas (y las baterías lo marcan, L67)
+    faltan = Counter(tv.splitlines()) - Counter(tn.splitlines())
+    return [f"la línea «{x.strip()[:60]}»" for x in faltan.elements()]
+
+
+def lo_sellado(rutas_base, leer):
+    """Lo sellado de cada corrida de la base que tiene sellos: sus sellos*.json, lo que nombran y SELLADO_FIJO (las carpetas
+    terminan en «/»). leer(ruta) da el texto de la base."""
+    rutas_base = set(rutas_base)
+    out = set()
+    for r in rutas_base:
+        m = re.fullmatch(r"(corridas/[^/]+/)sellos[^/]*\.json", r)
+        if not m:
+            continue
+        c = m.group(1)
+        out |= {r} | {c + f for f in SELLADO_FIJO}
+        try:
+            out |= {c + k for k in json.loads(leer(r)) if c + k in rutas_base}
+        except (ValueError, TypeError, AttributeError):
+            pass
+    return out
+
+
+def pide_dueno_por_crecer(estado, ruta, viejo, nuevo, sellado):
+    """(grupo, qué) si el cambio debilita lo que solo crece o toca lo sellado de una corrida, o None (L101): borrar un
+    archivo de baterias/ o una mutante, quitar o cambiar lo que ya estaba (lo_que_pierde) o agregar, cambiar o borrar
+    algo sellado. `viejo` y `nuevo` son el contenido en la base y en el aporte; `sellado`, el de lo_sellado."""
+    k, accion = clave(ruta), ESTADOS.get(estado, "cambia")
+    if any(k == clave(s) or (s.endswith("/") and k.startswith(clave(s))) for s in sellado):
+        return "corridas selladas", f"{accion} {ruta}"
+    if not k.startswith(CRECEN):
+        return None
+    if estado == "D":
+        return "lo que solo crece", f"borra {ruta}"
+    if estado == "A":
+        return None
+    perdido = lo_que_pierde(ruta, viejo, nuevo)
+    if perdido:
+        return "lo que solo crece", f"quita o cambia en {ruta}: {', '.join(perdido[:3])}{' …' if len(perdido) > 3 else ''}"
+    return None
+
+
+def mostrar_bytes(d, sha, ruta):
+    """Contenido de un archivo en un commit, en bytes, o b"" si no existe ahí."""
+    if not existe_en_git(d, "cat-file", "-e", f"{sha}:{ruta}"):
+        return b""
+    return git(d, "show", f"{sha}:{ruta}", binario=True)
 
 
 def modos_en_git(arbol):
@@ -518,6 +617,9 @@ def armar_mixto(arbol, sha_base, destino):
     for c in CONFIABLES:
         quitar(destino, c)
     extraer(arbol, sha_base, [c.rstrip("/") for c in CONFIABLES], destino)
+    # la corrida de referencia y las mutantes, de la base: el aporte no elige con qué se mide el criterio; sus mutantes
+    # nuevas quedan y se corren además de las de la base (L101)
+    extraer(arbol, sha_base, [CORRIDA_REFERENCIA, MUTANTES], destino)
     git(destino, "init", "-q")
     git(destino, "add", "-A", "-f")
     return destino
@@ -578,9 +680,10 @@ def revisar(arbol, base):
                       f"actualízala con git rebase {base}")
 
     # rutas que en el disco de macOS caen sobre otra escrita distinto: la base, el aporte y lo que no tiene commit (L99)
-    choques = colisiones([r for e, r in archivos if e != "D"], rutas_en(arbol, sha_base) | rutas_en(arbol, "HEAD")
-                         | set(versionables(arbol)))
+    rutas_base = rutas_en(arbol, sha_base)
+    choques = colisiones([r for e, r in archivos if e != "D"], rutas_base | rutas_en(arbol, "HEAD") | set(versionables(arbol)))
     modos = modos_en_git(arbol)
+    sellado = lo_sellado(rutas_base, lambda r: mostrar(arbol, sha_base, r))
     for estado, ruta in archivos:
         c = confiable_de(ruta)
         if c:
@@ -594,15 +697,22 @@ def revisar(arbol, base):
             else:
                 fallas.append(texto)
             continue
+        p = arbol / ruta
+        viejo = nuevo = b""
+        if estado in ("M", "T") and clave(ruta).startswith(CRECEN):   # un enlace o una carpeta en su lugar pierde todo
+            viejo = mostrar_bytes(arbol, punto, ruta)
+            nuevo = p.read_bytes() if p.is_file() and not p.is_symlink() else b""
+        por = pide_dueno_por_crecer(estado, ruta, viejo, nuevo, sellado)
+        if por:
+            requiere.setdefault(por[0], []).append(por[1])
         if estado == "D":
-            if ruta.startswith(("baterias/", "agentes/", "DIRECTRICES")):
+            if ruta.startswith(("agentes/", "DIRECTRICES")):
                 avisos.append(f"borra {ruta}: lo revisa el dueño")
             continue
         motivo = motivo_prohibido(ruta)
         if motivo:
             fallas.append(motivo)
             continue
-        p = arbol / ruta
         if p.is_symlink():  # un enlace hace que las herramientas lean archivos de quien abre el clon (L54)
             fallas.append(f"enlace simbólico (apunta a {os.readlink(p)}; no se aceptan: puede apuntar fuera del repositorio): {ruta}")
             continue
@@ -700,6 +810,8 @@ def revisar(arbol, base):
             fallas.append(f"mutantes: el verificador no terminó o no dejó su RESUMEN (código {rc}): {ultima(out)}")
         else:
             sin_resultado = [m.stem for m in mutantes if f"fallas_{m.stem}" not in res]
+            sin_resultado += sorted({Path(r).stem for r in rutas_base if re.fullmatch(re.escape(MUTANTES) + r"/m[^/]*\.py", r)}
+                                    - {m.stem for m in mutantes})   # las de la base corren todas (L101)
             sin_fallas = [m.stem for m in mutantes if f"fallas_{m.stem}" in res and not res[f"fallas_{m.stem}"]]
             agregadas = {Path(r).stem for e, r in archivos if e == "A" and r.startswith(MUTANTES + "/")}
             if sin_resultado:
@@ -839,6 +951,38 @@ def _orquestar_y_scripts(d):
     (d / "clase/pagina.html").write_text("<html><body><script>void 0</script></body></html>\n", encoding="utf-8")
 
 
+def _lo_que_solo_crece_debil(d):
+    """L101: el aporte debilita en verde lo que solo crece: borra una muestra de código malo, deja 2 de las líneas de los
+    textos maliciosos, quita un caso de las fechas, borra una mutante que ninguna lección cita y vuelve a sellar el
+    criterio de la corrida de referencia con una regla que siempre aprueba. Solo en el clon temporal."""
+    (d / "baterias/seguridad/malos/borra_rmtree.py").unlink()
+    m = d / "baterias/inyeccion/maliciosos.txt"
+    m.write_text("\n".join(m.read_text(encoding="utf-8").splitlines()[:2]) + "\n", encoding="utf-8")
+    f = d / "baterias/fechas/casos.json"
+    x = json.loads(f.read_text(encoding="utf-8"))
+    x["casos"] = x["casos"][1:]
+    f.write_text(json.dumps(x, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    (d / MUTANTES / "m02_nc_sumadas.py").unlink()
+    r = d / CORRIDA_REFERENCIA / "reglas.py"
+    t = r.read_text(encoding="utf-8")
+    if "def r1(datos, resultado):\n" not in t:
+        raise ValueError("reglas.py ya no tiene la regla que este caso debilita: actualiza el caso")
+    r.write_text(t.replace("def r1(datos, resultado):\n", "def r1(datos, resultado):\n    return True, 'sin revisar'\n", 1), encoding="utf-8")
+    s = d / CORRIDA_REFERENCIA / "sellos.json"
+    sellos = json.loads(s.read_text(encoding="utf-8"))
+    sellos["reglas.py"] = hashlib.sha256(r.read_bytes()).hexdigest()
+    s.write_text(json.dumps(sellos, indent=1) + "\n", encoding="utf-8")
+
+
+def _lo_que_solo_crece_bien(d):
+    """L101, el control: un caso nuevo en las fechas, con el JSON escrito con otro formato, pasa."""
+    f = d / "baterias/fechas/casos.json"
+    x = json.loads(f.read_text(encoding="utf-8"))
+    x["casos"].append({"nombre": "autoprueba del filtro: una fecha válida sola", "valores": ["2026-04-03"],
+                       "fechas_imposibles": 0, "rango_aaaa-mm-dd": ["2026-04-03", "2026-04-03"]})
+    f.write_text(json.dumps(x, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+
+
 def _flujo_del_dueno(d):
     p = d / ".github/workflows/vigilancia-diaria.yml"
     p.write_text(p.read_text(encoding="utf-8") + "# comentario de prueba: no cambia nada\n", encoding="utf-8")
@@ -900,6 +1044,12 @@ CASOS = {
     "orquestar_y_scripts": (_orquestar_y_scripts, 1, ["orquestar.mjs: cambia orquestar.mjs", "agrega clase/preparar.sh (es un script)",
                                                       "agrega ejemplo/notas.txt (tiene permiso de ejecución)",
                                                       "agrega clase/pagina.html (es una página con código"], [], None),
+    "lo_que_solo_crece_debil": (_lo_que_solo_crece_debil, 1, [
+        "borra baterias/seguridad/malos/borra_rmtree.py", "quita o cambia en baterias/inyeccion/maliciosos.txt",
+        "quita o cambia en baterias/fechas/casos.json: $.casos[0]", "borra evidencia/sintetico/mutantes/m02_nc_sumadas.py",
+        f"corridas selladas: cambia {CORRIDA_REFERENCIA}/reglas.py, cambia {CORRIDA_REFERENCIA}/sellos.json"],
+        ["mutantes sin resultado"], None),
+    "lo_que_solo_crece_bien": (_lo_que_solo_crece_bien, 0, [], [], None),
     "rutas_que_chocan": (_rutas_que_chocan, 1, [".Githooks/pre-commit: en macOS y Windows «.Githooks» y «.githooks» son la misma ruta",
                                                 "Flujo.js: en macOS y Windows «Flujo.js» y «flujo.js» son la misma ruta"], [], None),
     "extracto_y_personas_en_otros_formatos": (_aporte_con_datos, 1, ARCHIVOS_GOB6, [], None),

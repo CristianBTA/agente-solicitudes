@@ -71,7 +71,7 @@ El validador (`herramientas/validar_ficha.py`, V1 a V16) mide la forma: columnas
 ```bash
 python3.13 -m venv .venv && .venv/bin/pip install --require-hashes -r requirements.txt
 .venv/bin/python herramientas/baterias.py      # debe dar todas las baterías en ✓ (hoy 10)
-.venv/bin/python herramientas/blindaje.py      # cada ataque al pipeline debe salir en RESISTE (hoy 35 pruebas, con el control B00)
+.venv/bin/python herramientas/blindaje.py      # cada ataque al pipeline debe salir en RESISTE (hoy 36 pruebas, con el control B00)
 ```
 
 Las herramientas de `herramientas/` son Python sin IA y se pueden correr solas. La orquestación de agentes (`flujo.js`) se ejecuta como flujo de trabajo de Claude Code (herramienta *Workflow*) con estos argumentos:
