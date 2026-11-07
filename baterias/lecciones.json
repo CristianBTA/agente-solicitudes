@@ -672,6 +672,12 @@
       "leccion": "Un conteo se lee como entero, no se convierte a la fuerza. La conciliación (PIP-3) leía filas_leidas, usadas y excluidas con int(): 1520,9 se truncaba a 1520 y pasaba el ancla contra las filas reales, «1520» en texto y True contaban como números, y un infinito tumbaba verificar.py con OverflowError (también un entero de 400 cifras, al escribir el mensaje con fmt). Ahora una sola función, entero_estricto, acepta un int que no es bool o un float finito sin parte decimal (1520.0); lo demás es un motivo de conciliación inválida, en revisar_conciliacion, anclar_conciliacion, forma_conciliacion, describir_conciliacion y robustez.py, y fmt escribe los enteros sin pasar por float.",
       "origen": "verificación de las salidas de la versión final, 7-nov-2026: en una copia de la corrida de ventas, conciliar() con filas_leidas infinito daba OverflowError en revisar_conciliacion, y con filas_leidas = usadas = 1520,9 conciliacion_problemas quedaba vacío",
       "prueba": "B25 · herramientas/blindaje.py «decimal (2,9 = 2,9 + 0)» «infinito (inf = inf + 0)» «entero de 400 cifras» · herramientas/verificar.py «def entero_estricto»"
+    },
+    {
+      "id": "L113",
+      "leccion": "Lo que una herramienta dejó en disco no prueba que cumplió: hay que medirlo donde se usa. Cuando el whitepaper validado no cabe en tres hojas carta ni con letra de 8,5 pt, whitepaper_corrida.py lo imprime completo, dice que hay que acortarlo y sale con 1, pero deja WHITEPAPER.html y WHITEPAPER.pdf. El informe final solo miraba que la huella del texto validado estuviera en el HTML: enlazaba ese PDF de 4 hojas como «En tres hojas carta» y daba «todas las etapas aprobadas», contra la regla de las tres hojas. Ahora el informe final mide el PDF con carta.py (hojas, tamaño y enlaces): lo enlaza como «tres hojas carta» solo si lo es; con más hojas, otro tamaño o enlaces no lo enlaza, dice por qué y el análisis no queda aprobado; con una o dos hojas dice cuántas; y un PDF de otro texto o un enlace simbólico no se mide ni se enlaza.",
+      "origen": "verificación de las salidas de la versión final, 7-nov-2026: con carta.paginas simulado en 4, whitepaper_corrida.py salió con 1 y dejó el PDF, y informe_final.py dio todas_aprobadas true con «- En tres hojas carta, para imprimir: [WHITEPAPER.pdf](WHITEPAPER.pdf)»",
+      "prueba": "herramientas/whitepaper_corrida.py --autoprueba «un PDF de 4 hojas no se enlaza como» «tres hojas A4 no son carta» «un PDF con enlaces no se enlaza» · herramientas/informe_final.py «def version_impresa»"
     }
   ]
 }

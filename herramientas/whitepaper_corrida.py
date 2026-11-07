@@ -33,7 +33,9 @@ el armador común (carta.py, el mismo de whitepaper_fichas.py): en cada paso de 
 salto de hoja antes de «Cifra verificada» y otro antes de «Límites» (una parte por hoja) y, si así no da tres hojas, el
 texto seguido. Si con 8,5 pt no cabe en tres hojas, sale completo en las hojas que necesite, con la letra más grande con
 la que quepa en tres o, si no cabe, con 8,5 pt (nunca se recorta texto validado), lo dice y sale con 1: el whitepaper es
-más largo que lo pedido y el documentador debe acortarlo. Sin Chrome deja el HTML y lo dice.
+más largo que lo pedido y el documentador debe acortarlo. Sin Chrome deja el HTML y lo dice. El informe final
+(informe_final.py) no le cree a esta herramienta: mide el PDF por su cuenta y lo enlaza «en tres hojas carta» solo si
+tiene tres, en carta y sin enlaces; con más hojas no lo enlaza y deja el análisis sin aprobar (L113).
 Última línea: RESUMEN {json}.
 """
 import contextlib
@@ -721,6 +723,44 @@ def autoprueba():
             caso("armador: sin Chrome → lo dice (sin_chrome)", r["estado"] == "sin_chrome")
         finally:
             carta.imprimir, carta.paginas = viejo
+
+        # el informe final mide el PDF y no le cree a quien lo armó: «en tres hojas carta» solo si lo es (L113).
+        # Las hojas, el tamaño y los enlaces se simulan; el PDF es del texto validado (su HTML lleva la huella).
+        import informe_final
+        c = _corrida(tmp, "impresa", BUENO)
+        _correr(c)
+        (c / "WHITEPAPER.pdf").write_bytes(b"%PDF simulado")
+        wpv = json.loads((c / "whitepaper_verificacion.json").read_text(encoding="utf-8"))
+        viejo = carta.paginas, carta.tamano, carta.enlaces
+        try:
+            def impresa(n, tam=carta.CARTA_PT, enl=(), corrida=c):
+                carta.paginas, carta.tamano, carta.enlaces = (lambda p: n), (lambda p: tam), (lambda p: list(enl))
+                return informe_final.version_impresa(corrida, wpv)
+            linea, problema = impresa(3)
+            caso("informe final (control positivo): tres hojas carta sin enlaces → se enlaza como «tres hojas carta»",
+                 problema is None and linea and "En tres hojas carta" in linea and "(WHITEPAPER.pdf)" in linea, str(linea))
+            linea, problema = impresa(4)
+            caso("informe final: un PDF de 4 hojas no se enlaza como «tres hojas carta»: es un problema, y el análisis no se aprueba",
+                 problema and "4 hojas" in problema and "acortar" in problema and "(WHITEPAPER.pdf)" not in linea, str(linea))
+            linea, problema = impresa(2)
+            caso("informe final: un PDF de 2 hojas se enlaza diciendo que tiene dos (no «tres»)",
+                 problema is None and "En dos hojas carta" in linea and "tres hojas carta" not in linea, str(linea))
+            linea, problema = impresa(3, tam=(595, 842))
+            caso("informe final: tres hojas A4 no son carta: no se enlaza", problema and "no es tamaño carta" in problema, str(linea))
+            linea, problema = impresa(3, enl=["file:///ruta/local/whitepaper.md"])
+            caso("informe final: un PDF con enlaces no se enlaza", problema and "enlaces" in problema, str(linea))
+            linea, problema = impresa(0, tam=None)
+            caso("informe final: un PDF que no deja contar sus hojas no se enlaza", problema and "contar sus hojas" in problema, str(linea))
+            otro = _corrida(tmp, "impresa-otra", BUENO)
+            (otro / "WHITEPAPER.html").write_text("de otro texto", encoding="utf-8")
+            (otro / "WHITEPAPER.pdf").write_bytes(b"%PDF simulado")
+            caso("informe final: el PDF de otro texto (sin la huella en su HTML) no se enlaza ni se mide",
+                 impresa(4, corrida=otro) == (None, None))
+            (c / "WHITEPAPER.pdf").unlink()
+            (c / "WHITEPAPER.pdf").symlink_to(tmp / "otra.json")
+            caso("informe final: un WHITEPAPER.pdf que es un enlace simbólico no se sigue", impresa(3) == (None, None))
+        finally:
+            carta.paginas, carta.tamano, carta.enlaces = viejo
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     errores = 0

@@ -8,6 +8,10 @@ Junta lo que dejó cada etapa: procedencia (ingesta), informe.json (procesamient
 corridas anteriores al 6-nov-2026 salen aparte, como historial), grafico_verificacion.json (visualización),
 gobernanza.json y custodio.json (gobernanza), la revisión de seguridad y las baterías, y la bitácora del copiloto
 (bitacora/*.json).
+La versión impresa del whitepaper (WHITEPAPER.pdf) se enlaza solo si es del texto validado de hoy, y su tamaño y sus
+hojas se miden aquí: «en tres hojas carta» solo si tiene tres, en carta y sin enlaces. Si tiene más (el texto no cupo
+y whitepaper_corrida.py pidió acortarlo), no es carta o trae enlaces, no se enlaza, se dice y el análisis no queda
+aprobado (L113).
 El HTML se arma escapando todo el texto: un nombre que traiga <script> se muestra, no se ejecuta.
 """
 import hashlib
@@ -20,6 +24,7 @@ from pathlib import Path
 
 AQUI = Path(__file__).resolve().parent
 sys.path.insert(0, str(AQUI))
+import carta  # noqa: E402
 from verificar import fmt, tabla_md, a_num, revisar_limpiezas  # noqa: E402
 from rutas import estado_ingesta, procedencias  # noqa: E402
 
@@ -67,6 +72,30 @@ def estado_analisis(c, hip):
     return None, None, None
 
 
+def version_impresa(c, wpv):
+    """(línea del informe o None, problema o None) de WHITEPAPER.pdf, medido aquí y no creído (regla de las tres hojas
+    carta, L113). Solo cuenta el PDF del texto validado: su HTML lleva en el pie la huella de la validación. Un PDF de
+    otro texto, o un enlace simbólico, no se enlaza ni se mide."""
+    pdf, hoja = c / "WHITEPAPER.pdf", c / "WHITEPAPER.html"
+    huella = wpv.get("sha256") if isinstance(wpv, dict) else None
+    if (not isinstance(huella, str) or not huella or pdf.is_symlink() or hoja.is_symlink() or not pdf.is_file()
+            or not hoja.is_file() or huella not in hoja.read_text(encoding="utf-8", errors="replace")):
+        return None, None
+    n, tam, enl = carta.paginas(pdf), carta.tamano(pdf), carta.enlaces(pdf)
+    medida = f"{tam[0]} × {tam[1]} pt" if tam else "sin medida"
+    problemas = ([f"tiene {n} hojas (el whitepaper validado no cabe en tres hojas carta y hay que acortarlo)"]
+                 if n > carta.HOJAS else ["no deja contar sus hojas"] if n < 1 else []) \
+        + ([] if tam == carta.CARTA_PT else [f"no es tamaño carta ({medida})"]) \
+        + (["trae enlaces (filtrarían la ruta de quien lo imprimió, L84)"] if enl else [])
+    if problemas:
+        problema = "WHITEPAPER.pdf " + "; ".join(problemas)
+        return f"- ⚠️ La versión impresa no se enlaza: {problema}.", problema
+    hojas = {1: "una hoja carta (el texto no alcanza para tres)", 2: "dos hojas carta (el texto no alcanza para tres)",
+             3: "tres hojas carta"}.get(n, f"{n} hojas carta")
+    return (f"- En {hojas}, para imprimir: [WHITEPAPER.pdf](WHITEPAPER.pdf) "
+            "(maquetado sin IA por `whitepaper_corrida.py` desde el texto validado)"), None
+
+
 def seccion_ingesta(t, proc):
     """Lo que dejó la ingesta de UNA tabla: fuente, consulta exacta, versión, huella completa y sus pruebas."""
     if not proc:
@@ -110,6 +139,8 @@ def armar(c):
     procs = procedencias(c, spec)        # una por tabla: con dos tablas, la de la última ya no reemplaza a la otra
     hip = leer(c / "hipotesis_resultado.json")
     est_analisis, wpv, vigente = estado_analisis(c, hip)
+    # la versión impresa se mide aquí: un PDF de 4 hojas no se enlaza como «tres hojas carta» ni deja el análisis en ✅
+    impresa, problema_impresa = version_impresa(c, wpv) if est_analisis is True else (None, None)
     graf = leer(c / "grafico_verificacion.json")
     gob = leer(c / "gobernanza.json")
     cust = leer(c / "custodio.json")
@@ -124,7 +155,7 @@ def armar(c):
     estado = {
         "Ingesta": estado_ingesta(procs),    # ✅ solo si TODAS las tablas tienen su procedencia aprobada
         "Procesamiento": (inf.get("estado") == "aprobado" and not motivos_limpieza) if inf or motivos_limpieza else None,
-        "Análisis": est_analisis,
+        "Análisis": False if problema_impresa else est_analisis,
         "Visualización": None if not graf else graf.get("estado") == "aprobado",
         "Gobernanza": None if not gob else gob.get("estado") == "aprobado",
     }
@@ -187,12 +218,10 @@ def armar(c):
                       "⚠️ el whitepaper cambió después de validarse" if wpv.get("estado") == "aprobado" and not vigente else "⚠️ sin aprobar")
         L.append(f"- Whitepaper: [whitepaper.md](whitepaper.md) · validación sin IA (`validar_whitepaper.py`): {validacion}"
                  + (f" · {sum(1 for x in cifras if x.get('respaldada'))} de {len(cifras)} cifras en los artefactos verificados" if cifras else ""))
-        # la versión impresa se enlaza solo si es del texto validado de hoy: la huella completa va en el pie del HTML
-        hoja = c / "WHITEPAPER.html"
-        if (est_analisis is True and (c / "WHITEPAPER.pdf").is_file() and hoja.is_file()
-                and wpv.get("sha256", "-") in hoja.read_text(encoding="utf-8")):
-            L.append("- En tres hojas carta, para imprimir: [WHITEPAPER.pdf](WHITEPAPER.pdf) "
-                     "(maquetado sin IA por `whitepaper_corrida.py` desde el texto validado)")
+        # la versión impresa se enlaza solo si es del texto validado de hoy (la huella completa va en el pie del HTML) y
+        # si de verdad tiene tres hojas carta sin enlaces: se mide aquí (version_impresa, L113)
+        if impresa:
+            L.append(impresa)
         L += ["", "| Comprobación | Resultado | Detalle |", "|---|---|---|"]
         L += [f"| {x.get('chequeo')} | {icono(x.get('ok'))} | {str(x.get('detalle')).replace('|', chr(92) + '|')} |"
               for x in wpv.get("chequeos", [])]
