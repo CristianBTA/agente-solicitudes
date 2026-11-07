@@ -44,7 +44,7 @@ cmp /tmp/datos-prueba/ventas.csv ejemplo/datos/ventas.csv && echo "datos idénti
 .venv/bin/python herramientas/sgsi.py --autoprueba
 .venv/bin/python herramientas/sgsi.py --efectividad
 
-# 5d. Probar al probador de la presentación: 4 presentaciones buenas aprueban y 75 mutantes (número a mano, marcadores pegados, NaN, título de tema, recomendación escondida, campos de la forma anterior…) fallan
+# 5d. Probar al probador de la presentación: 5 presentaciones buenas aprueban y 78 mutantes (número a mano, marcadores pegados, NaN, un «donde» mal escrito, título de tema, recomendación escondida, campos de la forma anterior…) fallan
 .venv/bin/python herramientas/verificar_presentacion.py --autoprueba
 
 # 5e. Probar al probador del whitepaper (61 casos: conclusiones, cifras sin respaldo, texto oculto…) y su versión en tres hojas carta (26 casos, sin Chrome)
@@ -199,10 +199,11 @@ Desde el 6-nov-2026 la IA no propone ni prueba hipótesis ni da el análisis. El
 - La IA no escribe números: pone marcadores (`{total}`) y declara el cálculo de cada uno; el código calcula la cifra desde el resultado aprobado y la escribe. Un dígito, una magnitud con palabras o un «%» fuera de un marcador hacen fallar la presentación. En el lanzamiento de GPT-5 (agosto de 2025), una barra de 52,8 % se dibujó más alta que una de 69,1 %: lo que no calcula el código, no se presenta.
 - Método, incertidumbre y límites explícitos, con cada pregunta abierta nombrada (como METR). En lugar de una recomendación, de 3 a 6 preguntas para las personas, de costo, calidad e impacto (como el whitepaper), que ellas responden en `plantillas/analisis_humano.md`.
 - La IA escribe solo `presentacion.json`; las láminas, las tablas, la fuente y la fecha las pone el verificador, y solo si todo aprueba.
+- Un «donde» que no señala ninguna fila hace fallar la cifra: un nombre mal escrito daba una suma y un conteo de 0 que aprobaban, y un número se comparaba por su texto (2025 no era 2025.0) (L111).
 - Una cifra que no es un número finito no se publica. Se comprueba en tres capas, cada una con su ataque: cada dato que entra al cálculo (un «NaN» en texto que `max()` se tragaría), el resultado del cálculo (dos valores finitos cuya diferencia desborda) y la lectura de `informe.json`, que rechaza `NaN` e `Infinity` (B31, L92).
 - Las frases de análisis se buscan en todos los textos con la lista D15 de `validar_whitepaper.py` (importada, no copiada), la misma del whitepaper, del gráfico y de las fichas, que ya trae la de la forma anterior («lo que se pide decidir», «próximo paso», «por eso»). Las magnitudes con palabras que el whitepaper no deja pasar («la mayoría», «casi todos») tampoco pasan. Un campo de la forma anterior (`recomendacion`, `decision`, `scqa`, `hallazgos`) hace fallar la presentación.
 - Lo que el código no puede ver: que la frase use bien una cifra correcta (por ejemplo, llamar «Medellín» a las entidades con sede en Medellín) y las frases de análisis que la lista no conoce. Eso lo revisa una persona o un juez ciego con la última lámina, que lista los títulos y las preguntas para las personas.
-*Dónde:* `agentes/12-presentador.md` y `herramientas/verificar_presentacion.py` (`--autoprueba`: primero 4 presentaciones buenas aprueban y luego 75 mutantes fallan donde deben).
+*Dónde:* `agentes/12-presentador.md` y `herramientas/verificar_presentacion.py` (`--autoprueba`: primero 5 presentaciones buenas aprueban y luego 78 mutantes fallan donde deben).
 
 ## F · Gobernanza
 

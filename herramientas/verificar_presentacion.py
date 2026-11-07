@@ -30,7 +30,9 @@ de GPT-5 y D15):
   0. presentacion.json tiene la forma de la ficha (tipos, largos, ids y ningún campo de más)
   1. el resultado que se presenta está aprobado
   2. lo preguntado y lo medido van primero: la situación, la pregunta con «¿…?» y la medición principal
-  3. cada cifra se calcula desde los datos aprobados (valores finitos; cálculos que leen datos, no constantes)
+  3. cada cifra se calcula desde los datos aprobados (valores finitos; cálculos que leen datos, no constantes); un
+     «donde» compara números como números (2025 es 2025.0) y tiene que señalar al menos una fila: un valor mal
+     escrito no se publica como una suma o un conteo de 0 (L111)
   4. de 1 a 5 mediciones, cada una con una sola evidencia válida (gráfico aprobado, tabla sin columnas personales
      ni de texto libre, cifra declarada)
   5. los números los escribe el código: marcadores conocidos y ningún dígito, número con palabras ni «%» fuera
@@ -266,6 +268,16 @@ def _num(v):
     return x
 
 
+def _igual(celda, buscado):
+    """Lo que compara «donde»: un número con un número, como números (2025 es 2025.0; por su texto no lo era), y lo
+    demás por su texto, como antes («890905211» y 890905211). Una celda vacía o booleana no coincide con nada."""
+    if celda is None or isinstance(celda, bool):
+        return False
+    if isinstance(celda, (int, float)) and isinstance(buscado, (int, float)):
+        return celda == buscado
+    return str(celda) == str(buscado)
+
+
 def _filtrar(filas, donde, columnas):
     if donde is None:
         return filas
@@ -276,7 +288,12 @@ def _filtrar(filas, donde, columnas):
             raise ErrorCalculo(f"«donde» usa la columna «{k}», que no está en el resultado")
         if not isinstance(v, (str, int, float)) or isinstance(v, bool):
             raise ErrorCalculo("«donde» compara con un texto o un número")
-    return [f for f in filas if all(str(f.get(k)) == str(v) for k, v in donde.items())]
+    sel = [f for f in filas if all(_igual(f.get(k), v) for k, v in donde.items())]
+    if not sel:
+        # un nombre mal escrito («DISTRITO DE MEDELLIN») no es un 0: la suma y el conteo salían en 0 y aprobaban (L111)
+        raise ErrorCalculo("«donde» no señala ninguna fila del resultado aprobado: escriba el valor como está en los "
+                           "datos (una suma o un conteo con «donde» no se publica en 0)")
+    return sel
 
 
 def _entero(v, nombre):
@@ -937,6 +954,10 @@ def autoprueba():
          mut(lambda p: p["metodo_y_limites"].update(metodo="Se calculó dos veces, con dos implementaciones, sobre el conjunto abcd-12ef.",
                                                      limites=p["metodo_y_limites"]["limites"] + ["Hay riesgo de doble conteo en las ventas de más de 100.000 pesos."])),
          resultado, "aprobado", (), None),
+        ("base con un «donde» numérico sobre una columna decimal (420000000 es 420000000.0; por su texto no lo era)",
+         mut(lambda p: (p["cifras"].append({"id": "pedidos_420", "calculo": {"op": "valor", "columna": "pedidos", "donde": {"ventas": 420000000}}}),
+                        p["mediciones"][1].update(nota="La región que más vende registró {pedidos_420} pedidos."))),
+         resultado, "aprobado", (), None),
         # los números los escribe el código
         ("dígito escrito a mano", mut(nota("Es 3 veces lo del año pasado.")), resultado, "aprobado", (), NUMEROS),
         ("marcadores pegados", mut(nota("Entre todas suman {n_regiones}{norte}.")), resultado, "aprobado", (), NUMEROS),
@@ -970,6 +991,20 @@ def autoprueba():
          mut(lambda p: (p["cifras"].append({"id": "h1", "calculo": {"op": "hipotesis", "id": "H1", "campo": "valor"}}),
                         p["mediciones"][1].update(nota="La hipótesis da {h1}."))), resultado, "aprobado", (), "cada cifra se calcula"),
         ("NaN en los datos", base, datos_nan, "aprobado", (), "cada cifra se calcula"),
+        # «donde» que no señala ninguna fila: una errata no se publica como 0 (L111)
+        ("suma con un «donde» mal escrito (daba 0)",
+         mut(lambda p: (p["cifras"].append({"id": "norte_mal", "calculo": {"op": "suma", "columna": "ventas", "donde": {"region": "Nortee"}},
+                                            "formato": {"escala": "millones", "decimales": 0}}),
+                        p["mediciones"][1].update(nota="La región del norte vendió {norte_mal} de pesos."))),
+         resultado, "aprobado", (), "cada cifra se calcula"),
+        ("conteo con un «donde» mal escrito (daba 0)",
+         mut(lambda p: (p["cifras"].append({"id": "filas_norte", "calculo": {"op": "conteo", "donde": {"region": "NORTE"}}}),
+                        p["mediciones"][1].update(nota="La región del norte aparece en {filas_norte} filas del resultado."))),
+         resultado, "aprobado", (), "cada cifra se calcula"),
+        ("«donde» que compara un número con el texto de una celda decimal (420000000.0 no es «420000000»)",
+         mut(lambda p: (p["cifras"].append({"id": "pedidos_mal", "calculo": {"op": "suma", "columna": "pedidos", "donde": {"ventas": "420000000"}}}),
+                        p["mediciones"][1].update(nota="La región que más vende registró {pedidos_mal} pedidos."))),
+         resultado, "aprobado", (), "cada cifra se calcula"),
         # forma
         ("cifra con texto escrito a mano", mut(lambda p: p["cifras"][0].update(texto="48 %")), resultado, "aprobado", (), "forma de la ficha"),
         ("nota que no es texto", mut(lambda p: p["mediciones"][0].update(nota=["9.999 millones"])), resultado, "aprobado", (), "forma de la ficha"),

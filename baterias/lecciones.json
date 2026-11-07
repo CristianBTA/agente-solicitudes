@@ -660,6 +660,12 @@
       "leccion": "Un umbral se compara con lo que se contó, no con lo que se muestra. La limpieza redondeaba la completitud y la validez a 6 decimales para el informe y comparaba ese número redondeado con el umbral: con 3.000.000 de filas y 2.969.999 llenas (98,99997 %), la completitud salía 0,99 y pasaba un umbral de 0,99 que pide 2.970.000, y la holgura que se informaba estaba corrida. Con 49.662 filas no se notaba, pero el error crece con el dato, justo donde los umbrales absolutos importan. Ahora se comparan los conteos enteros con el umbral tal como se escribió (0,99 es 99/100, no el float más cercano), la holgura sale de esos mismos conteos y la proporción se trunca solo para mostrarla, así que un umbral que no se cumple nunca se ve como 99,0000 %. Las pruebas de la corrida completa salen idénticas.",
       "origen": "verificación de la limpieza de la versión final, 7-nov-2026: metricas con 3.000.000 de filas y 2.969.999 llenas daba completitud 0,99 y pasaba ≥ 0,99 con holgura 0",
       "prueba": "herramientas/limpieza.py --autoprueba «2 de 3 llenas no cumple 0,6666667» «2 de 3 fechas válidas no cumple 0,6666667» «2.969.999 llenas no cumplen 0,99»"
+    },
+    {
+      "id": "L111",
+      "leccion": "Un filtro que no señala ninguna fila no es un cero. En la presentación, un «donde» con el nombre mal escrito (DISTRITO DE MEDELLIN en lugar del nombre completo de la entidad) dejaba la suma y el conteo en 0, y la presentación aprobaba con «0,0 billones» y «0 registros»; el máximo, el mínimo y el valor sí fallaban. Además, el filtro comparaba por el texto: 2025 no era igual a 2025.0, así que un número escrito sin decimales no encontraba su fila. Ahora un «donde» sin filas hace fallar la cifra, cualquiera que sea la operación, y un número se compara con un número como número; un número con un texto se sigue comparando por el texto, y una celda vacía o booleana no coincide con nada. Un conteo que de verdad es 0 no se publica con «donde».",
+      "origen": "verificación de las salidas de la versión final, 7-nov-2026: en una copia de la corrida completa, alcaldia = {op: suma, donde: {entidad: DISTRITO DE MEDELLIN}} y su conteo salían en 0 y verificar_presentacion.py daba «aprobado»",
+      "prueba": "herramientas/verificar_presentacion.py --autoprueba «mal escrito (daba 0)» «que compara un número con el texto de una celda decimal» «numérico sobre una columna decimal»"
     }
   ]
 }
