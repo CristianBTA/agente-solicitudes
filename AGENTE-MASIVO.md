@@ -11,6 +11,8 @@ git clone https://github.com/CristianBTA/agente-solicitudes && cd agente-solicit
 python3.13 -m venv .venv && .venv/bin/pip install --require-hashes -r requirements.txt
 ```
 
+En macOS, usa el Python 3.13 de Homebrew o, si es el del instalador de python.org, corre antes una vez «Install Certificates.command» (en la carpeta de Python 3.13, dentro de Aplicaciones): ese Python no trae los certificados raíz, y la ingesta, el agente masivo y la vigilancia de dependencias se detienen con «certificado no verificado» en vez de consultar datos.gov.co.
+
 **La primera vez cuenta las filas de todo el catálogo**, y eso tarda horas: unos 8.470 conjuntos, de 1 a 4 segundos cada uno. Queda en `fuentes/catalogo/.cache.json`; las veces siguientes usa esa caché, y `--actualizar` retoma el conteo. Nada de eso entra a Git.
 
 ## Fuentes autorizadas: el agente no se conecta a nada que no declares

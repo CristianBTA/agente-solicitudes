@@ -744,6 +744,12 @@
       "leccion": "--id",
       "origen": "verificación de un clon ajeno de la versión final, 7-nov-2026: flujo.js:22 decía const RAIZ = A.raiz || <la ruta del clon del dueño>, y los subagentes recibían esa carpeta como herramientas y python si el participante omitía raiz",
       "prueba": "herramientas/rutas.py --autoprueba «def raiz_de_flujo» «control positivo: con la línea de antes, la revisión del texto la echa de menos» «sin raiz, se detiene con» · flujo.js «Falta raiz: la ruta de tu clon»"
+    },
+    {
+      "id": "L125",
+      "leccion": "--id",
+      "origen": "verificación de un clon ajeno de la versión final, 7-nov-2026: con el Python 3.15 del instalador de python.org, urllib.request.urlopen a datos.gov.co daba CERTIFICATE_VERIFY_FAILED, y con SSL_CERT_FILE vacío la ingesta tardaba 9,8 s en 3 intentos y salía con «sin respuesta (URLError)»",
+      "prueba": "herramientas/ingesta.py --autoprueba «def sin_certificado» «el motivo en el rechazo» «def comprobar_certificado_en_otras» «red caída» · README.md «Install Certificates.command»"
     }
   ]
 }

@@ -88,6 +88,7 @@ import math
 import os
 import re
 import shutil
+import ssl
 import sys
 import tempfile
 import time
@@ -132,9 +133,45 @@ class FuenteError(Exception):
     """La fuente respondió con un error o no respondió: la carga se rechaza con el motivo, sin traceback."""
 
 
+# Un certificado que este Python no puede verificar no es pasajero: repetir la consulta no lo arregla, y «sin respuesta
+# (URLError)» hacía creer que datos.gov.co estaba caído. El Python del instalador de python.org en macOS no trae los
+# certificados raíz hasta correr «Install Certificates.command» (L125). Lo usan también explorador_catalogo.py,
+# dictamen_bigdata.py y vulnerabilidades.py.
+CERTIFICADO = ("certificado no verificado: este Python no tiene los certificados raíz (en macOS, con el de python.org, "
+               "corre una vez «Install Certificates.command» de la carpeta de Python en Aplicaciones, o usa el Python 3.13 "
+               "de Homebrew); repetir la consulta no lo arregla (SSLCertVerificationError)")
+
+
+class CertificadoNoVerificado(urllib.error.URLError):
+    """La consulta no se pudo hacer porque este Python no verifica el certificado del servidor (CERTIFICADO)."""
+
+    def __init__(self):
+        super().__init__(CERTIFICADO)
+
+    def __str__(self):
+        return CERTIFICADO
+
+
+def certificado_no_verificado(e):
+    """True si el error de red es un certificado que este Python no pudo verificar (urllib lo envuelve en URLError)."""
+    return isinstance(e, ssl.SSLCertVerificationError) or isinstance(getattr(e, "reason", None), ssl.SSLCertVerificationError)
+
+
+def motivo_red(e):
+    """El motivo de un error de red en una línea, corto y sin caracteres de control: «URLError: gaierror [Errno 8] …»."""
+    r = getattr(e, "reason", None)
+    if r is not None and r is not e:
+        detalle = str(r) if isinstance(r, str) else f"{type(r).__name__} {r}"
+    else:
+        detalle = str(e)
+    detalle = re.sub(r"[\x00-\x1f\x7f]+", " ", detalle).strip()[:160]
+    return f"{type(e).__name__}: {detalle}" if detalle else type(e).__name__
+
+
 def pedir(url, intentos=3):
-    """Un error de la consulta (HTTP 4xx) no se arregla repitiéndola: se rechaza a la primera. Se reintenta lo que
-    puede ser pasajero: 429, 5xx, red caída o tiempo agotado."""
+    """Un error de la consulta (HTTP 4xx) no se arregla repitiéndola: se rechaza a la primera. Tampoco un certificado
+    que este Python no verifica: se rechaza a la primera y dice qué hacer (CERTIFICADO, L125). Se reintenta lo que puede
+    ser pasajero: 429, 5xx, red caída o tiempo agotado, y el rechazo dice su motivo."""
     for i in range(intentos):
         try:
             with urllib.request.urlopen(urllib.request.Request(url, headers=AGENTE), timeout=300) as r:
@@ -148,8 +185,10 @@ def pedir(url, intentos=3):
             if (e.code != 429 and 400 <= e.code < 500) or i == intentos - 1:
                 raise FuenteError(f"HTTP {e.code} {msg[:200]}".strip()) from None
         except (urllib.error.URLError, TimeoutError, OSError) as e:
+            if certificado_no_verificado(e):
+                raise FuenteError(CERTIFICADO) from None
             if i == intentos - 1:
-                raise FuenteError(f"sin respuesta ({type(e).__name__})") from None
+                raise FuenteError(f"sin respuesta ({motivo_red(e)})") from None
         time.sleep(3 * (i + 1))
 
 
@@ -1155,6 +1194,52 @@ def comprobar_procedencia(mod):
     return fallas
 
 
+def sin_certificado(llamadas):
+    """Un urlopen falso que falla como el Python de python.org sin «Install Certificates.command» y cuenta los pedidos."""
+    def _abrir(req, timeout=None):
+        llamadas.append("ssl")
+        raise urllib.error.URLError(ssl.SSLCertVerificationError(
+            1, "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate"))
+    return _abrir
+
+
+def comprobar_certificado_en_otras():
+    """Las otras herramientas con red ante un certificado que este Python no verifica (L125): explorador_catalogo.pedir
+    (que reintentaba 5 veces) y dictamen_bigdata.pedir lo dicen a la primera; dictamen_bigdata y vulnerabilidades salen
+    con 2 y el motivo, sin traceback y sin red. Devuelve las fallas."""
+    import dictamen_bigdata
+    import explorador_catalogo
+    import vulnerabilidades
+    llamadas, fallas = [], []
+    fijadas = Path(tempfile.mkdtemp(prefix="ingesta-certificado-")) / "requirements.txt"   # no la de la raíz: B33 corre
+    fijadas.write_text("pandas==2.2.3\n", encoding="utf-8")                              # esta autoprueba en una copia sin ella
+    viejos = (urllib.request.urlopen, time.sleep)
+    urllib.request.urlopen, time.sleep = sin_certificado(llamadas), (lambda s: None)
+    try:
+        for nombre, llamar in (("explorador_catalogo.pedir", explorador_catalogo.pedir), ("dictamen_bigdata.pedir", dictamen_bigdata.pedir)):
+            llamadas.clear()
+            try:
+                llamar("https://datos.ficticio.invalid/resource/x.json")
+                fallas.append(f"{nombre}: no lanzó")
+            except Exception as e:  # noqa: BLE001
+                if len(llamadas) != 1 or CERTIFICADO not in str(e):
+                    fallas.append(f"{nombre}: {len(llamadas)} pedidos · {type(e).__name__}: {str(e)[:80]}")
+        for nombre, modulo, argv in (("dictamen_bigdata", dictamen_bigdata, ["socrata", "datos.ficticio.invalid", "abcd-1234"]),
+                                     ("vulnerabilidades", vulnerabilidades, [str(fijadas)])):
+            llamadas.clear()
+            with contextlib.redirect_stdout(io.StringIO()) as out:
+                try:
+                    rc = modulo.main(argv)
+                except BaseException as e:  # noqa: BLE001 (un traceback aquí es la falla que se busca)
+                    rc = f"{type(e).__name__}: {str(e)[:80]}"
+            if rc != 2 or "Install Certificates.command" not in out.getvalue() or len(llamadas) != 1:
+                fallas.append(f"{nombre}: salió con {rc} tras {len(llamadas)} pedidos · {out.getvalue().strip()[-120:]}")
+    finally:
+        urllib.request.urlopen, time.sleep = viejos
+        shutil.rmtree(fijadas.parent, ignore_errors=True)
+    return fallas
+
+
 def comprobar_varias_tablas(mod):
     """Dos tablas en la misma --salida (el ejemplo local del README): ventas con la llave repetida, clientes correcta.
     La rechazada no deja su CSV (ni el de una carga anterior), cada tabla tiene su procedencia, la etapa no queda
@@ -1616,6 +1701,33 @@ def autoprueba(mod=None):
         finally:
             mod.urllib.request.urlopen, mod.time.sleep = viejos
         resultados.append((f"HTTP {codigo}: {esperadas} pedido(s) y un rechazo legible", ok, det))
+    # un certificado que este Python no verifica no se reintenta y el rechazo dice qué hacer; la red caída sí se reintenta
+    # y el rechazo dice su motivo (L125). Con la ingesta anterior, el certificado se pedía 3 veces y salía «sin respuesta
+    # (URLError)», sin motivo
+    def red_caida(req, timeout=None):
+        llamadas.append("red")
+        raise urllib.error.URLError(ConnectionRefusedError(61, "Connection refused"))
+
+    for nombre, abrir_, esperadas, debe in (("certificado no verificado", sin_certificado(llamadas), 1, "Install Certificates.command"),
+                                            ("red caída", red_caida, 3, "ConnectionRefusedError")):
+        llamadas.clear()
+        viejos = (mod.urllib.request.urlopen, mod.time.sleep)
+        mod.urllib.request.urlopen, mod.time.sleep = abrir_, (lambda s: None)
+        try:
+            mod.pedir("https://datos.ficticio.invalid/resource/x.json")
+            ok, det = False, "no lanzó"
+        except Exception as e:  # noqa: BLE001
+            ok = len(llamadas) == esperadas and type(e).__name__ == "FuenteError" and debe in str(e)
+            det = f"{type(e).__name__}: {str(e)[:90]} · {len(llamadas)} pedidos"
+        finally:
+            mod.urllib.request.urlopen, mod.time.sleep = viejos
+        resultados.append((f"{nombre}: {esperadas} pedido(s) y el motivo en el rechazo", ok, det))
+    try:
+        fallas_red = comprobar_certificado_en_otras()
+    except Exception as e:  # noqa: BLE001
+        fallas_red = [f"{type(e).__name__}: {str(e)[:120]}"]
+    resultados.append(("explorador_catalogo, dictamen_bigdata y vulnerabilidades nombran el certificado a la primera, sin "
+                       "traceback", not fallas_red, "; ".join(fallas_red)))
     # 5. la procedencia reproduce la carga (GOB-2) y varias tablas en la misma salida (GOB-7)
     shutil.rmtree(tmp, ignore_errors=True)
     for nombre, fn in (("procedencia: la consulta guardada reproduce la carga, con su versión y su hora con zona",

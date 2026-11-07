@@ -74,6 +74,8 @@ python3.13 -m venv .venv && .venv/bin/pip install --require-hashes -r requiremen
 .venv/bin/python herramientas/blindaje.py      # cada ataque al pipeline debe salir en RESISTE (hoy 39 pruebas, con el control B00)
 ```
 
+En macOS, usa el Python 3.13 de Homebrew o, si es el del instalador de python.org, corre antes una vez «Install Certificates.command» (en la carpeta de Python 3.13, dentro de Aplicaciones): ese Python no trae los certificados raíz, y la ingesta, el agente masivo y la vigilancia de dependencias se detienen con «certificado no verificado» en vez de consultar datos.gov.co.
+
 Las herramientas de `herramientas/` son Python sin IA y se pueden correr solas. La orquestación de agentes (`flujo.js`) se ejecuta como flujo de trabajo de Claude Code (herramienta *Workflow*) con estos argumentos; `raiz`, la ruta de tu clon, es obligatoria (sin ella el flujo se detiene antes de llamar a ningún agente):
 
 ```json
