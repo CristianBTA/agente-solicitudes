@@ -260,7 +260,7 @@ El mismo patrón del generador y el validador, aplicado al pipeline entero: un a
 
 **DB8 · Los generadores generalizan.** Sobre datos nuevos que nadie vio (otra semilla del oráculo), A y B deben dar exacto el resultado correcto (B05).
 
-**DB9 · La independencia se audita, no se supone.** Se revisan las transcripciones reales: ningún agente puede haber abierto lo que su ficha le prohíbe (`evidencia/blindaje/auditar_independencia.py`: 16 agentes, 0 accesos prohibidos).
+**DB9 · La independencia se audita, no se supone.** Se revisan las transcripciones reales: ningún agente puede haber abierto lo que su ficha le prohíbe (`evidencia/blindaje/auditar_independencia.py`: 16 agentes, 0 accesos prohibidos). Cada rol nuevo entra en la auditoría con lo que prohíbe su ficha: el documentador y el presentador desde el 6-nov-2026, con su `--autoprueba` (L88).
 
 **DB10 · Quien toca una herramienta corre el banco de blindaje.** El filtro de aportes lo corre si el aporte cambia `herramientas/`: debilitar una defensa hace fallar el aporte.
 

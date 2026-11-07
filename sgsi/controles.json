@@ -149,7 +149,9 @@
      "archivo": "evidencia/blindaje/auditar_independencia.py"
     }
    ],
-   "pruebas": []
+   "pruebas": [
+    "autoprueba:auditar_independencia"
+   ]
   },
   {
    "id": "CT07",
